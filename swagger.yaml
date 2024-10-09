@@ -1,0 +1,132 @@
+swagger: '2.0'
+info:
+  title: Application API
+  version: '1.0.0'
+  description: API for managing applications
+host: localhost:8080
+basePath: /api/v1
+schemes:
+  - http
+paths:
+  /applications:
+    post:
+      summary: Create a new application
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: application
+          required: true
+          schema:
+            $ref: '#/definitions/ApplicationCreate'
+      responses:
+        '201':
+          description: Application created successfully
+        '400':
+          description: Bad request
+    get:
+      summary: List applications
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: filter
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          description: Filter criteria for applications
+      responses:
+        '200':
+          description: Successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Application'
+  /applications/{appName}:
+    get:
+      summary: Get a specific application
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: appName
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Successful operation
+          schema:
+            $ref: '#/definitions/Application'
+        '404':
+          description: Application not found
+    put:
+      summary: Update an application
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: appName
+          required: true
+          type: string
+        - in: body
+          name: application
+          required: true
+          schema:
+            $ref: '#/definitions/ApplicationUpdate'
+      responses:
+        '200':
+          description: Application updated successfully
+        '400':
+          description: Bad request
+        '404':
+          description: Application not found
+    delete:
+      summary: Delete an application
+      parameters:
+        - in: path
+          name: appName
+          required: true
+          type: string
+      responses:
+        '204':
+          description: Application deleted successfully
+        '404':
+          description: Application not found
+
+definitions:
+  ApplicationCreate:
+    type: object
+    required:
+      - app-name
+      - repo
+    properties:
+      app-name:
+        type: string
+      repo:
+        type: string
+      wait-timeout:
+        type: string
+  ApplicationUpdate:
+    type: object
+    properties:
+      app-name:
+        type: string
+      repo:
+        type: string
+      wait-timeout:
+        type: string
+  Application:
+    type: object
+    properties:
+      app-name:
+        type: string
+      repo:
+        type: string
+      wait-timeout:
+        type: string
+      # 可以根据需要添加更多属性

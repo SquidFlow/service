@@ -1,0 +1,66 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IDE-specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Binary output
+/server
+
+# Log files
+*.log
+
+# Environment variables
+.env
+
+# Temporary files
+*.tmp
+*.temp
+
+# Helm chart packages
+*.tgz
+
+# Ignore local Kubernetes config
+kubeconfig
+
+# Ignore any local development scripts
+*.local.sh
+
+# Ignore any files in a "temp" or "tmp" directory
+temp/
+tmp/
+
+# Ignore any auto-generated API documentation
+/docs/api/
+
+# Ignore any local configuration files
+config.local.yaml
+
+# 在文件末尾添加以下行
+config.toml
+vendor/
+applications/
+cmd/server/server
