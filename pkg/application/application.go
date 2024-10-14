@@ -8,15 +8,15 @@ import (
 	"path/filepath"
 	"reflect"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
-	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
@@ -107,23 +107,6 @@ type (
 	}
 )
 
-// AddFlags adds application creation flags to cmd.
-func AddFlags(cmd *cobra.Command) *CreateOptions {
-	opts := &CreateOptions{}
-	cmd.Flags().StringVar(&opts.AppSpecifier, "app", "", "The application specifier (e.g. github.com/argoproj/argo-workflows/manifests/cluster-install/?ref=v3.0.3)")
-	cmd.Flags().StringVar(&opts.AppType, "type", "", "The application type (kustomize|dir)")
-	cmd.Flags().StringVar(&opts.DestServer, "dest-server", store.Default.DestServer, fmt.Sprintf("K8s cluster URL (e.g. %s)", store.Default.DestServer))
-	cmd.Flags().StringVar(&opts.DestNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the kustomization.yaml)")
-	cmd.Flags().StringVar(&opts.InstallationMode, "installation-mode", InstallationModeNormal, "One of: normal|flat. "+
-		"If flat, will commit the application manifests (after running kustomize build), otherwise will commit the kustomization.yaml")
-	cmd.Flags().StringToStringVar(&opts.Labels, "labels", nil, "Optional labels that will be set on the Application resource. (e.g. \"{{ placeholder }}=my-org\"")
-	cmd.Flags().StringToStringVar(&opts.Annotations, "annotations", nil, "Optional annotations that will be set on the Application resource. (e.g. \"{{ placeholder }}=my-org\"")
-	cmd.Flags().StringVar(&opts.Include, "include", "", "Optional glob for files to include")
-	cmd.Flags().StringVar(&opts.Exclude, "exclude", "", "Optional glob for files to exclude")
-
-	return opts
-}
-
 // using heuristic from https://argoproj.github.io/argo-cd/user-guide/tool_detection/#tool-detection
 func InferAppType(repofs fs.FS) string {
 	if repofs.ExistsOrDie("app.yaml") && repofs.ExistsOrDie("components/params.libsonnet") {
@@ -165,10 +148,10 @@ func DeleteFromProject(repofs fs.FS, appName, projectName string) error {
 	var dirToRemove string
 	if len(allProjects) == 1 {
 		dirToRemove = appDir
-		log.G().Infof("Deleting app '%s'", appName)
+		log.Infof("Deleting app '%s'", appName)
 	} else {
 		dirToRemove = repofs.Join(dirToCheck, projectName)
-		log.G().Infof("Deleting app '%s' from project '%s'", appName, projectName)
+		log.Infof("Deleting app '%s' from project '%s'", appName, projectName)
 	}
 
 	err = billyUtils.RemoveAll(repofs, dirToRemove)
@@ -248,7 +231,7 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 
 	// if app specifier is a local file
 	if _, err := os.Stat(o.AppSpecifier); err == nil {
-		log.G().Warn("using flat installation mode because base is a local file")
+		log.Warn("using flat installation mode because base is a local file")
 		o.InstallationMode = InstallationModeFlat
 		o.AppSpecifier, err = filepath.Abs(o.AppSpecifier)
 		if err != nil {
@@ -265,7 +248,7 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 	}
 
 	if o.InstallationMode == InstallationModeFlat {
-		log.G().Info("building manifests...")
+		log.Info("building manifests...")
 		app.manifests, err = generateManifests(app.base)
 		if err != nil {
 			return nil, err
@@ -319,7 +302,7 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 	// check if app is in the same filesystem
 	if appsfs.ExistsOrDie(appPath) {
 		// check if the bases are the same
-		log.G().Debug("application with the same name exists, checking for collisions")
+		log.Debug("application with the same name exists, checking for collisions")
 		if collision, err := checkBaseCollision(appsfs, baseKustomizationPath, app.base); err != nil {
 			return err
 		} else if collision {
@@ -467,11 +450,14 @@ func writeFile(repofs fs.FS, path, name string, data []byte) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to create '%s' file at '%s': %w", name, absPath, err)
 	} else if exists {
-		log.G().Infof("'%s' file exists in '%s'", name, absPath)
+		log.WithFields(log.Fields{
+			"name": name,
+			"path": absPath,
+		}).Infof("'%s' file exists in '%s'", name, absPath)
 		return true, nil
 	}
 
-	log.G().Infof("created '%s' file at '%s'", name, absPath)
+	log.Infof("created '%s' file at '%s'", name, absPath)
 	return false, nil
 }
 
@@ -499,7 +485,7 @@ func fixResourcesPaths(k *kusttypes.Kustomization, newKustDir string) error {
 		}
 
 		k.Resources[i], err = filepath.Rel(newKustDir, absRes)
-		log.G().WithFields(log.Fields{
+		log.WithFields(log.Fields{
 			"from": absRes,
 			"to":   k.Resources[i],
 		}).Debug("adjusting kustomization paths to local filesystem")
@@ -537,13 +523,12 @@ var generateManifests = func(k *kusttypes.Kustomization) ([]byte, error) {
 		return nil, fmt.Errorf("failed writing file to \"%s\": %w", kustomizationPath, err)
 	}
 
-	log.G().WithFields(log.Fields{
+	log.WithFields(log.Fields{
 		"bootstrapKustPath": kustomizationPath,
 		"resourcePath":      k.Resources[0],
 	}).Debugf("running bootstrap kustomization: %s\n", string(kyaml))
 
 	opts := krusty.MakeDefaultOptions()
-	opts.DoLegacyResourceSort = true
 	kust := krusty.MakeKustomizer(opts)
 	fs := filesys.MakeFsOnDisk()
 	res, err := kust.Run(fs, td)

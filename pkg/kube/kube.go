@@ -6,11 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/util"
-
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -21,6 +17,8 @@ import (
 	"k8s.io/kubectl/pkg/cmd/apply"
 	del "k8s.io/kubectl/pkg/cmd/delete"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
+	"github.com/h4-poc/service/pkg/util"
 )
 
 //go:generate mockgen -destination=./mocks/kube.go -package=mocks -source=./kube.go Factory
@@ -103,7 +101,7 @@ type (
 	}
 )
 
-func AddFlags(flags *pflag.FlagSet) Factory {
+func NewFactory() Factory {
 	timeout := "0"
 	kubeConfig := ""
 	namespace := ""
@@ -114,7 +112,6 @@ func AddFlags(flags *pflag.FlagSet) Factory {
 		Namespace:  &namespace,
 		Context:    &context,
 	}
-	confFlags.AddFlags(flags)
 	mvFlags := cmdutil.NewMatchVersionFlags(confFlags)
 
 	return &factory{f: cmdutil.NewFactory(mvFlags)}
@@ -273,29 +270,34 @@ func (f *factory) Wait(ctx context.Context, opts *WaitOptions) error {
 		allReady := true
 
 		for r := range resources {
-			lgr := log.G().WithFields(log.Fields{
-				"itr":       itr,
-				"name":      r.Name,
-				"namespace": r.Namespace,
-			})
-
-			lgr.Debug("checking resource readiness")
 			ready, err := r.WaitFunc(ctx, f, r.Namespace, r.Name)
 			if err != nil {
-				lgr.WithError(err).Debug("resource not ready")
 				continue
 			}
-
 			if !ready {
 				allReady = false
-				lgr.Debug("resource not ready")
 				continue
 			}
-
-			lgr.Debug("resource ready")
 			delete(resources, r)
 		}
 
 		return allReady, nil
 	})
 }
+
+//func AddFlags(flags *pflag.FlagSet) Factory {
+//	timeout := "0"
+//	kubeConfig := ""
+//	namespace := ""
+//	context := ""
+//	confFlags := &genericclioptions.ConfigFlags{
+//		Timeout:    &timeout,
+//		KubeConfig: &kubeConfig,
+//		Namespace:  &namespace,
+//		Context:    &context,
+//	}
+//	confFlags.AddFlags(flags)
+//	mvFlags := cmdutil.NewMatchVersionFlags(confFlags)
+//
+//	return &factory{f: cmdutil.NewFactory(mvFlags)}
+//}

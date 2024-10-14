@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git/gogit"
-	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 
@@ -115,7 +116,7 @@ var (
 
 			providerType = strings.TrimSuffix(u.Hostname(), ".com")
 
-			log.G().Warnf("--provider not specified, assuming provider from url: %s", providerType)
+			log.Warnf("--provider not specified, assuming provider from url: %s", providerType)
 		}
 
 		return newProvider(&ProviderOptions{
@@ -218,7 +219,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 				return nil, nil, err
 			}
 
-			log.G(ctx).Infof("repository '%s' was not found, trying to create it...", o.Repo)
+			log.Infof("repository '%s' was not found, trying to create it...", o.Repo)
 			defaultBranch, err = createRepo(ctx, o)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to create repository: %w", err)
@@ -226,7 +227,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 
 			fallthrough // a new repo will always start as empty - we need to init it locally
 		case transport.ErrEmptyRemoteRepository:
-			log.G(ctx).Info("empty repository, initializing a new one with specified remote")
+			log.Info("empty repository, initializing a new one with specified remote")
 			r, err = initRepo(ctx, o, defaultBranch)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to initialize repository: %w", err)
@@ -303,7 +304,7 @@ func (r *repo) Persist(ctx context.Context, opts *PushOptions) (string, error) {
 			break
 		}
 
-		log.G(ctx).WithFields(log.Fields{
+		log.WithFields(log.Fields{
 			"retry": try,
 			"err":   err.Error(),
 		}).Warn("Failed to push to repository, trying again in 3 seconds...")
@@ -433,7 +434,7 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 		CABundle: cert,
 	}
 
-	log.G(ctx).WithField("url", opts.url).Debug("cloning git repo")
+	log.WithField("url", opts.url).Debug("cloning git repo")
 
 	if opts.CreateIfNotExist {
 		curPushRetries = 1 // no retries
@@ -449,7 +450,7 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 			break
 		}
 
-		log.G(ctx).WithFields(log.Fields{
+		log.WithFields(log.Fields{
 			"retry": try,
 			"err":   err.Error(),
 		}).Debug("Failed to clone repository, trying again in 3 seconds...")
@@ -471,7 +472,7 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 
 	if opts.revision != "" {
 		if opts.CloneForWrite {
-			log.G(ctx).WithFields(log.Fields{
+			log.WithFields(log.Fields{
 				"branch": opts.revision,
 				"upsert": opts.UpsertBranch,
 			}).Debug("Trying to checkout branch")
@@ -480,7 +481,7 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 				return nil, err
 			}
 		} else {
-			log.G(ctx).WithField("ref", opts.revision).Debug("Trying to checkout ref")
+			log.WithField("ref", opts.revision).Debug("Trying to checkout ref")
 
 			if err := checkoutRef(repo, opts.revision); err != nil {
 				return nil, err
@@ -642,7 +643,7 @@ func (r *repo) checkoutRef(ref string) error {
 			return err
 		}
 
-		log.G().WithField("ref", ref).Debug("failed resolving ref, trying to resolve from remote branch")
+		log.WithField("ref", ref).Debug("failed resolving ref, trying to resolve from remote branch")
 		remotes, err := r.Remotes()
 		if err != nil {
 			return err
@@ -664,7 +665,7 @@ func (r *repo) checkoutRef(ref string) error {
 		return err
 	}
 
-	log.G().WithFields(log.Fields{
+	log.WithFields(log.Fields{
 		"ref":  ref,
 		"hash": hash.String(),
 	}).Debug("checking out commit")
@@ -698,7 +699,7 @@ func (r *repo) initBranch(ctx context.Context, branchName string) error {
 		create = true
 	}
 
-	log.G(ctx).WithField("branch", b).Debug("checking out branch")
+	log.WithField("branch", b).Debug("checking out branch")
 
 	w, err := worktree(r)
 	if err != nil {

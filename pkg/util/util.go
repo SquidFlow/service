@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 
 	"github.com/briandowns/spinner"
@@ -37,13 +36,11 @@ func ContextWithCancelOnSignals(ctx context.Context, sigs ...os.Signal) context.
 	go func() {
 		cancels := 0
 		for {
-			s := <-sig
+			<-sig
 			cancels++
 			if cancels == 1 {
-				log.G(ctx).Printf("got signal: %s", s)
 				cancel()
 			} else {
-				log.G(ctx).Printf("forcing exit")
 				os.Exit(1)
 			}
 		}
@@ -86,7 +83,6 @@ func Die(err error, cause ...string) {
 // given context is canceled or the returned stop function is called.
 func WithSpinner(ctx context.Context, msg ...string) func() {
 	if os.Getenv("NO_COLOR") != "" { // https://no-color.org/
-		log.G(ctx).Info(msg)
 		return func() {}
 	}
 

@@ -59,8 +59,5 @@ tmp/
 # Ignore any local configuration files
 config.local.yaml
 
-# 在文件末尾添加以下行
-config.toml
 vendor/
-applications/
-cmd/server/server
+output/

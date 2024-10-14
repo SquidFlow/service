@@ -9,7 +9,7 @@ import (
 var s Store
 
 var (
-	binaryName                       = "argocd-autopilot"
+	binaryName                       = "bootstrap"
 	version                          = "v99.99.99"
 	buildDate                        = ""
 	gitCommit                        = ""
@@ -61,22 +61,22 @@ var Default = struct {
 	ArgoCDName:           "argo-cd",
 	ArgoCDNamespace:      "argocd",
 	BaseDir:              "base",
-	BootsrtrapAppName:    "autopilot-bootstrap",
+	BootsrtrapAppName:    "h4-bootstrap",
 	BootsrtrapDir:        "bootstrap",
 	ClusterContextName:   "in-cluster",
 	ClusterResourcesDir:  "cluster-resources",
 	DestServer:           "https://kubernetes.default.svc",
-	DestServerAnnotation: "argocd-autopilot.argoproj-labs.io/default-dest-server",
+	DestServerAnnotation: "bootstrap.h4.io/default-dest-server",
 	DummyName:            "DUMMY",
 	GitHubUsername:       "username",
 	LabelKeyAppName:      "app.kubernetes.io/name",
 	LabelKeyAppManagedBy: "app.kubernetes.io/managed-by",
 	LabelKeyAppPartOf:    "app.kubernetes.io/part-of",
-	LabelValueManagedBy:  "argocd-autopilot",
+	LabelValueManagedBy:  "bootstrap-h4",
 	OverlaysDir:          "overlays",
 	ProjectsDir:          "projects",
 	RootAppName:          "root",
-	RepoCredsSecretName:  "autopilot-secret",
+	RepoCredsSecretName:  "h4-secret",
 	ArgoCDApplicationSet: "argocd-applicationset",
 	WaitInterval:         time.Second * 3,
 }
