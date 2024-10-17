@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-git/go-billy/v5/memfs"
-
-	"github.com/spf13/viper"
-
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"

@@ -2,13 +2,13 @@ package server
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 
-	"github.com/h4-poc/service/cmd/service/repo"
 	"github.com/h4-poc/service/pkg/config"
 	"github.com/h4-poc/service/pkg/handler"
 )
@@ -48,12 +48,6 @@ func runServer(cmd *cobra.Command, args []string) {
 	_, err = config.ParseConfig(configFile)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	// check local repo
-	err = repo.GetOrCreateLocalAppRepo()
-	if err != nil {
-		log.Fatalf("Failed to get or create local app repo: %v", err)
 	}
 
 	r := gin.Default()

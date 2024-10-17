@@ -5,22 +5,24 @@ GOFLAGS=-v
 MAIN_FILE=cmd/server/*.go
 
 VERSION := $(shell git describe --tags --always --dirty)
-BUILD_TIME := $(shell date -u '+%H:%M:%S@%Y-%m-%d')
+BUILD_DATE := $(shell date -u '+%H:%M:%S@%Y-%m-%d')
 GIT_COMMIT := $(shell git rev-parse HEAD)
-LDFLAGS=-ldflags "-X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.GitCommit=${GIT_COMMIT}"
+LDFLAGS=-ldflags "-X 'github.com/h4-poc/service/pkg/store.version=${VERSION}' \
+                  -X 'github.com/h4-poc/service/pkg/store.buildDate=${BUILD_DATE}' \
+                  -X 'github.com/h4-poc/service/pkg/store.gitCommit=${GIT_COMMIT}'"
 
 # Default target
 .DEFAULT_GOAL := build
 
 # Build application
 .PHONY: build
-build: build-service build-bootstrap
+build: build-service build-supervisor
 
 build-service:
 	$(GO) build $(GOFLAGS) -o output/service $(LDFLAGS) cmd/service/service.go
 
-build-bootstrap:
-	$(GO) build $(GOFLAGS) -o output/bootstrap $(LDFLAGS) cmd/bootstrap/bootstrap.go
+build-supervisor:
+	$(GO) build $(GOFLAGS) -o output/supervisor $(LDFLAGS) cmd/supervisor/supervisor.go
 
 # Run application
 .PHONY: run

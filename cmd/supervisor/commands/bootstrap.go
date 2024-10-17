@@ -1,4 +1,4 @@
-package run
+package commands
 
 import (
 	"context"
@@ -12,21 +12,18 @@ import (
 	"strings"
 	"time"
 
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argocdsettings "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 
-	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argocdsettings "github.com/argoproj/argo-cd/v2/util/settings"
-
 	"github.com/h4-poc/service/pkg/application"
-	"github.com/h4-poc/service/pkg/config"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
@@ -34,41 +31,56 @@ import (
 	"github.com/h4-poc/service/pkg/util"
 )
 
-func Cmd() *cobra.Command {
+func NewBootstrapCmd() *cobra.Command {
 	var (
-		appSpecifier     = ""
-		dryRun           = false
-		hidePassword     = false
-		insecure         = false
-		recover          = false
-		installationMode = installationModeNormal
-		cloneOpts        *git.CloneOptions
-		namespaceLabels  = map[string]string{}
+		appSpecifier               = ""
+		dryRun                     = false
+		hidePassword               = false
+		insecure                   = false
+		recover                    = false
+		installationMode           = installationModeNormal
+		cloneOpts                  *git.CloneOptions
+		namespaceLabels            = map[string]string{}
+		applicationRepoRemoteURL   = ""
+		applicationRepoAccessToken = ""
+		kubeConfigPath             = ""
 	)
 
 	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "init the the platform",
+		Use:   "bootstrap",
+		Short: "bootstrap the the platform",
 		Example: util.Doc(`
 # Install argo-cd on the current kubernetes context in the argocd namespace
 # and persists the bootstrap manifests to the root of gitops repository
 
-	<BIN> -c <path-of-config> init
+	supervisor <BIN> bootstrap
 `),
-		PreRun: func(_ *cobra.Command, _ []string) {
-			cloneOpts.Parse()
+		PreRun: func(cmd *cobra.Command, args []string) {
+			// in recover mode we don't want to commit anything
 			if recover {
-				// in recover mode we don't want to commit anything
 				cloneOpts.CloneForWrite = false
 				cloneOpts.CreateIfNotExist = false
 			}
+
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cloneOpts = &git.CloneOptions{
+				FS:               fs.Create(memfs.New()),
+				CreateIfNotExist: true,
+				CloneForWrite:    true,
+				Repo:             applicationRepoRemoteURL,
+				Provider:         "github",
+				Auth: git.Auth{
+					Password: applicationRepoAccessToken,
+				},
+			}
+			cloneOpts.Parse()
+
 			return RunRepoBootstrap(cmd.Context(), &RepoBootstrapOptions{
 				AppSpecifier:     appSpecifier,
 				InstallationMode: installationMode,
 				Namespace:        "",
-				KubeConfig:       viper.GetString("kubernetes.kubeconfig"),
+				KubeConfig:       kubeConfigPath,
 				KubeContextName:  "",
 				DryRun:           dryRun,
 				HidePassword:     hidePassword,
@@ -81,24 +93,19 @@ func Cmd() *cobra.Command {
 			})
 		},
 	}
-	_, err := config.ParseConfig("deploy/service/templates/config.toml")
-	if err != nil {
-		return nil
-	}
 
-	log.Debugf("start clone options %s", viper.GetString("application_repo.remote_url"))
+	log.Debugf("start clone options %s", applicationRepoRemoteURL)
 
-	// get the field from the config file
-	cloneOpts = &git.CloneOptions{
-		FS:               fs.Create(memfs.New()),
-		CreateIfNotExist: true,
-		CloneForWrite:    true,
-		Repo:             viper.GetString("application_repo.remote_url"),
-		Provider:         "github",
-		Auth: git.Auth{
-			Password: viper.GetString("application_repo.access_token"),
-		},
-	}
+	cmd.Flags().StringVar(&appSpecifier, "app", "", "Application specifier")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run")
+	cmd.Flags().BoolVar(&hidePassword, "hide-password", false, "Hide password")
+	cmd.Flags().BoolVar(&insecure, "insecure", false, "Insecure")
+	cmd.Flags().BoolVar(&recover, "recover", false, "Recover")
+	cmd.Flags().StringVar(&installationMode, "installation-mode", installationModeNormal, "Installation mode")
+	cmd.Flags().StringToStringVar(&namespaceLabels, "namespace-labels", nil, "Namespace labels")
+	cmd.Flags().StringVar(&applicationRepoAccessToken, "git-token", "", "git token")
+	cmd.Flags().StringVar(&applicationRepoRemoteURL, "repo", "", "application repo")
+	cmd.Flags().StringVar(&kubeConfigPath, "kube-config", "", "kube config path")
 
 	return cmd
 }
@@ -110,13 +117,6 @@ const (
 
 // used for mocking
 var (
-	exit                                         = os.Exit
-	currentKubeContext                           = kube.CurrentContext
-	runKustomizeBuild                            = application.GenerateManifests
-	DefaultApplicationSetGeneratorInterval int64 = 20
-)
-
-var (
 	//go:embed assets/cluster_res_readme.md
 	clusterResReadmeTpl []byte
 
@@ -125,182 +125,16 @@ var (
 
 	//go:embed assets/apps_readme.md
 	appsReadme []byte
+
+	exit                                         = os.Exit
+	currentKubeContext                           = kube.CurrentContext
+	runKustomizeBuild                            = application.GenerateManifests
+	DefaultApplicationSetGeneratorInterval int64 = 20
+
+	getRepo = func(ctx context.Context, cloneOpts *git.CloneOptions) (git.Repository, fs.FS, error) {
+		return cloneOpts.GetRepo(ctx)
+	}
 )
-
-type createAppSetOptions struct {
-	name                        string
-	namespace                   string
-	appName                     string
-	appNamespace                string
-	appProject                  string
-	repoURL                     string
-	revision                    string
-	srcPath                     string
-	destServer                  string
-	destNamespace               string
-	prune                       bool
-	preserveResourcesOnDeletion bool
-	appLabels                   map[string]string
-	appAnnotations              map[string]string
-	generators                  []argocdv1alpha1.ApplicationSetGenerator
-}
-
-func createAppSet(o *createAppSetOptions) ([]byte, error) {
-	if o.destServer == "" {
-		o.destServer = store.Default.DestServer
-	}
-
-	if o.appProject == "" {
-		o.appProject = "default"
-	}
-
-	if o.appLabels == nil {
-		// default labels
-		o.appLabels = map[string]string{
-			store.Default.LabelKeyAppManagedBy: store.Default.LabelValueManagedBy,
-			"app.kubernetes.io/name":           o.appName,
-		}
-	}
-
-	appSet := &argocdv1alpha1.ApplicationSet{
-		TypeMeta: metav1.TypeMeta{
-			// do not use argocdv1alpha1.ApplicationSetSchemaGroupVersionKind.Kind because it is "Applicationset" - noticed the lowercase "s"
-			Kind:       "ApplicationSet",
-			APIVersion: argocdv1alpha1.ApplicationSetSchemaGroupVersionKind.GroupVersion().String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      o.name,
-			Namespace: o.namespace,
-			Annotations: map[string]string{
-				"argocd.argoproj.io/sync-wave": "0",
-			},
-		},
-		Spec: argocdv1alpha1.ApplicationSetSpec{
-			Generators: o.generators,
-			Template: argocdv1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argocdv1alpha1.ApplicationSetTemplateMeta{
-					Namespace:   o.appNamespace,
-					Name:        o.appName,
-					Labels:      o.appLabels,
-					Annotations: o.appAnnotations,
-				},
-				Spec: argocdv1alpha1.ApplicationSpec{
-					Project: o.appProject,
-					Source: &argocdv1alpha1.ApplicationSource{
-						RepoURL:        o.repoURL,
-						Path:           o.srcPath,
-						TargetRevision: o.revision,
-					},
-					Destination: argocdv1alpha1.ApplicationDestination{
-						Server:    o.destServer,
-						Namespace: o.destNamespace,
-					},
-					SyncPolicy: &argocdv1alpha1.SyncPolicy{
-						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							SelfHeal:   true,
-							Prune:      o.prune,
-							AllowEmpty: true,
-						},
-					},
-					IgnoreDifferences: []argocdv1alpha1.ResourceIgnoreDifferences{
-						{
-							Group: "argoproj.io",
-							Kind:  "Application",
-							JSONPointers: []string{
-								"/status",
-							},
-						},
-					},
-				},
-			},
-			SyncPolicy: &argocdv1alpha1.ApplicationSetSyncPolicy{
-				PreserveResourcesOnDeletion: o.preserveResourcesOnDeletion,
-			},
-		},
-	}
-
-	return yaml.Marshal(appSet)
-}
-
-type createAppOptions struct {
-	name        string
-	namespace   string
-	repoURL     string
-	revision    string
-	srcPath     string
-	destServer  string
-	noFinalizer bool
-	labels      map[string]string
-}
-
-func createApp(opts *createAppOptions) ([]byte, error) {
-	if opts.destServer == "" {
-		opts.destServer = store.Default.DestServer
-	}
-
-	app := &argocdv1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       argocdv1alpha1.ApplicationSchemaGroupVersionKind.Kind,
-			APIVersion: argocdv1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: opts.namespace,
-			Name:      opts.name,
-			Labels: map[string]string{
-				store.Default.LabelKeyAppManagedBy: store.Default.LabelValueManagedBy,
-				"app.kubernetes.io/name":           opts.name,
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
-		},
-		Spec: argocdv1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argocdv1alpha1.ApplicationSource{
-				RepoURL:        opts.repoURL,
-				Path:           opts.srcPath,
-				TargetRevision: opts.revision,
-			},
-			Destination: argocdv1alpha1.ApplicationDestination{
-				Server:    opts.destServer,
-				Namespace: opts.namespace,
-			},
-			SyncPolicy: &argocdv1alpha1.SyncPolicy{
-				Automated: &argocdv1alpha1.SyncPolicyAutomated{
-					SelfHeal:   true,
-					Prune:      true,
-					AllowEmpty: true,
-				},
-				SyncOptions: []string{
-					"allowEmpty=true",
-				},
-			},
-			IgnoreDifferences: []argocdv1alpha1.ResourceIgnoreDifferences{
-				{
-					Group: "argoproj.io",
-					Kind:  "Application",
-					JSONPointers: []string{
-						"/status",
-					},
-				},
-			},
-		},
-	}
-	if opts.noFinalizer {
-		app.ObjectMeta.Finalizers = []string{}
-	}
-	if len(opts.labels) > 0 {
-		for k, v := range opts.labels {
-			app.ObjectMeta.Labels[k] = v
-		}
-	}
-
-	return yaml.Marshal(app)
-}
-
-var getRepo = func(ctx context.Context, cloneOpts *git.CloneOptions) (git.Repository, fs.FS, error) {
-	return cloneOpts.GetRepo(ctx)
-}
 
 type (
 	RepoBootstrapOptions struct {
@@ -483,8 +317,8 @@ func setBootstrapOptsDefaults(opts RepoBootstrapOptions) (*RepoBootstrapOptions,
 	}
 
 	if _, err := os.Stat(opts.AppSpecifier); err == nil {
-		log.Warnf("detected local bootstrap manifests, using 'flat' installation mode")
-		opts.InstallationMode = installationModeFlat
+		log.Warnf("detected local bootstrap manifests, using 'normal' installation mode")
+		opts.InstallationMode = installationModeNormal
 	}
 
 	return &opts, nil

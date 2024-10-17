@@ -61,3 +61,4 @@ config.local.yaml
 
 vendor/
 output/
+.idea/

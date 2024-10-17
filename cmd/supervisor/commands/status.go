@@ -1,28 +1,31 @@
-package status
+package commands
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func Cmd() *cobra.Command {
-	return &cobra.Command{
+func NewStatusCmd() *cobra.Command {
+	var kubeconfig string
+
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show bootstrap status",
 		Run: func(cmd *cobra.Command, args []string) {
-			kubeconfig := viper.GetString("kubernetes.kubeconfig.path")
 			if kubeconfig == "" {
-				fmt.Println("Error: kubernetes.kubeconfig.path is not set in the config file")
-				return
+				kubeconfig = os.Getenv("KUBECONFIG")
+				if kubeconfig == "" {
+					kubeconfig = filepath.Join(os.Getenv("HOME"), ".kube", "config")
+				}
 			}
 
 			config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
@@ -48,6 +51,10 @@ func Cmd() *cobra.Command {
 			_ = w.Flush()
 		},
 	}
+
+	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "path to kubeconfig file")
+
+	return cmd
 }
 
 type healthStatus struct {

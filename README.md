@@ -1,11 +1,11 @@
 # H4 Platform Service
 
-H4 Platform is a Kubernetes-based computing platform that supports `multi-tenancy`, `multi-cloud`, and `big data component integration`.
+H4 Platform is a Kubernetes-based computing platform supporting `multi-tenancy`, `multi-cloud`, and `big data component integration`.
 
 ## Key Features
 
-- Built on Kubernetes, leveraging cloud-native technologies
-- Utilizes ArgoCD for GitOps-style deployments
+- Kubernetes-based, leveraging cloud-native technologies
+- GitOps-style deployments with ArgoCD
 - Custom H4 components for business-specific needs (e.g., approval, billing)
 - User-friendly web UI for easy management
 - RESTful API backend for core functionalities
@@ -49,10 +49,10 @@ style Helm fill:#F8C471,stroke:#333,stroke-width:2px
 
 H4 Platform provides two main command-line tools:
 
-1. **Bootstrap CLI** (`bootstrap`):
+1. **supervisor CLI** (`supervisor`):
    - Purpose: Initialize and manage application deployments
    - Key functions: Platform initialization, project management, status checks
-   - Location: `cmd/bootstrap/bootstrap.go`
+   - Location: `cmd/supervisor/supervisor.go`
 
 2. **Server CLI** (`server`):
    - Purpose: Run the API server for the H4 Platform
@@ -67,6 +67,6 @@ To build the command-line tools, use the following make commands:
 
 ```shell
 $ make build-service # Builds the server CLI
-$ make build-bootstrap # Builds the bootstrap CLI
+$ make build-supervisor # Builds the supervisor CLI
 $ make build # Builds both CLIs
-``
+```
