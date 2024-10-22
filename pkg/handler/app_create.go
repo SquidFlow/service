@@ -21,11 +21,11 @@ import (
 
 type (
 	AppCreateOptions struct {
-		CloneOpts       *git.CloneOptions // for ?
-		AppsCloneOpts   *git.CloneOptions // for ?
+		CloneOpts       *git.CloneOptions
+		AppsCloneOpts   *git.CloneOptions
 		ProjectName     string
 		KubeContextName string
-		AppOpts         *application.CreateOptions // for ?
+		AppOpts         *application.CreateOptions
 		KubeFactory     kube.Factory
 		Timeout         time.Duration
 		Labels          map[string]string
@@ -88,7 +88,7 @@ var (
 type Application struct {
 	ProjectName string `json:"project-name"`
 	AppName     string `json:"app-name"`
-	Repo        string `json:"repo"`
+	App         string `json:"app"`
 	WaitTimeout string `json:"wait-timeout"`
 }
 
@@ -99,36 +99,33 @@ func CreateApplication(c *gin.Context) {
 		return
 	}
 
-	timeout, _ := time.ParseDuration(createAppReq.WaitTimeout)
-	if timeout == 0 {
-		timeout = 5 * time.Minute
-	}
-
+	var gitOpsFs = memfs.New()
 	var opt = AppCreateOptions{
 		CloneOpts: &git.CloneOptions{
 			Repo:     viper.GetString("application_repo.remote_url"),
-			FS:       fs.Create(memfs.New()),
+			FS:       fs.Create(gitOpsFs),
 			Provider: "github",
 			Auth: git.Auth{
 				Password: viper.GetString("application_repo.access_token"),
 			},
+			CloneForWrite: false,
 		},
 		AppsCloneOpts: &git.CloneOptions{
-			Repo: createAppReq.Repo,
-			FS:   fs.Create(memfs.New()),
+			CloneForWrite: false,
 		},
 		AppOpts: &application.CreateOptions{
 			AppName:          createAppReq.AppName,
-			AppType:          application.AppTypeDirectory,
-			AppSpecifier:     "github.com/h4-poc/demo-app", // TODO
+			AppType:          application.AppTypeKustomize,
+			AppSpecifier:     createAppReq.App,
 			InstallationMode: application.InstallationModeNormal,
+			DestServer:       "https://kubernetes.default.svc",
 			Labels:           nil,
 			Annotations:      nil,
 			Include:          "",
 			Exclude:          "",
 		},
 		ProjectName: createAppReq.ProjectName,
-		Timeout:     timeout,
+		Timeout:     0,
 		KubeFactory: kube.NewFactory(),
 	}
 	opt.CloneOpts.Parse()
@@ -159,9 +156,9 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 
 	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
 	if err != nil {
-		log.Errorf("failed to prepare gitops repo: %v", err)
 		return err
 	}
+	log.Debugf("repofs: %v", repofs)
 
 	if opts.AppsCloneOpts.Repo != "" {
 		if opts.AppsCloneOpts.Auth.Password == "" {
@@ -204,12 +201,33 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 		}
 	}
 
-	log.Info("committing changes to gitops repo...")
-	revision, err := r.Persist(ctx, &git.PushOptions{CommitMsg: getCommitMsg(opts, repofs)})
+	log.Info("committing changes to git-ops repo...")
+	var opt = git.PushOptions{CommitMsg: getCommitMsg(opts, repofs)}
+	log.Debugf("git push option: %v", opt)
+	revision, err := r.Persist(ctx, &opt)
 	if err != nil {
 		return fmt.Errorf("failed to push to gitops repo: %w", err)
 	}
-	log.Debugf("pushed to gitops repo at revision: %s", revision)
+
+	if opts.Timeout > 0 {
+		namespace, err := getInstallationNamespace(repofs)
+		if err != nil {
+			return fmt.Errorf("failed to get application namespace: %w", err)
+		}
+
+		log.WithField("timeout", opts.Timeout).Infof("waiting for '%s' to finish syncing", opts.AppOpts.AppName)
+		fullName := fmt.Sprintf("%s-%s", opts.ProjectName, opts.AppOpts.AppName)
+
+		// wait for argocd to be ready before applying argocd-apps
+		stop := util.WithSpinner(ctx, fmt.Sprintf("waiting for '%s' to be ready", fullName))
+		if err = waitAppSynced(ctx, opts.KubeFactory, opts.Timeout, fullName, namespace, revision, true); err != nil {
+			stop()
+			return fmt.Errorf("failed waiting for application to sync: %w", err)
+		}
+
+		stop()
+	}
+
 	log.Infof("installed application: %s", opts.AppOpts.AppName)
 	return nil
 }

@@ -13,20 +13,20 @@ import (
 	"github.com/h4-poc/service/pkg/handler"
 )
 
-var RunCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run the server",
-	Long:  `Run the Application API server`,
-	Run:   runServer,
-}
-
-func init() {
+func NewRunCommand() *cobra.Command {
 	var configFile string
-	RunCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file")
-	err := RunCmd.MarkFlagRequired("config")
-	if err != nil {
-		return
+	runCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run the server",
+		Long:  `Run the Application API server`,
+		Run:   runServer,
 	}
+	runCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file")
+	err := runCmd.MarkFlagRequired("config")
+	if err != nil {
+		panic(err)
+	}
+	return runCmd
 }
 
 func runServer(cmd *cobra.Command, args []string) {

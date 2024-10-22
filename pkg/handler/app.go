@@ -2,20 +2,18 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
-
-	"github.com/h4-poc/service/pkg/argocd"
-
-	"os"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/h4-poc/service/pkg/application"
+	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
@@ -97,6 +95,22 @@ func getCommitMsg(opts *AppCreateOptions, repofs fs.FS) string {
 	}
 
 	return commitMsg
+}
+
+func getConfigFileFromPath(repofs fs.FS, appPath string) (*application.Config, error) {
+	path := repofs.Join(appPath, "config.json")
+	b, err := repofs.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file '%s'", path)
+	}
+
+	conf := application.Config{}
+	err = json.Unmarshal(b, &conf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal file '%s'", path)
+	}
+
+	return &conf, nil
 }
 
 var getInstallationNamespace = func(repofs fs.FS) (string, error) {

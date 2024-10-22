@@ -23,6 +23,6 @@ func main() {
 }
 
 func init() {
-	rootCmd.AddCommand(server.RunCmd)
+	rootCmd.AddCommand(server.NewRunCommand())
 	rootCmd.AddCommand(server.NewVersionCommand())
 }

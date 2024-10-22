@@ -9,7 +9,7 @@ import (
 var s Store
 
 var (
-	binaryName                       = "bootstrap"
+	binaryName                       = "supervisor"
 	version                          = "v99.99.99"
 	buildDate                        = ""
 	gitCommit                        = ""

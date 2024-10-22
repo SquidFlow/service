@@ -10,10 +10,6 @@ import (
 	"github.com/h4-poc/service/cmd/supervisor/commands"
 )
 
-var (
-	cfgFile string
-)
-
 func init() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetOutput(os.Stdout)
