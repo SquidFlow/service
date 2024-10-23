@@ -2,13 +2,6 @@
 address = "0.0.0.0"
 port = 8080
 
-[database] # not used yet
-host = "localhost"
-port = 5432
-username = "user"
-password = "password"
-dbname = "myapp"
-
 [kubernetes] # only support two modes: `kubeconfig` and `incluster`
 mode = "kubeconfig"
 

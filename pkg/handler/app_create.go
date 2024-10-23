@@ -33,18 +33,6 @@ type (
 		Include         string
 		Exclude         string
 	}
-
-	AppDeleteOptions struct {
-		CloneOpts   *git.CloneOptions
-		ProjectName string
-		AppName     string
-		Global      bool
-	}
-
-	AppListOptions struct {
-		CloneOpts   *git.CloneOptions
-		ProjectName string
-	}
 )
 
 var (

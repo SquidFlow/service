@@ -58,7 +58,7 @@ func runServer(cmd *cobra.Command, args []string) {
 		v1.GET("/applications", handler.ListApplications)
 		v1.GET("/applications/:appName", handler.ListApplications)
 		v1.PUT("/applications/:appName", handler.UpdateApplication)
-		v1.DELETE("/applications/:appName", handler.DeleteApplication)
+		v1.DELETE("/applications", handler.DeleteApplication)
 	}
 	r.GET("/healthz", handler.Healthz)
 

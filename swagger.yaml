@@ -24,8 +24,12 @@ paths:
       responses:
         '201':
           description: Application created successfully
+          schema:
+            $ref: '#/definitions/ApplicationCreateResponse'
         '400':
           description: Bad request
+        '500':
+          description: Internal server error
     get:
       summary: List applications
       produces:
@@ -102,15 +106,28 @@ definitions:
   ApplicationCreate:
     type: object
     required:
+      - project-name
       - app-name
-      - repo
+      - app
     properties:
+      project-name:
+        type: string
+        description: Name of the project to which the application belongs
       app-name:
         type: string
-      repo:
+        description: Name of the application
+      app:
         type: string
-      wait-timeout:
+        description: Application specifier or repository URL
+
+  ApplicationCreateResponse:
+    type: object
+    properties:
+      message:
         type: string
+      application:
+        $ref: '#/definitions/ApplicationCreate'
+
   ApplicationUpdate:
     type: object
     properties:

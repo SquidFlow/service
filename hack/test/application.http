@@ -1,3 +1,4 @@
+### create
 POST http://localhost:8080/api/v1/applications
 
 {
@@ -5,3 +6,9 @@ POST http://localhost:8080/api/v1/applications
     "app-name": "demo3",
     "app": "github.com/h4-poc/demo-app"
 }
+
+### get
+GET http://localhost:8080/api/v1/applications?project=testing
+
+### del
+DELETE http://localhost:8080/api/v1/applications?project=testing&app=demo1
