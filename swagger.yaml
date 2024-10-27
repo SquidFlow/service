@@ -101,6 +101,66 @@ paths:
           description: Application deleted successfully
         '404':
           description: Application not found
+  /projects:
+    post:
+      summary: Create a new project
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: project
+          required: true
+          schema:
+            $ref: '#/definitions/ProjectCreate'
+      responses:
+        '201':
+          description: Project created successfully
+          schema:
+            $ref: '#/definitions/ProjectCreateResponse'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+    delete:
+      summary: Delete a project
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: project
+          required: true
+          type: string
+          description: Name of the project to delete
+      responses:
+        '200':
+          description: Project deleted successfully
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+    get:
+      summary: List all projects
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Successful operation
+          schema:
+            type: object
+            properties:
+              projects:
+                type: array
+                items:
+                  $ref: '#/definitions/ProjectInfo'
+        '500':
+          description: Internal server error
 
 definitions:
   ApplicationCreate:
@@ -147,3 +207,37 @@ definitions:
       wait-timeout:
         type: string
       # 可以根据需要添加更多属性
+  ProjectCreate:
+    type: object
+    required:
+      - project-name
+    properties:
+      project-name:
+        type: string
+        description: Name of the project
+      labels:
+        type: object
+        additionalProperties:
+          type: string
+        description: Labels to be applied to the project
+      annotations:
+        type: object
+        additionalProperties:
+          type: string
+        description: Annotations to be applied to the project
+  ProjectCreateResponse:
+    type: object
+    properties:
+      message:
+        type: string
+      project:
+        $ref: '#/definitions/ProjectCreate'
+  ProjectInfo:
+    type: object
+    properties:
+      name:
+        type: string
+      namespace:
+        type: string
+      default_cluster:
+        type: string

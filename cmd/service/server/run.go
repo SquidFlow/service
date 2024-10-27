@@ -53,12 +53,19 @@ func runServer(cmd *cobra.Command, args []string) {
 	r := gin.Default()
 
 	v1 := r.Group("/api/v1")
+	// application
 	{
 		v1.POST("/applications", handler.CreateApplication)
 		v1.GET("/applications", handler.ListApplications)
-		v1.GET("/applications/:appName", handler.ListApplications)
-		v1.PUT("/applications/:appName", handler.UpdateApplication)
+		v1.GET("/applications/:appName", handler.ListApplications)  // TODO
+		v1.PUT("/applications/:appName", handler.UpdateApplication) // TODO
 		v1.DELETE("/applications", handler.DeleteApplication)
+	}
+	// project
+	{
+		v1.POST("/projects", handler.CreateProject)
+		v1.GET("/projects", handler.ListProjects)
+		v1.DELETE("/projects", handler.DeleteProject)
 	}
 	r.GET("/healthz", handler.Healthz)
 
