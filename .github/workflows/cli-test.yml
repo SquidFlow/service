@@ -1,0 +1,40 @@
+name: CLI Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  test-clis:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22.7'
+
+    - name: Build CLIs
+      run: |
+        make build-supervisor
+        make build-service
+
+    - name: Test supervisor CLI
+      run: |
+        ./output/supervisor version
+
+    - name: Test service CLI
+      run: |
+        ./output/service version
+
+    - name: Run integration tests
+      run: |
+        pwd
+
+    - name: Clean up
+      run: |
+        make clean
