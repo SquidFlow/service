@@ -63,7 +63,7 @@ curl -s -X POST http://localhost:8080/api/v1/applications \
 -H "Content-Type: application/json" \
 -d '{
   "project-name": "testing",
-  "app-name": "demo3",
+  "app-name": "demo1",
   "app": "github.com/h4-poc/demo-app"
 }' | jq
 ```

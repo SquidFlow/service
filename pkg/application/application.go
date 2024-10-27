@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/store"
@@ -17,6 +15,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
@@ -189,10 +188,8 @@ func GenerateManifests(k *kusttypes.Kustomization) ([]byte, error) {
 func (o *CreateOptions) Parse(projectName, repoURL, targetRevision, repoRoot string) (Application, error) {
 	switch o.AppType {
 	case AppTypeKustomize:
-		log.Debugf("type: %s, specifier: %s, name: %s", o.AppType, o.AppSpecifier, o.AppName)
 		return newKustApp(o, projectName, repoURL, targetRevision, repoRoot)
 	case AppTypeDirectory:
-		log.Debugf("type: %s, specifier: %s, name: %s", o.AppType, o.AppSpecifier, o.AppName)
 		return newDirApp(o), nil
 	default:
 		return nil, ErrUnknownAppType
@@ -206,7 +203,6 @@ func (app *baseApp) Name() string {
 
 /* kustApp Application impl */
 func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot string) (*kustApp, error) {
-	log.Debugf("o: %s, projectName: %s, repoURL: %s, targetRevision: %s, repoRoot: %s", o, projectName, repoURL, targetRevision, repoRoot)
 	var err error
 	app := &kustApp{
 		baseApp: baseApp{o},
@@ -287,8 +283,6 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 		Annotations:       o.Annotations,
 	}
 
-	log.Debugf("app.config: %s", app.config)
-
 	return app, nil
 }
 
@@ -299,7 +293,6 @@ func (app *kustApp) CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) 
 func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName string) error {
 	var err error
 
-	log.Debugf("creating application '%s' in project '%s'", app.Name(), projectName)
 	// create Base
 	appPath := appsfs.Join(store.Default.AppsDir, app.Name())
 	basePath := appsfs.Join(appPath, "base")
@@ -315,7 +308,6 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 			return ErrAppCollisionWithExistingBase
 		}
 	} else if appsfs != repofs && repofs.ExistsOrDie(appPath) {
-		log.Debugf("get app repo for '%s'", app.Name())
 		appRepo, err := getAppRepo(repofs, app.Name())
 		if err != nil {
 			return fmt.Errorf("Failed getting app repo: %w", err)
@@ -329,7 +321,6 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 	}
 
 	// create Overlay
-	log.Debugf("created base kustomization at '%s'", baseKustomizationPath)
 	overlayPath := appsfs.Join(appPath, "overlays", projectName)
 	overlayKustomizationPath := appsfs.Join(overlayPath, "kustomization.yaml")
 	if appsfs.ExistsOrDie(overlayKustomizationPath) {
@@ -363,6 +354,7 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 	if repofs != appsfs {
 		configPath = repofs.Join(appPath, projectName, "config.json")
 	}
+
 	if err = repofs.WriteJson(configPath, app.config); err != nil {
 		return fmt.Errorf("failed to write app config.json: %w", err)
 	}
@@ -372,15 +364,14 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 
 func getClusterName(repofs fs.FS, destServer string) (string, error) {
 	// verify that the dest server already exists
-	//clusterName, err := serverToClusterName(repofs, destServer)
-	//if err != nil {
-	//	return "", fmt.Errorf("failed to get cluster name for the specified dest-server: %w", err)
-	//}
-	//if clusterName == "" {
-	//	return "", fmt.Errorf("cluster '%s' is not configured yet, you need to create a project that uses this cluster first", destServer)
-	//}
-	//return clusterName, nil
-	return "https://kubernetes.default.svc", nil
+	clusterName, err := serverToClusterName(repofs, destServer)
+	if err != nil {
+		return "", fmt.Errorf("failed to get cluster name for the specified dest-server: %w", err)
+	}
+	if clusterName == "" {
+		return "", fmt.Errorf("cluster '%s' is not configured yet, you need to create a project that uses this cluster first", destServer)
+	}
+	return clusterName, nil
 }
 
 func createNamespaceManifest(repofs fs.FS, clusterName string, namespace *v1.Namespace) error {
@@ -458,10 +449,7 @@ func writeFile(repofs fs.FS, path, name string, data []byte) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to create '%s' file at '%s': %w", name, absPath, err)
 	} else if exists {
-		log.WithFields(log.Fields{
-			"name": name,
-			"path": absPath,
-		}).Infof("'%s' file exists in '%s'", name, absPath)
+		log.Infof("'%s' file exists in '%s'", name, absPath)
 		return true, nil
 	}
 
