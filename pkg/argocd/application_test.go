@@ -32,7 +32,7 @@ metadata:
   finalizers:
   - resources-finalizer.argocd.argoproj.io
   labels:
-    app.kubernetes.io/managed-by: argocd-autopilot
+    app.kubernetes.io/managed-by: h4-bootstrap
     app.kubernetes.io/name: test-app
   name: test-app
   namespace: argocd

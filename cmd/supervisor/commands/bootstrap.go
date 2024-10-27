@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 	"strings"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"
@@ -267,9 +267,9 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 	if !opts.Recover {
 		// push results to repo
 		log.Infof("pushing bootstrap manifests to repo")
-		commitMsg := "Supervisor Bootstrap"
+		commitMsg := "feat: supervisor bootstrap"
 		if opts.CloneOptions.Path() != "" {
-			commitMsg = "Supervisor Bootstrap at " + opts.CloneOptions.Path()
+			commitMsg = "supervisor bootstrap at " + opts.CloneOptions.Path()
 		}
 
 		if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg}); err != nil {
@@ -323,8 +323,8 @@ func setBootstrapOptsDefaults(opts RepoBootstrapOptions) (*RepoBootstrapOptions,
 	}
 
 	if _, err := os.Stat(opts.AppSpecifier); err == nil {
-		log.Warnf("detected local bootstrap manifests, using 'normal' installation mode")
-		opts.InstallationMode = installationModeNormal
+		log.Warnf("detected local bootstrap manifests, using 'flat' installation mode")
+		opts.InstallationMode = installationModeFlat
 	}
 
 	return &opts, nil
@@ -610,7 +610,6 @@ func createBootstrapKustomization(namespace, appSpecifier string, cloneOpts *git
 		})
 	}
 
-	// k.FixKustomizationPostUnmarshalling()
 	errs := k.EnforceFields()
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("kustomization errors: %s", strings.Join(errs, "\n"))

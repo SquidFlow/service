@@ -1,0 +1,5 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+    # helm template vault hashicorp/vault --set "server.dev.enabled=true" > vault-manifests.yaml
+    - vault-manifests.yaml
