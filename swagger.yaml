@@ -2,7 +2,7 @@ swagger: '2.0'
 info:
   title: Application API
   version: '1.0.0'
-  description: API for managing applications
+  description: API for managing applications and projects
 host: localhost:8080
 basePath: /api/v1
 schemes:
@@ -36,71 +36,52 @@ paths:
         - application/json
       parameters:
         - in: query
-          name: filter
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-          description: Filter criteria for applications
+          name: project
+          type: string
+          required: true
+          description: Project name to filter applications
       responses:
         '200':
           description: Successful operation
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/Application'
-  /applications/{appName}:
-    get:
-      summary: Get a specific application
+            type: object
+            properties:
+              applications:
+                type: array
+                items:
+                  $ref: '#/definitions/Application'
+        '500':
+          description: Internal server error
+    delete:
+      summary: Delete an application
       produces:
         - application/json
       parameters:
-        - in: path
-          name: appName
-          required: true
+        - in: query
+          name: project
           type: string
+          required: true
+          description: Project name containing the application
+        - in: query
+          name: app
+          type: string
+          required: true
+          description: Application name to delete
       responses:
         '200':
-          description: Successful operation
+          description: Application deleted successfully
           schema:
-            $ref: '#/definitions/Application'
-        '404':
-          description: Application not found
-    put:
-      summary: Update an application
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: appName
-          required: true
-          type: string
-        - in: body
-          name: application
-          required: true
-          schema:
-            $ref: '#/definitions/ApplicationUpdate'
-      responses:
-        '200':
-          description: Application updated successfully
+            type: object
+            properties:
+              message:
+                type: string
         '400':
           description: Bad request
         '404':
           description: Application not found
-    delete:
-      summary: Delete an application
-      parameters:
-        - in: path
-          name: appName
-          required: true
-          type: string
-      responses:
-        '204':
-          description: Application deleted successfully
-        '404':
-          description: Application not found
+        '500':
+          description: Internal server error
+
   /projects:
     post:
       summary: Create a new project
@@ -123,6 +104,22 @@ paths:
           description: Bad request
         '500':
           description: Internal server error
+    get:
+      summary: List all projects
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Successful operation
+          schema:
+            type: object
+            properties:
+              projects:
+                type: array
+                items:
+                  $ref: '#/definitions/ProjectInfo'
+        '500':
+          description: Internal server error
     delete:
       summary: Delete a project
       produces:
@@ -143,22 +140,8 @@ paths:
                 type: string
         '400':
           description: Bad request
-        '500':
-          description: Internal server error
-    get:
-      summary: List all projects
-      produces:
-        - application/json
-      responses:
-        '200':
-          description: Successful operation
-          schema:
-            type: object
-            properties:
-              projects:
-                type: array
-                items:
-                  $ref: '#/definitions/ProjectInfo'
+        '404':
+          description: Project not found
         '500':
           description: Internal server error
 
@@ -188,25 +171,18 @@ definitions:
       application:
         $ref: '#/definitions/ApplicationCreate'
 
-  ApplicationUpdate:
-    type: object
-    properties:
-      app-name:
-        type: string
-      repo:
-        type: string
-      wait-timeout:
-        type: string
   Application:
     type: object
     properties:
-      app-name:
+      project_name:
         type: string
-      repo:
+      name:
         type: string
-      wait-timeout:
+      dest_namespace:
         type: string
-      # 可以根据需要添加更多属性
+      dest_server:
+        type: string
+
   ProjectCreate:
     type: object
     required:
@@ -225,6 +201,7 @@ definitions:
         additionalProperties:
           type: string
         description: Annotations to be applied to the project
+
   ProjectCreateResponse:
     type: object
     properties:
@@ -232,6 +209,7 @@ definitions:
         type: string
       project:
         $ref: '#/definitions/ProjectCreate'
+
   ProjectInfo:
     type: object
     properties:

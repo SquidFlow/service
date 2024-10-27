@@ -1,3 +1,16 @@
+### create project
+POST http://localhost:8080/api/v1/projects
+
+{
+    "project-name": "demo1"
+}
+
+### list project
+GET http://localhost:8080/api/v1/projects
+
+### delete project
+DELETE http://localhost:8080/api/v1/projects?project=wgh
+
 ### create app
 POST http://localhost:8080/api/v1/applications
 
@@ -13,15 +26,3 @@ GET http://localhost:8080/api/v1/applications?project=testing
 ### del app
 DELETE http://localhost:8080/api/v1/applications?project=testing&app=demo1
 
-### create project
-POST http://localhost:8080/api/v1/projects
-
-{
-    "project-name": "wgh"
-}
-
-### list project
-GET http://localhost:8080/api/v1/projects
-
-### delete project
-DELETE http://localhost:8080/api/v1/projects?project=wgh

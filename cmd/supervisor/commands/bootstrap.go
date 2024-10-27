@@ -39,7 +39,7 @@ func NewBootstrapCmd() *cobra.Command {
 		insecure                   = false
 		recover                    = false
 		installationMode           = installationModeNormal
-		cloneOpts                  *git.CloneOptions
+		cloneOpts                  = &git.CloneOptions{}
 		namespaceLabels            = map[string]string{}
 		applicationRepoRemoteURL   = ""
 		applicationRepoAccessToken = ""
@@ -210,6 +210,20 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 		return fmt.Errorf("failed to build bootstrap manifests: %w", err)
 	}
 
+	// Dry Run check
+	if opts.DryRun {
+		fmt.Printf("%s", util.JoinManifests(
+			manifests.namespace,
+			manifests.applyManifests,
+			manifests.repoCreds,
+			manifests.bootstrapApp,
+			manifests.argocdApp,
+			manifests.rootApp,
+		))
+		exit(0)
+		return nil
+	}
+
 	log.Infof("cloning repo: %s", opts.CloneOptions.URL())
 
 	// clone GitOps repo
@@ -229,13 +243,7 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 	// apply built manifest to k8s cluster
 	log.Infof("using context: \"%s\", namespace: \"%s\"", opts.KubeContextName, opts.Namespace)
 	log.Infof("applying bootstrap manifests to cluster...")
-	if err = opts.
-		KubeFactory.
-		Apply(
-			ctx, util.JoinManifests(
-				manifests.namespace,
-				manifests.applyManifests,
-				manifests.repoCreds)); err != nil {
+	if err = opts.KubeFactory.Apply(ctx, util.JoinManifests(manifests.namespace, manifests.applyManifests, manifests.repoCreds)); err != nil {
 		return fmt.Errorf("failed to apply bootstrap manifests to cluster: %w", err)
 	}
 
@@ -259,9 +267,9 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 	if !opts.Recover {
 		// push results to repo
 		log.Infof("pushing bootstrap manifests to repo")
-		commitMsg := "Autopilot Bootstrap"
+		commitMsg := "Supervisor Bootstrap"
 		if opts.CloneOptions.Path() != "" {
-			commitMsg = "Autopilot Bootstrap at " + opts.CloneOptions.Path()
+			commitMsg = "Supervisor Bootstrap at " + opts.CloneOptions.Path()
 		}
 
 		if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg}); err != nil {
@@ -279,8 +287,6 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 	if err != nil {
 		return err
 	}
-
-	log.Infof("running argocd login to initialize argocd config")
 
 	if !opts.HidePassword {
 		log.Printf("")
