@@ -681,7 +681,7 @@ func (r *repo) addRemote(name, url string) error {
 
 func (r *repo) initBranch(ctx context.Context, branchName string) error {
 	_, err := r.commit(ctx, &PushOptions{
-		CommitMsg: "initial commit",
+		CommitMsg: "init: first commit of h4-platform",
 	})
 	if err != nil {
 		return fmt.Errorf("failed to commit while trying to initialize the branch. Error: %w", err)

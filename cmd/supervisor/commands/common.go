@@ -4,11 +4,11 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"time"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/h4-poc/service/pkg/argocd"

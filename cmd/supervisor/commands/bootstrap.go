@@ -9,9 +9,10 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"sigs.k8s.io/kustomize/kyaml/filesys"
 	"strings"
 	"time"
+
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdsettings "github.com/argoproj/argo-cd/v2/util/settings"
@@ -175,6 +176,10 @@ type (
 		applyManifests         []byte
 		bootstrapKustomization []byte
 		namespace              []byte
+		externalSecret         []byte
+		hashiCorpVault         []byte
+		externalSecretManifest []byte
+		hashiCorpVaultManifest []byte
 	}
 
 	deleteClusterResourcesOptions struct {
@@ -408,6 +413,7 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 	var err error
 	manifests := &bootstrapManifests{}
 
+	// h4-bootstrap app
 	manifests.bootstrapApp, err = createApp(&createAppOptions{
 		name:      store.Default.BootsrtrapAppName,
 		namespace: namespace,
@@ -420,6 +426,7 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 		return nil, err
 	}
 
+	// root app
 	manifests.rootApp, err = createApp(&createAppOptions{
 		name:      store.Default.RootAppName,
 		namespace: namespace,
@@ -432,6 +439,7 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 		return nil, err
 	}
 
+	// argocd app
 	manifests.argocdApp, err = createApp(&createAppOptions{
 		name:        store.Default.ArgoCDName,
 		namespace:   namespace,
@@ -445,6 +453,49 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 		return nil, err
 	}
 
+	// read external-secrets manifest
+	externalSecretManifest, err := os.ReadFile("manifests/external-secrets/external-secrets-manifests.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read external secrets manifest: %w", err)
+	}
+	manifests.externalSecretManifest = externalSecretManifest
+
+	// read vault manifest
+	hashiCorpVaultManifest, err := os.ReadFile("manifests/vault/vault-manifests.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read vault manifest: %w", err)
+	}
+	manifests.hashiCorpVaultManifest = hashiCorpVaultManifest
+
+	// create external-secrets application
+	manifests.externalSecret, err = createApp(&createAppOptions{
+		name:        store.Default.BuildInExternalSecrets,
+		namespace:   namespace,
+		repoURL:     cloneOpts.URL(),
+		revision:    cloneOpts.Revision(),
+		srcPath:     path.Join(cloneOpts.Path(), store.Default.BootsrtrapDir, store.Default.BuildInExternalSecrets),
+		noFinalizer: true,
+		labels:      argocdLabels,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// create vault application
+	manifests.hashiCorpVault, err = createApp(&createAppOptions{
+		name:        store.Default.BuildInHashiCorpVault,
+		namespace:   namespace,
+		repoURL:     cloneOpts.URL(),
+		revision:    cloneOpts.Revision(),
+		srcPath:     path.Join(cloneOpts.Path(), store.Default.BootsrtrapDir, store.Default.BuildInHashiCorpVault),
+		noFinalizer: true,
+		labels:      argocdLabels,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// cluster-resources applicationSet
 	manifests.clusterResAppSet, err = createAppSet(&createAppSetOptions{
 		name:                        store.Default.ClusterResourcesDir,
 		namespace:                   namespace,
@@ -530,11 +581,21 @@ func writeManifestsToRepo(repoFS fs.FS, manifests *bootstrapManifests, installat
 	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.RootAppName+".yaml"), Data: manifests.rootApp},                                                    // write projects root app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ArgoCDName+".yaml"), Data: manifests.argocdApp},                                                   // write argocd app
+		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInExternalSecrets+".yaml"), Data: manifests.externalSecret},                                  // write external-secrets app
+		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInHashiCorpVault+".yaml"), Data: manifests.hashiCorpVault},                                   // write vault app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir+".yaml"), Data: manifests.clusterResAppSet},                                   // write cluster-resources appset
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, "README.md"), Data: clusterResReadme},      // write ./bootstrap/cluster-resources/in-cluster/README.md
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName+".json"), Data: manifests.clusterResConfig}, // write ./bootstrap/cluster-resources/in-cluster.json
 		{Filename: repoFS.Join(store.Default.ProjectsDir, "README.md"), Data: projectReadme},                                                                                // write ./projects/README.md
 		{Filename: repoFS.Join(store.Default.AppsDir, "README.md"), Data: appsReadme},                                                                                       // write ./apps/README.md
+		{
+			Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInExternalSecrets, "manifests.yaml"),
+			Data:     manifests.externalSecretManifest,
+		},
+		{
+			Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInHashiCorpVault, "manifests.yaml"),
+			Data:     manifests.hashiCorpVaultManifest,
+		},
 	}...)
 
 	if manifests.namespace != nil {
