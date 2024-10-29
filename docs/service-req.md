@@ -90,12 +90,25 @@ curl -s -X GET "http://localhost:8080/api/v1/applications?project=testing" | jq
 Response:
 ```json
 {
-  "applications": [
+  "project_name": "testing",
+  "apps": [
     {
-      "project_name": "testing",
-      "name": "demo3",
+      "name": "demo1",
       "dest_namespace": "default",
-      "dest_server": "https://kubernetes.default.svc"
+      "dest_server": "https://kubernetes.default.svc",
+      "creator": "Unknown",
+      "last_updater": "Unknown",
+      "last_commit_id": "Unknown",
+      "last_commit_message": "Unknown",
+      "pod_count": 0,
+      "secret_count": 0,
+      "resource_usage": {
+        "cpu_cores": "0",
+        "memory_usage": "0"
+      },
+      "status": "Succeeded",
+      "health": "Healthy",
+      "sync_status": "Synced"
     }
   ]
 }

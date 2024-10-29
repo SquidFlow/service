@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/h4-poc/service/pkg/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/h4-poc/service/pkg/kube"
 )
 
 func Healthz(c *gin.Context) {
@@ -14,7 +15,6 @@ func Healthz(c *gin.Context) {
 		"status": "ok",
 	}
 
-	// check k8s first
 	ok, err := checkKubernetesHealth()
 	if !ok {
 		body["status"] = "kubernetes health check failed"
@@ -23,7 +23,6 @@ func Healthz(c *gin.Context) {
 		body["kubernetes"] = "ok"
 	}
 
-	// check argocd
 	ok, err = checkArogCDHealth()
 	if !ok {
 		body["status"] = "argocd health check failed"

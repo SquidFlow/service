@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"sigs.k8s.io/kustomize/kyaml/filesys"
-
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdsettings "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
@@ -23,6 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"
