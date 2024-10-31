@@ -14,7 +14,6 @@ run the service
 
 The service provides several RESTful API endpoints:
 
-- `/api/v1/repos`: Manage repositories
 - `/api/v1/applications`: Manage applications
 - `/api/v1/project`: Manage project
 - `/api/v1/status`: check H4 status

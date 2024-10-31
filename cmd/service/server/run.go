@@ -53,6 +53,11 @@ func runServer(cmd *cobra.Command, args []string) {
 	r := gin.Default()
 
 	v1 := r.Group("/api/v1")
+	// helm template
+	{
+		v1.POST("helm/templates", handler.CreateHelmTemplate)
+		v1.GET("helm/templates", handler.ListHelmTemplates)
+	}
 	// application
 	{
 		v1.POST("/applications", handler.CreateApplication)

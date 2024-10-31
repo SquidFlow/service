@@ -138,3 +138,36 @@ Response:
   "error": "Failed to delete application: application 'demo1' not found"
 }
 ```
+
+## Helm Templates
+
+``shell
+$ curl -s -X GET "http://localhost:8080/api/v1/helm/templates" | jq
+``
+
+```json
+[
+  {
+    "name": "h4-loki",
+    "description": "Loki is a horizontally scalable, highly available, multi-tenant log aggregation system inspired by Prometheus. It is designed to be very cost effective and easy to operate. It is the best solution for large-scale microservices based systems.",
+    "url": "https://github.com/h4-poc/manifest/blob/main/loki/values.yaml",
+    "maintainers": [
+      {
+        "name": "h4-loki",
+        "email": "h4-loki@h4.com"
+      }
+    ]
+  },
+  {
+    "name": "h4-logging-operator",
+    "description": "Logging operator is a tool for managing logging resources in Kubernetes. It is designed to be very cost effective and easy to operate. It is the best solution for large-scale microservices based systems.",
+    "url": "https://github.com/h4-poc/manifest/blob/main/logging-operator/values.yaml",
+    "maintainers": [
+      {
+        "name": "h4-logging-operator",
+        "email": "h4-logging-operator@h4.com"
+      }
+    ]
+  }
+]
+```
