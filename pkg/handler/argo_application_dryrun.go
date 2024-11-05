@@ -28,13 +28,6 @@ type ClusterYAML struct {
 	Content string `json:"content"`
 }
 
-// ValidationResult represents the validation result for each environment
-type ValidationResult struct {
-	Environment string `json:"environment"`
-	IsValid     bool   `json:"isValid"`
-	Message     string `json:"message,omitempty"`
-}
-
 // ValidateTemplateRequest represents the request structure for template validation
 type ValidateTemplateRequest struct {
 	TemplateSource string                 `json:"templateSource" binding:"required"`

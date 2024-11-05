@@ -2,47 +2,94 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/viper"
+
+	"github.com/h4-poc/service/pkg/application"
+	"github.com/h4-poc/service/pkg/fs"
+	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/kube"
 )
 
-func VlidateApplicationTemplate(c *gin.Context) {
-	var helmTemplateList = []struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Url         string `json:"url"`
-		Maintainers []struct {
-			Name  string `json:"name"`
-			Email string `json:"email"`
-		} `json:"maintainers"`
-	}{
-		{
-			Name:        "h4-loki",
-			Description: "Loki is a horizontally scalable, highly available, multi-tenant log aggregation system inspired by Prometheus. It is designed to be very cost effective and easy to operate. It is the best solution for large-scale microservices based systems.",
-			Url:         "https://github.com/h4-poc/manifest/blob/main/loki/values.yaml",
-			Maintainers: []struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			}{
-				{
-					Name:  "h4-loki",
-					Email: "h4-loki@h4.com",
-				},
-			},
-		},
-		{
-			Name:        "h4-logging-operator",
-			Description: "Logging operator is a tool for managing logging resources in Kubernetes. It is designed to be very cost effective and easy to operate. It is the best solution for large-scale microservices based systems.",
-			Url:         "https://github.com/h4-poc/manifest/blob/main/logging-operator/values.yaml",
-			Maintainers: []struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			}{
-				{
-					Name:  "h4-logging-operator",
-					Email: "h4-logging-operator@h4.com",
-				},
-			},
-		},
+// ValidationRequest represents the request structure for template validation
+type ValidationRequest struct {
+	Source         ApplicationSource `json:"source" binding:"required"`
+	Path           string            `json:"path" binding:"required"`
+	TargetRevision string            `json:"targetRevision" binding:"required"`
+}
+
+// ValidationResult represents the validation result for each environment
+type ValidationResult struct {
+	Environment []string `json:"environment"` // the repo support multiple environments
+	IsValid     bool     `json:"isValid"`
+	Message     string   `json:"message,omitempty"`
+}
+
+// ValidationResponse represents the response structure for template validation
+type ValidationResponse struct {
+	Success bool               `json:"success"`
+	Error   string             `json:"error,omitempty"`
+	Results []ValidationResult `json:"results"`
+}
+
+// ValidateApplicationTemplate handles the validation of application templates
+func ValidateApplicationTemplate(c *gin.Context) {
+	var req ValidationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, ValidationResponse{
+			Success: false,
+			Results: nil,
+		})
+		return
 	}
-	c.JSON(200, helmTemplateList)
-	return
+
+	var opt = AppCreateOptions{
+		CloneOpts: &git.CloneOptions{
+			Repo:     viper.GetString("application_repo.remote_url"),
+			FS:       fs.Create(memfs.New()),
+			Provider: "github",
+			Auth: git.Auth{
+				Password: viper.GetString("application_repo.access_token"),
+			},
+			CloneForWrite: false,
+		},
+		AppsCloneOpts: &git.CloneOptions{
+			CloneForWrite: false,
+		},
+		AppOpts: &application.CreateOptions{
+			AppName:          req.Path,
+			AppType:          application.AppTypeKustomize,
+			AppSpecifier:     req.Path,
+			InstallationMode: application.InstallationModeNormal,
+			DestServer:       "https://kubernetes.default.svc",
+			Labels:           nil,
+			Annotations:      nil,
+			Include:          "",
+			Exclude:          "",
+		},
+		ProjectName: req.Path,
+		Timeout:     0,
+		KubeFactory: kube.NewFactory(),
+	}
+	opt.CloneOpts.Parse()
+	opt.AppsCloneOpts.Parse()
+
+	result, err := validateTemplateParams(opt)
+	if err != nil {
+		c.JSON(400, ValidationResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, ValidationResponse{
+		Success: true,
+		Results: result,
+	})
+}
+
+func validateTemplateParams(opt AppCreateOptions) ([]ValidationResult, error) {
+	var results []ValidationResult
+	return results, nil
 }

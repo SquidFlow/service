@@ -1,13 +1,10 @@
 package handler
 
-import (
-	"fmt"
-)
-
 // ApplicationTemplate represents a template for deploying applications
 type ApplicationTemplate struct {
 	ID           int                  `json:"id"`
 	Name         string               `json:"name"`
+	Description  string               `json:"description"`
 	Path         string               `json:"path"`
 	Validated    bool                 `json:"validated"`
 	Owner        string               `json:"owner"`
@@ -56,55 +53,4 @@ type ApplicationEvent struct {
 	Type    string `json:"type"`
 	Reason  string `json:"reason"`
 	Message string `json:"message"`
-}
-
-// CreateTemplateRequest represents the request for creating a new application template
-type CreateTemplateRequest struct {
-	Name         string            `json:"name" binding:"required"`
-	Path         string            `json:"path" binding:"required"`
-	Owner        string            `json:"owner" binding:"required"`
-	Environments []string          `json:"environments" binding:"required"`
-	AppType      string            `json:"appType" binding:"required"`
-	Source       ApplicationSource `json:"source" binding:"required"`
-}
-
-// validateTemplate validates the application template
-func validateTemplate(req *CreateTemplateRequest) error {
-	// Validate app type
-	validAppTypes := map[string]bool{
-		"kustomization": true,
-		"helm":          true,
-	}
-	if !validAppTypes[req.AppType] {
-		return fmt.Errorf("invalid app type: %s", req.AppType)
-	}
-
-	// Validate source type
-	validSourceTypes := map[string]bool{
-		"git": true,
-	}
-	if !validSourceTypes[req.Source.Type] {
-		return fmt.Errorf("invalid source type: %s", req.Source.Type)
-	}
-
-	// Validate environments
-	validEnvs := map[string]bool{
-		"SIT": true,
-		"UAT": true,
-		"PRD": true,
-	}
-	for _, env := range req.Environments {
-		if !validEnvs[env] {
-			return fmt.Errorf("invalid environment: %s", env)
-		}
-	}
-
-	return nil
-}
-
-// scanResources scans the template directory for Kubernetes resources
-func scanResources(path string) (*ApplicationResources, error) {
-	// TODO: Implement resource scanning logic
-	// This should walk through the template directory and count different types of resources
-	return &ApplicationResources{}, nil
 }

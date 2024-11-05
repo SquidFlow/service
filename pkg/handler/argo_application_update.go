@@ -49,7 +49,6 @@ func UpdateArgoApplication(c *gin.Context) {
 		return
 	}
 
-	// 验证应用是否存在
 	exists, err := validateApplicationExists(req.Name, req.Namespace)
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to validate application: %v", err)})
@@ -60,19 +59,16 @@ func UpdateArgoApplication(c *gin.Context) {
 		return
 	}
 
-	// 验证目标集群
 	if err := validateClusters(req.Clusters); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid clusters: %v", err)})
 		return
 	}
 
-	// 验证更新模板
 	if err := validateUpdateTemplate(req.Template); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid template: %v", err)})
 		return
 	}
 
-	// 执行更新操作
 	response, err := performUpdate(&req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Update failed: %v", err)})
@@ -114,7 +110,6 @@ func performUpdate(req *UpdateRequest) (*UpdateResponse, error) {
 		FailedClusters: make([]string, 0),
 	}
 
-	// 对每个集群执行更新
 	for _, cluster := range req.Clusters {
 		err := updateCluster(cluster, req)
 		if err != nil {
@@ -125,7 +120,6 @@ func performUpdate(req *UpdateRequest) (*UpdateResponse, error) {
 		}
 	}
 
-	// 如果所有集群都更新成功
 	if len(response.FailedClusters) == 0 {
 		response.Status = "Succeeded"
 		response.Message = "Application updated successfully on all clusters"

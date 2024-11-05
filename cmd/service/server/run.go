@@ -1,10 +1,16 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,13 +38,11 @@ func NewRunCommand() *cobra.Command {
 func runServer(cmd *cobra.Command, args []string) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Fatalf("Panic: %v", r)
+			log.Fatalf("Panic recovered: %v", r)
 		}
 	}()
 
-	log.SetFormatter(&log.TextFormatter{})
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+	setupLogger()
 
 	configFile, err := cmd.Flags().GetString("config")
 	if err != nil {
@@ -50,56 +54,160 @@ func runServer(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	if viper.GetString("env") == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := setupRouter()
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", viper.GetInt("server.port")),
+		Handler: r,
+	}
+
+	go func() {
+		log.Printf("Starting server on %s", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Errorf("Server forced to shutdown: %v", err)
+	}
+
+	log.Info("Server exiting")
+}
+
+func setupLogger() {
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp:   true,
+		TimestampFormat: "2006-01-02 15:04:05",
+	})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+}
+
+func setupRouter() *gin.Engine {
 	r := gin.Default()
 
+	r.Use(gin.Recovery())
+	r.Use(corsMiddleware())
+	r.Use(requestIDMiddleware())
+
 	v1 := r.Group("/api/v1")
-	// deploy/DestinationCluster
+
 	{
-		v1.GET("destinationCluster", handler.ListDestinationCluster)
-		v1.POST("destinationCluster", handler.CreateDestinationCluster)
-		v1.PATCH("destinationCluster/:name", handler.UpdateDestinationCluster)
+		r.GET("/healthz", handler.Healthz)
 	}
 
-	// deploy/application template (only kustomization)
+	// the target cluster of argo application
+	clusters := v1.Group("/destinationCluster")
 	{
-		v1.POST("applications/template", handler.CreateApplicationTemplate)
-		v1.GET("applications/templates", handler.ListApplicationTemplate)
-		v1.PATCH("applications/templates", handler.UpdateApplicationTemplate)
-		v1.POST("applications/templates", handler.VlidateApplicationTemplate)
+		clusters.GET("", handler.ListDestinationCluster)
+		clusters.POST("", handler.CreateDestinationCluster)
+		clusters.PATCH("/:name", handler.UpdateDestinationCluster)
 	}
-	// deploy/argoapplication
+
+	// save the template resource to improve the user experience
+	// actually. to want handle the manifest repo
+	templates := v1.Group("/applications/templates")
 	{
-		// group operator
-		v1.POST("deploy/applications", handler.CreateArgoApplication)
-		v1.GET("deploy/applications", handler.ListArgoApplications)
-
-		// dry run
-		v1.POST("deploy/argo/applications/dryrun", handler.DryRunArgoApplications)
-
-		// one application operator
-		v1.GET("deploy/argo/applications/:appName", handler.DescribeArgoApplications) // TODO
-		v1.PUT("deploy/argo/applications/:appName", handler.UpdateArgoApplication)    // TODO
-		v1.DELETE("deploy/argo/applications/:appName", handler.DeleteArgoApplication)
-		v1.POST("deploy/argo/applications/:appName/sync", handler.DryRunArgoApplications)
-		// project === tenant
+		templates.POST("", handler.CreateApplicationTemplate)
+		templates.GET("", handler.ListApplicationTemplate)
+		templates.POST("/validate", handler.ValidateApplicationTemplate)
+		templateInstance := templates.Group("/:template_id")
 		{
-			v1.POST("/projects", handler.CreateProject)
-			v1.GET("/projects", handler.ListProjects)
-			v1.DELETE("/projects", handler.DeleteProject)
+			templateInstance.PATCH("", handler.UpdateApplicationTemplate)
+			templateInstance.DELETE("", handler.UpdateApplicationTemplate)
 		}
 	}
-	// security
-	{
-		v1.POST("security/externalsecrets/secretstore", handler.CreateSecretStore)
-		v1.GET("security/externalsecrets/secretstore", handler.ListSecretStore)
-	}
-	r.GET("/healthz", handler.Healthz)
 
-	serverPort := viper.GetInt("server.port")
-	serverAddr := fmt.Sprintf(":%d", serverPort)
-	log.Printf("Starting server on %s", serverAddr)
-	err = r.Run(serverAddr)
-	if err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	// real api, to manage the lifecycle of ArgoApplication
+	applications := v1.Group("/deploy/argocdapplications")
+	{
+		applications.POST("", handler.CreateArgoApplication)
+		applications.GET("", handler.ListArgoApplications)
+		applications.POST("/sync", handler.SyncArgoApplication)
+		applications.POST("/dryrun", handler.DryRunArgoApplications)
+
+		app := applications.Group("/:appName")
+		{
+			app.GET("", handler.DescribeArgoApplications)
+			app.PATCH("", handler.UpdateArgoApplication)
+			app.DELETE("", handler.DeleteArgoApplication)
+		}
 	}
+
+	// one tenant : one ArgoCD Project
+	tenants := v1.Group("/tenants")
+	{
+		tenants.POST("", handler.CreateProject)
+		tenants.GET("", handler.ListProjects)
+		tenantsOne := tenants.Group("/:tenantName")
+		{
+			tenantsOne.GET("", handler.ListProjects)
+			tenantsOne.DELETE("", handler.DeleteProject)
+		}
+	}
+
+	// integrated with ExternalSecrets
+	security := v1.Group("/security")
+	{
+		secretStore := security.Group("/externalsecrets/secretstore")
+		{
+			secretStore.POST("", handler.CreateSecretStore)
+			secretStore.GET("", handler.ListSecretStore)
+			secretStoreOne := secretStore.Group("/:name")
+			{
+				secretStoreOne.PATCH("", handler.UpdateSecretStore)
+				secretStoreOne.DELETE("", handler.DeleteSecretStore)
+			}
+		}
+	}
+
+	return r
+}
+
+// corsMiddleware to handle CORS
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Authorization, Content-Type")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// requestIDMiddleware injects a request ID into the context
+func requestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetHeader("X-Request-ID")
+		if requestID == "" {
+			requestID = generateRequestID()
+		}
+		c.Set("RequestID", requestID)
+		c.Header("X-Request-ID", requestID)
+		c.Next()
+	}
+}
+
+// generateRequestID to generate request ID
+func generateRequestID() string {
+	return fmt.Sprintf("%d-%s", time.Now().UnixNano(), uuid.New().String()[:8])
 }
