@@ -1,20 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"syscall"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/h4-poc/service/cmd/supervisor/commands"
+	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/util"
 )
-
-func init() {
-	log.SetFormatter(&log.TextFormatter{})
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
-}
 
 func main() {
 	var rootCmd = &cobra.Command{
@@ -23,6 +21,11 @@ func main() {
 		Long:              `Supervisor is a tool for initializing and managing application deployments.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	}
+
+	ctx := context.Background()
+	lgr := log.FromLogrus(logrus.NewEntry(logrus.New()), &log.LogrusConfig{Level: "info"})
+	ctx = log.WithLogger(ctx, lgr)
+	ctx = util.ContextWithCancelOnSignals(ctx, syscall.SIGINT, syscall.SIGTERM)
 
 	rootCmd.AddCommand(commands.NewVersionCommand())
 	rootCmd.AddCommand(commands.NewBootstrapCmd())

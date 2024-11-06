@@ -11,12 +11,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/h4-poc/service/pkg/config"
 	"github.com/h4-poc/service/pkg/handler"
+	"github.com/h4-poc/service/pkg/log"
 )
 
 func NewRunCommand() *cobra.Command {
@@ -38,31 +38,35 @@ func NewRunCommand() *cobra.Command {
 func runServer(cmd *cobra.Command, args []string) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Fatalf("Panic recovered: %v", r)
+			log.G().Fatalf("Panic recovered: %v", r)
 		}
 	}()
 
-	setupLogger()
-
 	configFile, err := cmd.Flags().GetString("config")
 	if err != nil {
-		log.Fatalf("Failed to get config file: %v", err)
+		log.G().Fatalf("Failed to get config file: %v", err)
 	}
 
 	_, err = config.ParseConfig(configFile)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.G().Fatalf("Failed to load config: %v", err)
 	}
 
 	// Set gin mode based on environment
 	if viper.GetString("env") == "production" || os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
-		log.SetLevel(log.InfoLevel)
-		log.Info("Running in production mode")
+		logger := log.G()
+		if err := logger.Configure(); err != nil {
+			log.G().Fatalf("Failed to configure logger: %v", err)
+		}
+		log.G().Info("Running in production mode")
 	} else {
 		gin.SetMode(gin.DebugMode)
-		log.SetLevel(log.DebugLevel)
-		log.Info("Running in development mode")
+		logger := log.G()
+		if err := logger.Configure(); err != nil {
+			log.G().Fatalf("Failed to configure logger: %v", err)
+		}
+		log.G().Info("Running in development mode")
 	}
 
 	r := setupRouter()
@@ -73,9 +77,9 @@ func runServer(cmd *cobra.Command, args []string) {
 	}
 
 	go func() {
-		log.Printf("Starting server on %s", srv.Addr)
+		log.G().Printf("Starting server on %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			log.G().Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
@@ -83,25 +87,16 @@ func runServer(cmd *cobra.Command, args []string) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Info("Shutting down server...")
+	log.G().Info("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Errorf("Server forced to shutdown: %v", err)
+		log.G().Errorf("Server forced to shutdown: %v", err)
 	}
 
-	log.Info("Server exiting")
-}
-
-func setupLogger() {
-	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
-	})
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+	log.G().Info("Server exiting")
 }
 
 func setupRouter() *gin.Engine {

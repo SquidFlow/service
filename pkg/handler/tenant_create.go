@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
-	log "github.com/sirupsen/logrus"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/spf13/viper"
 
 	"github.com/h4-poc/service/pkg/fs"
@@ -48,7 +48,7 @@ func CreateProject(c *gin.Context) {
 
 	err := RunProjectCreate(context.Background(), opts)
 	if err != nil {
-		log.Errorf("Failed to create project: %v", err)
+		log.G().Errorf("Failed to create project: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create project: %v", err)})
 		return
 	}
@@ -79,7 +79,7 @@ func RunProjectCreate(ctx context.Context, opts *ProjectCreateOptions) error {
 		return fmt.Errorf("project '%s' already exists", opts.ProjectName)
 	}
 
-	log.Debug("repository is ok")
+	log.G().Debug("repository is ok")
 
 	if opts.DestKubeServer == "" {
 		opts.DestKubeServer = store.Default.DestServer
@@ -107,14 +107,14 @@ func RunProjectCreate(ctx context.Context, opts *ProjectCreateOptions) error {
 	}
 
 	if opts.DryRun {
-		log.Printf("%s", util.JoinManifests(projectYAML, appsetYAML))
+		log.G().Printf("%s", util.JoinManifests(projectYAML, appsetYAML))
 		return nil
 	}
 
 	bulkWrites := []fs.BulkWriteRequest{}
 
 	if opts.DestKubeContext != "" {
-		log.Infof("adding cluster: %s", opts.DestKubeContext)
+		log.G().Infof("adding cluster: %s", opts.DestKubeContext)
 		if err = opts.AddCmd.Execute(ctx, opts.DestKubeContext); err != nil {
 			return fmt.Errorf("failed to add new cluster credentials: %w", err)
 		}
@@ -144,12 +144,12 @@ func RunProjectCreate(ctx context.Context, opts *ProjectCreateOptions) error {
 		return err
 	}
 
-	log.Infof("pushing new project manifest to repo")
+	log.G().Infof("pushing new project manifest to repo")
 	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Added project '%s'", opts.ProjectName)}); err != nil {
 		return err
 	}
 
-	log.Infof("project created: '%s'", opts.ProjectName)
+	log.G().Infof("project created: '%s'", opts.ProjectName)
 
 	return nil
 }

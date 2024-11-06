@@ -11,7 +11,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
-	log "github.com/sirupsen/logrus"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 
@@ -115,23 +115,23 @@ func RunAppList(ctx context.Context, opts *AppListOptions) (*AppListResponse, er
 
 		gitInfo, err := getGitInfo(repofs, appPath)
 		if err != nil {
-			log.Warnf("failed to get git info for %s: %v", appPath, err)
+			log.G().Warnf("failed to get git info for %s: %v", appPath, err)
 		}
 
 		var (
 			applicationName = opts.ProjectName + "-" + conf.UserGivenName
 			applicationNs   = store.Default.ArgoCDNamespace
 		)
-		log.Debugf("applicationName: %s, applicationNs: %s", applicationName, applicationNs)
+		log.G().Debugf("applicationName: %s, applicationNs: %s", applicationName, applicationNs)
 		argoApp, err := opts.ArgoCDClient.Applications(applicationNs).Get(ctx, applicationName, metav1.GetOptions{})
 		if err != nil {
-			log.Errorf("failed to get ArgoCD app info for %s: %v", conf.UserGivenName, err)
+			log.G().Errorf("failed to get ArgoCD app info for %s: %v", conf.UserGivenName, err)
 			return nil, err
 		}
 
 		resourceMetrics, err := getResourceMetrics(ctx, opts.KubeClient, conf.DestNamespace)
 		if err != nil {
-			log.Warnf("failed to get resource metrics for %s: %v", conf.DestNamespace, err)
+			log.G().Warnf("failed to get resource metrics for %s: %v", conf.DestNamespace, err)
 		}
 
 		app := AppDetailResponse{
@@ -196,7 +196,7 @@ func getAppStatus(app *argocdv1alpha1.Application) string {
 	if app == nil {
 		return "Unknown"
 	}
-	log.Debugf("get app OperationState: %v", app.Status.OperationState)
+	log.G().Debugf("get app OperationState: %v", app.Status.OperationState)
 	return string(app.Status.OperationState.Phase)
 }
 
@@ -204,7 +204,7 @@ func getAppHealth(app *argocdv1alpha1.Application) string {
 	if app == nil {
 		return "Unknown"
 	}
-	log.Debugf("get app Health: %v", app.Status.Health.Status)
+	log.G().Debugf("get app Health: %v", app.Status.Health.Status)
 	return string(app.Status.Health.Status)
 }
 

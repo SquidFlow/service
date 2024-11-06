@@ -10,7 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdcs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/spf13/cobra"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,7 +90,7 @@ func GetAppSyncWaitFunc(revision string, waitForCreation bool) kube.WaitFunc {
 			onRevision = revision == app.Status.Sync.Revision
 		}
 
-		log.Debugf("Application found, Sync Status: %s, Health Status: %s, Revision: %s", app.Status.Sync.Status, app.Status.Health.Status, app.Status.Sync.Revision)
+		log.G().Debugf("Application found, Sync Status: %s, Health Status: %s, Revision: %s", app.Status.Sync.Status, app.Status.Health.Status, app.Status.Sync.Revision)
 		return synced && healthy && onRevision, nil
 	}
 }

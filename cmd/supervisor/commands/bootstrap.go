@@ -16,12 +16,13 @@ import (
 	argocdsettings "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
+
+	"github.com/h4-poc/service/pkg/log"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"
@@ -98,7 +99,7 @@ func NewBootstrapCmd() *cobra.Command {
 		},
 	}
 
-	log.Debugf("start clone options %s", applicationRepoRemoteURL)
+	log.G().Debugf("start clone options %s", applicationRepoRemoteURL)
 
 	cmd.Flags().StringVar(&appSpecifier, "app", "", "The application specifier (e.g. github.com/h4-poc/service/manifests), overrides the default installation argo-cd manifests")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "If true, print manifests instead of applying them to the cluster (nothing will be commited to git)")
@@ -195,7 +196,7 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 		return err
 	}
 
-	log.WithFields(log.Fields{
+	log.G().WithFields(log.Fields{
 		"repo-url":     opts.CloneOptions.URL(),
 		"revision":     opts.CloneOptions.Revision(),
 		"namespace":    opts.Namespace,
@@ -229,7 +230,7 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 		return nil
 	}
 
-	log.Infof("cloning repo: %s", opts.CloneOptions.URL())
+	log.G().Infof("cloning repo: %s", opts.CloneOptions.URL())
 
 	// clone GitOps repo
 	r, repofs, err := getRepo(ctx, opts.CloneOptions)
@@ -237,17 +238,17 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 		return err
 	}
 
-	log.Infof("using revision: \"%s\", installation path: \"%s\"", opts.CloneOptions.Revision(), opts.CloneOptions.Path())
+	log.G().Infof("using revision: \"%s\", installation path: \"%s\"", opts.CloneOptions.Revision(), opts.CloneOptions.Path())
 	err = validateRepo(repofs, opts.Recover)
 	if err != nil {
 		return err
 	}
 
-	log.Debug("repository is ok")
+	log.G().Debug("repository is ok")
 
 	// apply built manifest to k8s cluster
-	log.Infof("using context: \"%s\", namespace: \"%s\"", opts.KubeContextName, opts.Namespace)
-	log.Infof("applying bootstrap manifests to cluster...")
+	log.G().Infof("using context: \"%s\", namespace: \"%s\"", opts.KubeContextName, opts.Namespace)
+	log.G().Infof("applying bootstrap manifests to cluster...")
 	if err = opts.KubeFactory.Apply(ctx, util.JoinManifests(manifests.namespace, manifests.applyManifests, manifests.repoCreds)); err != nil {
 		return fmt.Errorf("failed to apply bootstrap manifests to cluster: %w", err)
 	}
@@ -271,7 +272,7 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 
 	if !opts.Recover {
 		// push results to repo
-		log.Infof("pushing bootstrap manifests to repo")
+		log.G().Infof("pushing bootstrap manifests to repo")
 		commitMsg := "feat: supervisor bootstrap"
 		if opts.CloneOptions.Path() != "" {
 			commitMsg = "supervisor bootstrap at " + opts.CloneOptions.Path()
@@ -283,7 +284,7 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 	}
 
 	// apply "Argo-CD" Application that references "bootstrap/argo-cd"
-	log.Infof("applying argo-cd bootstrap application")
+	log.G().Infof("applying argo-cd bootstrap application")
 	if err = opts.KubeFactory.Apply(ctx, manifests.bootstrapApp); err != nil {
 		return err
 	}
@@ -294,9 +295,9 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 	}
 
 	if !opts.HidePassword {
-		log.Printf("")
-		log.Infof("argocd initialized. password: %s", passwd)
-		log.Infof("run:\n\n    kubectl port-forward -n %s svc/argocd-server 8080:80\n\n", opts.Namespace)
+		log.G().Printf("")
+		log.G().Infof("argocd initialized. password: %s", passwd)
+		log.G().Infof("run:\n\n    kubectl port-forward -n %s svc/argocd-server 8080:80\n\n", opts.Namespace)
 	}
 
 	return nil
@@ -328,7 +329,7 @@ func setBootstrapOptsDefaults(opts RepoBootstrapOptions) (*RepoBootstrapOptions,
 	}
 
 	if _, err := os.Stat(opts.AppSpecifier); err == nil {
-		log.Warnf("detected local bootstrap manifests, using 'flat' installation mode")
+		log.G().Warnf("detected local bootstrap manifests, using 'flat' installation mode")
 		opts.InstallationMode = installationModeFlat
 	}
 

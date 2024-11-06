@@ -12,10 +12,10 @@ import (
 	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
+	"github.com/h4-poc/service/pkg/log"
 
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
@@ -147,10 +147,10 @@ func DeleteFromProject(repofs fs.FS, appName, projectName string) error {
 	var dirToRemove string
 	if len(allProjects) == 1 {
 		dirToRemove = appDir
-		log.Infof("Deleting app '%s'", appName)
+		log.G().Infof("Deleting app '%s'", appName)
 	} else {
 		dirToRemove = repofs.Join(dirToCheck, projectName)
-		log.Infof("Deleting app '%s' from project '%s'", appName, projectName)
+		log.G().Infof("Deleting app '%s' from project '%s'", appName, projectName)
 	}
 
 	err = billyUtils.RemoveAll(repofs, dirToRemove)
@@ -230,7 +230,7 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 
 	// if app specifier is a local file
 	if _, err := os.Stat(o.AppSpecifier); err == nil {
-		log.Warn("using flat installation mode because base is a local file")
+		log.G().Warn("using flat installation mode because base is a local file")
 		o.InstallationMode = InstallationModeFlat
 		o.AppSpecifier, err = filepath.Abs(o.AppSpecifier)
 		if err != nil {
@@ -247,7 +247,7 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 	}
 
 	if o.InstallationMode == InstallationModeFlat {
-		log.Info("building manifests...")
+		log.G().Info("building manifests...")
 		app.manifests, err = generateManifests(app.base)
 		if err != nil {
 			return nil, err
@@ -301,7 +301,7 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 	// check if app is in the same filesystem
 	if appsfs.ExistsOrDie(appPath) {
 		// check if the bases are the same
-		log.Debug("application with the same name exists, checking for collisions")
+		log.G().Debug("application with the same name exists, checking for collisions")
 		if collision, err := checkBaseCollision(appsfs, baseKustomizationPath, app.base); err != nil {
 			return err
 		} else if collision {
@@ -449,11 +449,11 @@ func writeFile(repofs fs.FS, path, name string, data []byte) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to create '%s' file at '%s': %w", name, absPath, err)
 	} else if exists {
-		log.Infof("'%s' file exists in '%s'", name, absPath)
+		log.G().Infof("'%s' file exists in '%s'", name, absPath)
 		return true, nil
 	}
 
-	log.Infof("created '%s' file at '%s'", name, absPath)
+	log.G().Infof("created '%s' file at '%s'", name, absPath)
 	return false, nil
 }
 
@@ -481,7 +481,7 @@ func fixResourcesPaths(k *kusttypes.Kustomization, newKustDir string) error {
 		}
 
 		k.Resources[i], err = filepath.Rel(newKustDir, absRes)
-		log.WithFields(log.Fields{
+		log.G().WithFields(log.Fields{
 			"from": absRes,
 			"to":   k.Resources[i],
 		}).Debug("adjusting kustomization paths to local filesystem")
@@ -519,7 +519,7 @@ var generateManifests = func(k *kusttypes.Kustomization) ([]byte, error) {
 		return nil, fmt.Errorf("failed writing file to \"%s\": %w", kustomizationPath, err)
 	}
 
-	log.WithFields(log.Fields{
+	log.G().WithFields(log.Fields{
 		"bootstrapKustPath": kustomizationPath,
 		"resourcePath":      k.Resources[0],
 	}).Debugf("running bootstrap kustomization: %s\n", string(kyaml))

@@ -8,13 +8,13 @@ import (
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 )
@@ -23,21 +23,21 @@ var (
 	die = util.Die
 
 	prepareRepo = func(ctx context.Context, cloneOpts *git.CloneOptions, projectName string) (git.Repository, fs.FS, error) {
-		log.WithFields(log.Fields{
+		log.G().WithFields(log.Fields{
 			"repoURL":  cloneOpts.URL(),
 			"revision": cloneOpts.Revision(),
 			"forWrite": cloneOpts.CloneForWrite,
 		}).Debug("starting with options: ")
 
 		// clone repo
-		log.Infof("cloning git repository: %s", cloneOpts.URL())
+		log.G().Infof("cloning git repository: %s", cloneOpts.URL())
 		r, repofs, err := getRepo(ctx, cloneOpts)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed cloning the repository: %w", err)
 		}
 
 		root := repofs.Root()
-		log.Infof("using revision: \"%s\", installation path: \"%s\"", cloneOpts.Revision(), root)
+		log.G().Infof("using revision: \"%s\", installation path: \"%s\"", cloneOpts.Revision(), root)
 		if !repofs.ExistsOrDie(store.Default.BootsrtrapDir) {
 			return nil, nil, fmt.Errorf("bootstrap directory not found, please execute `repo bootstrap` command")
 		}
@@ -49,7 +49,7 @@ var (
 			}
 		}
 
-		log.Debug("repository is ok")
+		log.G().Debug("repository is ok")
 
 		return r, repofs, nil
 	}

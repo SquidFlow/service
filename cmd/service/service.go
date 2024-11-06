@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/h4-poc/service/cmd/service/server"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 )
 
@@ -28,15 +28,11 @@ It provides RESTful APIs for managing applications, projects, and security confi
 }
 
 func init() {
-	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
-		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-			filename := strings.Split(f.File, "service/")[1]
-			return "", fmt.Sprintf("%s:%d", filename, f.Line)
-		},
+	logger := log.FromLogrus(logrus.NewEntry(logrus.New()), &log.LogrusConfig{
+		Level:  "debug",
+		Format: log.FormatterText,
 	})
-	log.SetReportCaller(true)
+	log.SetDefault(logger)
 
 	store.Get().Version = store.Version{
 		Version:    version,
@@ -50,32 +46,17 @@ func init() {
 	rootCmd.AddCommand(server.NewRunCommand())
 	rootCmd.AddCommand(server.NewVersionCommand())
 
-	rootCmd.PersistentFlags().String("log-level", "info", "Log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().Bool("json-logs", false, "Output logs in JSON format")
+	log.G().AddPFlags(rootCmd)
 }
 
 func preRun(cmd *cobra.Command, args []string) {
-	logLevel, err := cmd.Flags().GetString("log-level")
-	if err != nil {
-		log.Fatal(err)
-	}
-	level, err := log.ParseLevel(logLevel)
-	if err != nil {
-		log.Fatalf("Invalid log level: %v", err)
-	}
-	log.SetLevel(level)
-
-	jsonLogs, err := cmd.Flags().GetBool("json-logs")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if jsonLogs {
-		log.SetFormatter(&log.JSONFormatter{
-			TimestampFormat: "2006-01-02 15:04:05",
-		})
+	logger := log.G()
+	if err := logger.Configure(); err != nil {
+		fmt.Printf("Failed to configure logger: %v\n", err)
+		os.Exit(1)
 	}
 
-	log.WithFields(log.Fields{
+	log.G().WithFields(log.Fields{
 		"version":     version,
 		"commit":      commit,
 		"build_date":  buildDate,
@@ -89,7 +70,7 @@ func preRun(cmd *cobra.Command, args []string) {
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Fatalf("Application panic: %v", r)
+			log.G().Fatalf("Application panic: %v", r)
 		}
 	}()
 
@@ -97,14 +78,14 @@ func main() {
 	rootCmd.SilenceUsage = true
 
 	if err := rootCmd.Execute(); err != nil {
-		log.WithError(err).Fatal("Failed to start application")
+		log.G().WithError(err).Fatal("Failed to start application")
 	}
 }
 
 func getCurrentWorkingDir() string {
 	dir, err := os.Getwd()
 	if err != nil {
-		log.WithError(err).Error("Failed to get working directory")
+		log.G().WithError(err).Error("Failed to get working directory")
 		return "unknown"
 	}
 	return dir
