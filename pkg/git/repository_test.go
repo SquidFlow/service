@@ -161,7 +161,7 @@ func Test_repo_initBranch(t *testing.T) {
 			beforeFn: func(r *mocks.MockRepository, wt *mocks.MockWorktree) {
 				r.EXPECT().ConfigScoped(gomock.Any()).Times(1).Return(globalGitConfig, nil)
 				wt.EXPECT().AddGlob(".").Times(1).Return(nil)
-				wt.EXPECT().Commit("initial commit", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
+				wt.EXPECT().Commit("init: first commit of h4-platform", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
 				b := plumbing.NewBranchReferenceName("main")
 				r.EXPECT().Reference(b, true).Times(1).Return(nil, nil)
 				wt.EXPECT().Checkout(&gg.CheckoutOptions{
@@ -182,7 +182,7 @@ func Test_repo_initBranch(t *testing.T) {
 			beforeFn: func(r *mocks.MockRepository, wt *mocks.MockWorktree) {
 				r.EXPECT().ConfigScoped(gomock.Any()).Times(1).Return(globalGitConfig, nil)
 				wt.EXPECT().AddGlob(".").Times(1).Return(nil)
-				wt.EXPECT().Commit("initial commit", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
+				wt.EXPECT().Commit("init: first commit of h4-platform", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
 				b := plumbing.NewBranchReferenceName("branchName")
 				r.EXPECT().Reference(b, true).Times(1).Return(nil, errors.New("some error"))
 			},
@@ -192,7 +192,7 @@ func Test_repo_initBranch(t *testing.T) {
 			beforeFn: func(r *mocks.MockRepository, wt *mocks.MockWorktree) {
 				r.EXPECT().ConfigScoped(gomock.Any()).Times(1).Return(globalGitConfig, nil)
 				wt.EXPECT().AddGlob(".").Times(1).Return(nil)
-				wt.EXPECT().Commit("initial commit", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
+				wt.EXPECT().Commit("init: first commit of h4-platform", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
 				b := plumbing.NewBranchReferenceName("branchName")
 				r.EXPECT().Reference(b, true).Times(1).Return(nil, plumbing.ErrReferenceNotFound)
 				wt.EXPECT().Checkout(&gg.CheckoutOptions{
@@ -245,7 +245,7 @@ func Test_initRepo(t *testing.T) {
 				}
 				r.EXPECT().ConfigScoped(gomock.Any()).Times(1).Return(globalGitConfig, nil)
 				wt.EXPECT().AddGlob(".").Times(1).Return(nil)
-				wt.EXPECT().Commit("initial commit", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
+				wt.EXPECT().Commit("init: first commit of h4-platform", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
 				b := plumbing.NewBranchReferenceName("master")
 				r.EXPECT().Reference(b, true).Times(1).Return(nil, nil)
 				wt.EXPECT().Checkout(&gg.CheckoutOptions{
@@ -269,7 +269,7 @@ func Test_initRepo(t *testing.T) {
 
 				r.EXPECT().ConfigScoped(gomock.Any()).Times(2).Return(globalGitConfig, nil)
 				wt.EXPECT().AddGlob(".").Times(1).Return(nil)
-				wt.EXPECT().Commit("initial commit", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
+				wt.EXPECT().Commit("init: first commit of h4-platform", gomock.Any()).Times(1).Return(plumbing.Hash{}, nil)
 				b := plumbing.NewBranchReferenceName("master")
 				r.EXPECT().Reference(b, true).Times(1).Return(nil, nil)
 				wt.EXPECT().Checkout(&gg.CheckoutOptions{
@@ -337,7 +337,7 @@ func Test_initRepo(t *testing.T) {
 
 				r.EXPECT().ConfigScoped(gomock.Any()).Times(1).Return(globalGitConfig, nil)
 				wt.EXPECT().AddGlob(".").Times(1).Return(nil)
-				wt.EXPECT().Commit("initial commit", gomock.Any()).Times(1).Return(plumbing.Hash{}, errors.New("some error"))
+				wt.EXPECT().Commit("init: first commit of h4-platform", gomock.Any()).Times(1).Return(plumbing.Hash{}, errors.New("some error"))
 			},
 		},
 	}
