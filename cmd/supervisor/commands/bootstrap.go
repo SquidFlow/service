@@ -31,6 +31,11 @@ import (
 	"github.com/h4-poc/service/pkg/util"
 )
 
+const (
+	installationModeFlat   = "flat"
+	installationModeNormal = "normal"
+)
+
 func NewBootstrapCmd() *cobra.Command {
 	var (
 		appSpecifier               = ""
@@ -55,21 +60,20 @@ func NewBootstrapCmd() *cobra.Command {
 
 	supervisor <BIN> bootstrap
 `),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			// in recover mode we don't want to commit anything
+		PreRun: func(_ *cobra.Command, _ []string) {
 			if recover {
+				// in recover mode we don't want to commit anything
 				cloneOpts.CloneForWrite = false
 				cloneOpts.CreateIfNotExist = false
 			}
-
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cloneOpts = &git.CloneOptions{
 				FS:               fs.Create(memfs.New()),
-				CreateIfNotExist: true,
-				CloneForWrite:    true,
 				Repo:             applicationRepoRemoteURL,
 				Provider:         "github",
+				CreateIfNotExist: true,
+				CloneForWrite:    true,
 				Auth: git.Auth{
 					Password: applicationRepoAccessToken,
 				},
@@ -96,24 +100,20 @@ func NewBootstrapCmd() *cobra.Command {
 
 	log.Debugf("start clone options %s", applicationRepoRemoteURL)
 
-	cmd.Flags().StringVar(&appSpecifier, "app", "", "Application specifier")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run")
+	cmd.Flags().StringVar(&appSpecifier, "app", "", "The application specifier (e.g. github.com/h4-poc/service/manifests), overrides the default installation argo-cd manifests")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "If true, print manifests instead of applying them to the cluster (nothing will be commited to git)")
 	cmd.Flags().BoolVar(&hidePassword, "hide-password", false, "Hide password")
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "Insecure")
-	cmd.Flags().BoolVar(&recover, "recover", false, "Recover")
-	cmd.Flags().StringVar(&installationMode, "installation-mode", installationModeNormal, "Installation mode")
+	cmd.Flags().BoolVar(&recover, "recover", false, "Installs Argo-CD on a cluster without pushing installation manifests to the git repository. This is meant to be used together with --app flag to use the same Argo-CD manifests that exists in the git repository (e.g. --app https://github.com/git-user/repo-name/bootstrap/argo-cd)")
 	cmd.Flags().StringToStringVar(&namespaceLabels, "namespace-labels", nil, "Namespace labels")
+	cmd.Flags().StringVar(&installationMode, "installation-mode", "normal", "One of: normal|flat. "+
+		"If flat, will commit the bootstrap manifests, otherwise will commit the bootstrap kustomization.yaml")
 	cmd.Flags().StringVar(&applicationRepoAccessToken, "git-token", "", "git token")
 	cmd.Flags().StringVar(&applicationRepoRemoteURL, "repo", "", "application repo")
 	cmd.Flags().StringVar(&kubeConfigPath, "kube-config", "", "kube config path")
 
 	return cmd
 }
-
-const (
-	installationModeFlat   = "flat"
-	installationModeNormal = "normal"
-)
 
 // used for mocking
 var (
@@ -200,7 +200,8 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 		"revision":     opts.CloneOptions.Revision(),
 		"namespace":    opts.Namespace,
 		"kube-context": opts.KubeContextName,
-	}).Debug("starting with options: ")
+		"app":          opts.AppSpecifier,
+	}).Infof("starting with options: ")
 
 	manifests, err := buildBootstrapManifests(
 		opts.Namespace,
@@ -412,7 +413,6 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 	var err error
 	manifests := &bootstrapManifests{}
 
-	// h4-bootstrap app
 	manifests.bootstrapApp, err = createApp(&createAppOptions{
 		name:      store.Default.BootsrtrapAppName,
 		namespace: namespace,
@@ -425,7 +425,6 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 		return nil, err
 	}
 
-	// root app
 	manifests.rootApp, err = createApp(&createAppOptions{
 		name:      store.Default.RootAppName,
 		namespace: namespace,
@@ -438,7 +437,6 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 		return nil, err
 	}
 
-	// argocd app
 	manifests.argocdApp, err = createApp(&createAppOptions{
 		name:        store.Default.ArgoCDName,
 		namespace:   namespace,
@@ -452,49 +450,6 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 		return nil, err
 	}
 
-	// read external-secrets manifest
-	externalSecretManifest, err := os.ReadFile("manifests/external-secrets/external-secrets-manifests.yaml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read external secrets manifest: %w", err)
-	}
-	manifests.externalSecretManifest = externalSecretManifest
-
-	// read vault manifest
-	hashiCorpVaultManifest, err := os.ReadFile("manifests/vault/vault-manifests.yaml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read vault manifest: %w", err)
-	}
-	manifests.hashiCorpVaultManifest = hashiCorpVaultManifest
-
-	// create external-secrets application
-	manifests.externalSecret, err = createApp(&createAppOptions{
-		name:        store.Default.BuildInExternalSecrets,
-		namespace:   namespace,
-		repoURL:     cloneOpts.URL(),
-		revision:    cloneOpts.Revision(),
-		srcPath:     path.Join(cloneOpts.Path(), store.Default.BootsrtrapDir, store.Default.BuildInExternalSecrets),
-		noFinalizer: true,
-		labels:      argocdLabels,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// create vault application
-	manifests.hashiCorpVault, err = createApp(&createAppOptions{
-		name:        store.Default.BuildInHashiCorpVault,
-		namespace:   namespace,
-		repoURL:     cloneOpts.URL(),
-		revision:    cloneOpts.Revision(),
-		srcPath:     path.Join(cloneOpts.Path(), store.Default.BootsrtrapDir, store.Default.BuildInHashiCorpVault),
-		noFinalizer: true,
-		labels:      argocdLabels,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// cluster-resources applicationSet
 	manifests.clusterResAppSet, err = createAppSet(&createAppSetOptions{
 		name:                        store.Default.ClusterResourcesDir,
 		namespace:                   namespace,
@@ -580,21 +535,11 @@ func writeManifestsToRepo(repoFS fs.FS, manifests *bootstrapManifests, installat
 	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.RootAppName+".yaml"), Data: manifests.rootApp},                                                    // write projects root app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ArgoCDName+".yaml"), Data: manifests.argocdApp},                                                   // write argocd app
-		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInExternalSecrets+".yaml"), Data: manifests.externalSecret},                                  // write external-secrets app
-		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInHashiCorpVault+".yaml"), Data: manifests.hashiCorpVault},                                   // write vault app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir+".yaml"), Data: manifests.clusterResAppSet},                                   // write cluster-resources appset
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, "README.md"), Data: clusterResReadme},      // write ./bootstrap/cluster-resources/in-cluster/README.md
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName+".json"), Data: manifests.clusterResConfig}, // write ./bootstrap/cluster-resources/in-cluster.json
 		{Filename: repoFS.Join(store.Default.ProjectsDir, "README.md"), Data: projectReadme},                                                                                // write ./projects/README.md
 		{Filename: repoFS.Join(store.Default.AppsDir, "README.md"), Data: appsReadme},                                                                                       // write ./apps/README.md
-		{
-			Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInExternalSecrets, "manifests.yaml"),
-			Data:     manifests.externalSecretManifest,
-		},
-		{
-			Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.BuildInHashiCorpVault, "manifests.yaml"),
-			Data:     manifests.hashiCorpVaultManifest,
-		},
 	}...)
 
 	if manifests.namespace != nil {

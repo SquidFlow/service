@@ -7,14 +7,15 @@ Bootstrap is a command-line tool for initializing and managing the H4 Platform e
 ### bootstrap the gitops repo
 
 ```shell
-➜  service git:(main) ✗ ./output/supervisor bootstrap --git-token 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 --repo https://github.com/h4-poc/application-repo.git
+~/w/g/s/g/h/s/output *main> ./supervisor bootstrap --git-token github_pat_******** --repo https://github.com/h4-poc/gitops2.git --app github.com/h4-poc/service/manifests/base
 DEBU[0000] start clone options
-WARN[0000] detected local bootstrap manifests, using 'normal' installation mode
-INFO[0002] cloning repo: https://github.com/h4-poc/application-repo.git
-INFO[0004] empty repository, initializing a new one with specified remote
-INFO[0005] using revision: "", installation path: ""
-INFO[0005] using context: "minikube", namespace: "argocd"
-INFO[0005] applying bootstrap manifests to cluster...
+INFO[0000] building bootstrap manifests                  app=github.com/h4-poc/service/manifests/base bootstrapAppsLabels="map[]" labels="map[]" namespace=argocd namespaceLabels="map[]" path= repo="https://github.com/h4-poc/gitops2.git" revision=
+INFO[0010] cloning repo: https://github.com/h4-poc/gitops2.git
+INFO[0014] repository 'https://github.com/h4-poc/gitops2.git' was not found, trying to create it...
+INFO[0015] empty repository, initializing a new one with specified remote
+INFO[0015] using revision: "", installation path: ""
+INFO[0015] using context: "minikube", namespace: "argocd"
+INFO[0015] applying bootstrap manifests to cluster...
 namespace/argocd created
 customresourcedefinition.apiextensions.k8s.io/applications.argoproj.io created
 customresourcedefinition.apiextensions.k8s.io/applicationsets.argoproj.io created
@@ -75,153 +76,98 @@ networkpolicy.networking.k8s.io/argocd-notifications-controller-network-policy c
 networkpolicy.networking.k8s.io/argocd-redis-network-policy created
 networkpolicy.networking.k8s.io/argocd-repo-server-network-policy created
 networkpolicy.networking.k8s.io/argocd-server-network-policy created
-serviceaccount/vault-agent-injector created
-serviceaccount/vault created
-clusterrole.rbac.authorization.k8s.io/vault-agent-injector-clusterrole created
-clusterrolebinding.rbac.authorization.k8s.io/vault-agent-injector-binding created
-clusterrolebinding.rbac.authorization.k8s.io/vault-server-binding created
-service/vault-agent-injector-svc created
-service/vault-internal created
-service/vault created
-deployment.apps/vault-agent-injector created
-statefulset.apps/vault created
-mutatingwebhookconfiguration.admissionregistration.k8s.io/vault-agent-injector-cfg created
-pod/vault-server-test created
-serviceaccount/external-secrets-cert-controller created
-serviceaccount/external-secrets created
-serviceaccount/external-secrets-webhook created
-secret/external-secrets-webhook created
-customresourcedefinition.apiextensions.k8s.io/acraccesstokens.generators.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/clusterexternalsecrets.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/clustersecretstores.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/ecrauthorizationtokens.generators.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/externalsecrets.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/fakes.generators.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/gcraccesstokens.generators.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/githubaccesstokens.generators.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/passwords.generators.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/pushsecrets.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/secretstores.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/vaultdynamicsecrets.generators.external-secrets.io created
-customresourcedefinition.apiextensions.k8s.io/webhooks.generators.external-secrets.io created
-clusterrole.rbac.authorization.k8s.io/external-secrets-cert-controller created
-clusterrole.rbac.authorization.k8s.io/external-secrets-controller created
-clusterrole.rbac.authorization.k8s.io/external-secrets-view created
-clusterrole.rbac.authorization.k8s.io/external-secrets-edit created
-clusterrole.rbac.authorization.k8s.io/external-secrets-servicebindings created
-clusterrolebinding.rbac.authorization.k8s.io/external-secrets-cert-controller created
-clusterrolebinding.rbac.authorization.k8s.io/external-secrets-controller created
-role.rbac.authorization.k8s.io/external-secrets-leaderelection created
-rolebinding.rbac.authorization.k8s.io/external-secrets-leaderelection created
-service/external-secrets-webhook created
-deployment.apps/external-secrets-cert-controller created
-deployment.apps/external-secrets created
-deployment.apps/external-secrets-webhook created
-validatingwebhookconfiguration.admissionregistration.k8s.io/secretstore-validate created
-validatingwebhookconfiguration.admissionregistration.k8s.io/externalsecret-validate created
 secret/h4-secret created
 
-INFO[0158] pushing bootstrap manifests to repo
+INFO[0081] pushing bootstrap manifests to repo
 Resolving deltas: 100% (1/1), done.
-INFO[0159] applying argo-cd bootstrap application
-W1027 22:33:50.126897   27132 warnings.go:70] metadata.finalizers: "resources-finalizer.argocd.argoproj.io": prefer a domain-qualified finalizer name to avoid accidental conflicts with other finalizer writers
+INFO[0083] applying argo-cd bootstrap application
+W1106 18:58:13.108766   72537 warnings.go:70] metadata.finalizers: "resources-finalizer.argocd.argoproj.io": prefer a domain-qualified finalizer name to avoid accidental conflicts with other finalizer writers
 application.argoproj.io/h4-bootstrap created
-INFO[0159]
-INFO[0159] argocd initialized. password: Xele0y9mhZyYjJI2
-INFO[0159] run:
+INFO[0083]
+INFO[0083] argocd initialized. password: 16oADdAuGFslTfBz
+INFO[0083] run:
 
     kubectl port-forward -n argocd svc/argocd-server 8080:80
-
 ```
 
-for now the bootstrap include `argocd`, `external-secret` and `vault`.
+for now the bootstrap include `argocd`
 
 ```shell
-➜  service git:(main) ✗ kubectl get pod --all-namespaces
-NAMESPACE     NAME                                               READY   STATUS            RESTARTS   AGE
-argocd        argocd-application-controller-0                    1/1     Running           0          4m3s
-argocd        argocd-applicationset-controller-75d8c9495-qnff4   1/1     Running           0          4m3s
-argocd        argocd-dex-server-7c9b44b9f9-sxh9x                 0/1     PodInitializing   0          4m3s
-argocd        argocd-notifications-controller-77f49c7745-b7ggm   1/1     Running           0          4m3s
-argocd        argocd-redis-575c96bc4f-plnl4                      1/1     Running           0          4m3s
-argocd        argocd-repo-server-7f44b474d7-wvwtn                0/1     PodInitializing   0          4m3s
-argocd        argocd-server-5f4dd5d648-vxvgk                     1/1     Running           0          4m3s
-argocd        external-secrets-5859d8dc69-cng5s                  1/1     Running           0          4m2s
-argocd        external-secrets-cert-controller-7d675fdf6-b6cwq   0/1     Running           0          4m2s
-argocd        external-secrets-webhook-6cc4bd4fd4-ggsgc          0/1     Running           0          4m2s
-argocd        vault-0                                            1/1     Running           0          4m3s
-argocd        vault-agent-injector-8667c5945-275zs               1/1     Running           0          4m3s
-kube-system   coredns-7db6d8ff4d-ww68w                           1/1     Running           0          4m3s
-kube-system   etcd-minikube                                      1/1     Running           0          4m23s
-kube-system   kube-apiserver-minikube                            1/1     Running           0          4m23s
-kube-system   kube-controller-manager-minikube                   1/1     Running           0          4m23s
-kube-system   kube-proxy-vgj44                                   1/1     Running           0          4m9s
-kube-system   kube-scheduler-minikube                            1/1     Running           0          4m23s
-kube-system   storage-provisioner                                1/1     Running           0          4m22s
+~/w/g/s/g/h/service *main> kubectl get pod --all-namespaces
+NAMESPACE     NAME                                               READY   STATUS    RESTARTS   AGE
+argocd        argocd-application-controller-0                    1/1     Running   0          5m13s
+argocd        argocd-applicationset-controller-7d7c89f5f-vfsvp   1/1     Running   0          5m14s
+argocd        argocd-dex-server-77b75c4cff-l8bgm                 1/1     Running   0          5m14s
+argocd        argocd-notifications-controller-64775dbfc4-swbhh   1/1     Running   0          5m14s
+argocd        argocd-redis-7d85c5d7b8-fhjl7                      1/1     Running   0          5m14s
+argocd        argocd-repo-server-75bf446df7-ztgvs                1/1     Running   0          5m13s
+argocd        argocd-server-7bb58d96d7-swh6j                     1/1     Running   0          5m13s
+kube-system   coredns-7db6d8ff4d-7vtzd                           1/1     Running   0          6m20s
+kube-system   etcd-minikube                                      1/1     Running   0          6m34s
+kube-system   kube-apiserver-minikube                            1/1     Running   0          6m34s
+kube-system   kube-controller-manager-minikube                   1/1     Running   0          6m34s
+kube-system   kube-proxy-jgl8j                                   1/1     Running   0          6m20s
+kube-system   kube-scheduler-minikube                            1/1     Running   0          6m34s
+kube-system   storage-provisioner                                1/1     Running   0          6m33s
 ```
 
 ### create a argocd project
 
 ```shell
-➜  service git:(main) ✗ ./output/supervisor project --git-token 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 --repo https://github.com/h4-poc/application-repo.git  create testing
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_******** --repo https://github.com/h4-poc/gitops2.git create testing
 DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/application-repo.git
+INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
 Enumerating objects: 17, done.
 Counting objects: 100% (17/17), done.
-Compressing objects: 100% (13/13), done.
+Compressing objects: 100% (12/12), done.
 Total 17 (delta 1), reused 17 (delta 1), pack-reused 0 (from 0)
 INFO[0002] using revision: "", installation path: "/"
 INFO[0002] pushing new project manifest to repo
-INFO[0003] project created: 'testing'# create a new project
+INFO[0003] project created: 'testing'
 
-➜  service git:(main) ✗ ./output/supervisor --kubeconfig ~/.kube/config status
-DEBU[0000] start clone options
-COMPONENT   STATUS   DETAILS
-Kubernetes  Healthy  Version: v1.30.0
-ArgoCD      Healthy  Ready replicas: 1/1
-
-```
-
-### delete the project
-
-```shell
-
-➜  service git:(main) ✗ ./output/supervisor project --git-token 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 --repo https://github.com/h4-poc/application-repo.git  delete testing
-DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/application-repo.git
-Enumerating objects: 18, done.
-Counting objects: 100% (18/18), done.
-Compressing objects: 100% (15/15), done.
-Total 18 (delta 2), reused 17 (delta 1), pack-reused 0 (from 0)
-INFO[0002] using revision: "", installation path: "/"
-INFO[0002] committing changes to gitops repo...
+~/w/g/s/g/h/s/output *main> kubectl get appprojects.argoproj.io --all-namespaces
+NAMESPACE   NAME      AGE
+argocd      default   20m
+argocd      testing   32s
 ```
 
 ### list the project
 
 ```shell
-➜  service git:(main) ✗ ./output/supervisor project --git-token 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 --repo https://github.com/h4-poc/application-repo.git  create testing1
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_****** --repo https://github.com/h4-poc/gitops2.git  list
 DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/application-repo.git
+INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
 Enumerating objects: 18, done.
 Counting objects: 100% (18/18), done.
-Compressing objects: 100% (15/15), done.
+Compressing objects: 100% (14/14), done.
+Total 18 (delta 2), reused 17 (delta 1), pack-reused 0 (from 0)
+INFO[0001] using revision: "", installation path: "/"
+NAME     NAMESPACE  DEFAULT CLUSTER
+testing  argocd     https://kubernetes.default.svc
+```
+
+### delete project
+
+```shell
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_****** --repo https://github.com/h4-poc/gitops2.git  delete testing
+DEBU[0000] start clone options
+INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
+Enumerating objects: 18, done.
+Counting objects: 100% (18/18), done.
+Compressing objects: 100% (14/14), done.
 Total 18 (delta 2), reused 17 (delta 1), pack-reused 0 (from 0)
 INFO[0002] using revision: "", installation path: "/"
-INFO[0002] pushing new project manifest to repo
-INFO[0003] project created: 'testing1'
+INFO[0002] committing changes to gitops repo...
 
-➜  service git:(main) ✗ ./output/supervisor project --git-token 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 --repo https://github.com/h4-poc/application-repo.git  list
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token ****** --repo https://github.com/h4-poc/gitops2.git  list
 DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/application-repo.git
-Enumerating objects: 19, done.
-Counting objects: 100% (19/19), done.
-Compressing objects: 100% (16/16), done.
-Total 19 (delta 3), reused 17 (delta 1), pack-reused 0 (from 0)
+INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
+Enumerating objects: 17, done.
+Counting objects: 100% (17/17), done.
+Compressing objects: 100% (12/12), done.
+Total 17 (delta 1), reused 17 (delta 1), pack-reused 0 (from 0)
 INFO[0001] using revision: "", installation path: "/"
-NAME      NAMESPACE  DEFAULT CLUSTER
-testing   argocd     https://kubernetes.default.svc
-testing1  argocd     https://kubernetes.default.svc
+NAME  NAMESPACE  DEFAULT CLUSTER
 ```
 
 For more detailed information, please refer to the main documentation.
@@ -265,88 +211,94 @@ bootstrap everything from repo
 ```
 
 ```shell
-➜  service git:(dev/sn0rt) ✗ ./output/supervisor bootstrap --git-token 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 --repo https://github.com/h4-poc/application-repo.git --recover
-DEBU[0000] start clone options
-WARN[0000] detected local bootstrap manifests, using 'normal' installation mode
-INFO[0001] cloning repo: https://github.com/h4-poc/application-repo.git
-Enumerating objects: 18, done.
-Counting objects: 100% (18/18), done.
-Compressing objects: 100% (14/14), done.
-Total 18 (delta 2), reused 16 (delta 2), pack-reused 0 (from 0)
-INFO[0003] using revision: "", installation path: ""
-INFO[0003] using context: "minikube", namespace: "argocd"
-INFO[0003] applying bootstrap manifests to cluster...
-namespace/argocd created
-customresourcedefinition.apiextensions.k8s.io/applications.argoproj.io created
-customresourcedefinition.apiextensions.k8s.io/applicationsets.argoproj.io created
-customresourcedefinition.apiextensions.k8s.io/appprojects.argoproj.io created
-serviceaccount/argocd-application-controller created
-serviceaccount/argocd-applicationset-controller created
-serviceaccount/argocd-dex-server created
-serviceaccount/argocd-notifications-controller created
-serviceaccount/argocd-redis created
-serviceaccount/argocd-repo-server created
-serviceaccount/argocd-server created
-role.rbac.authorization.k8s.io/argocd-application-controller created
-role.rbac.authorization.k8s.io/argocd-applicationset-controller created
-role.rbac.authorization.k8s.io/argocd-dex-server created
-role.rbac.authorization.k8s.io/argocd-notifications-controller created
-role.rbac.authorization.k8s.io/argocd-redis created
-role.rbac.authorization.k8s.io/argocd-server created
-clusterrole.rbac.authorization.k8s.io/argocd-application-controller created
-clusterrole.rbac.authorization.k8s.io/argocd-applicationset-controller created
-clusterrole.rbac.authorization.k8s.io/argocd-server created
-rolebinding.rbac.authorization.k8s.io/argocd-application-controller created
-rolebinding.rbac.authorization.k8s.io/argocd-applicationset-controller created
-rolebinding.rbac.authorization.k8s.io/argocd-dex-server created
-rolebinding.rbac.authorization.k8s.io/argocd-notifications-controller created
-rolebinding.rbac.authorization.k8s.io/argocd-redis created
-rolebinding.rbac.authorization.k8s.io/argocd-server created
-clusterrolebinding.rbac.authorization.k8s.io/argocd-application-controller created
-clusterrolebinding.rbac.authorization.k8s.io/argocd-applicationset-controller created
-clusterrolebinding.rbac.authorization.k8s.io/argocd-server created
-configmap/argocd-cm created
-configmap/argocd-cmd-params-cm created
-configmap/argocd-gpg-keys-cm created
-configmap/argocd-notifications-cm created
-configmap/argocd-rbac-cm created
-configmap/argocd-ssh-known-hosts-cm created
-configmap/argocd-tls-certs-cm created
-secret/argocd-notifications-secret created
-secret/argocd-secret created
-service/argocd-applicationset-controller created
-service/argocd-dex-server created
-service/argocd-metrics created
-service/argocd-notifications-controller-metrics created
-service/argocd-redis created
-service/argocd-repo-server created
-service/argocd-server created
-service/argocd-server-metrics created
-deployment.apps/argocd-applicationset-controller created
-deployment.apps/argocd-dex-server created
-deployment.apps/argocd-notifications-controller created
-deployment.apps/argocd-redis created
-deployment.apps/argocd-repo-server created
-deployment.apps/argocd-server created
-statefulset.apps/argocd-application-controller created
-networkpolicy.networking.k8s.io/argocd-application-controller-network-policy created
-networkpolicy.networking.k8s.io/argocd-applicationset-controller-network-policy created
-networkpolicy.networking.k8s.io/argocd-dex-server-network-policy created
-networkpolicy.networking.k8s.io/argocd-notifications-controller-network-policy created
-networkpolicy.networking.k8s.io/argocd-redis-network-policy created
-networkpolicy.networking.k8s.io/argocd-repo-server-network-policy created
-networkpolicy.networking.k8s.io/argocd-server-network-policy created
-secret/h4-secret created
+~/w/g/s/g/h/service *main> kubectl get pod --all-namespaces
+NAMESPACE     NAME                               READY   STATUS    RESTARTS   AGE
+kube-system   coredns-7db6d8ff4d-jbcj7           1/1     Running   0          73s
+kube-system   etcd-minikube                      1/1     Running   0          89s
+kube-system   kube-apiserver-minikube            1/1     Running   0          88s
+kube-system   kube-controller-manager-minikube   1/1     Running   0          88s
+kube-system   kube-proxy-lnrn6                   1/1     Running   0          73s
+kube-system   kube-scheduler-minikube            1/1     Running   0          88s
+kube-system   storage-provisioner                1/1     Running   0          87s
 
-INFO[0099] applying argo-cd bootstrap application
-W1027 18:27:29.172436   11510 warnings.go:70] metadata.finalizers: "resources-finalizer.argocd.argoproj.io": prefer a domain-qualified finalizer name to avoid accidental conflicts with other finalizer writers
-application.argoproj.io/h4-bootstrap created
-INFO[0099] running argocd login to initialize argocd config
-'admin:login' logged in successfully
-Context 'autopilot' updated
-INFO[0100]
-INFO[0100] argocd initialized. password: 6DFqWrCRKJuN0Ugv
-INFO[0100] run:
+~/w/g/s/g/h/s/output main> ./supervisor bootstrap  --git-token ****** --repo https://github.com/h4-poc/gitops2.git --recover
+DEBU[0000] start clone options
+INFO[0000] starting with options:                        app=github.com/h4-poc/service/manifests/base kube-context=minikube namespace=argocd repo-url="https://github.com/h4-poc/gitops2.git" revision=
+INFO[0027] cloning repo: https://github.com/h4-poc/gitops2.git
+Enumerating objects: 17, done.
+Counting objects: 100% (17/17), done.
+Compressing objects: 100% (12/12), done.
+Total 17 (delta 1), reused 17 (delta 1), pack-reused 0 (from 0)
+INFO[0030] using revision: "", installation path: ""
+INFO[0030] using context: "minikube", namespace: "argocd"
+INFO[0030] applying bootstrap manifests to cluster...
+namespace/argocd configured
+customresourcedefinition.apiextensions.k8s.io/applications.argoproj.io unchanged
+customresourcedefinition.apiextensions.k8s.io/applicationsets.argoproj.io unchanged
+customresourcedefinition.apiextensions.k8s.io/appprojects.argoproj.io unchanged
+serviceaccount/argocd-application-controller configured
+serviceaccount/argocd-applicationset-controller configured
+serviceaccount/argocd-dex-server configured
+serviceaccount/argocd-notifications-controller configured
+serviceaccount/argocd-redis configured
+serviceaccount/argocd-repo-server configured
+serviceaccount/argocd-server configured
+role.rbac.authorization.k8s.io/argocd-application-controller configured
+role.rbac.authorization.k8s.io/argocd-applicationset-controller configured
+role.rbac.authorization.k8s.io/argocd-dex-server configured
+role.rbac.authorization.k8s.io/argocd-notifications-controller configured
+role.rbac.authorization.k8s.io/argocd-redis configured
+role.rbac.authorization.k8s.io/argocd-server configured
+clusterrole.rbac.authorization.k8s.io/argocd-application-controller configured
+clusterrole.rbac.authorization.k8s.io/argocd-applicationset-controller configured
+clusterrole.rbac.authorization.k8s.io/argocd-server configured
+rolebinding.rbac.authorization.k8s.io/argocd-application-controller configured
+rolebinding.rbac.authorization.k8s.io/argocd-applicationset-controller configured
+rolebinding.rbac.authorization.k8s.io/argocd-dex-server configured
+rolebinding.rbac.authorization.k8s.io/argocd-notifications-controller configured
+rolebinding.rbac.authorization.k8s.io/argocd-redis configured
+rolebinding.rbac.authorization.k8s.io/argocd-server configured
+clusterrolebinding.rbac.authorization.k8s.io/argocd-application-controller configured
+clusterrolebinding.rbac.authorization.k8s.io/argocd-applicationset-controller configured
+clusterrolebinding.rbac.authorization.k8s.io/argocd-server configured
+configmap/argocd-cm configured
+configmap/argocd-cmd-params-cm configured
+configmap/argocd-gpg-keys-cm configured
+configmap/argocd-notifications-cm configured
+configmap/argocd-rbac-cm configured
+configmap/argocd-ssh-known-hosts-cm configured
+configmap/argocd-tls-certs-cm configured
+secret/argocd-notifications-secret configured
+secret/argocd-secret configured
+service/argocd-applicationset-controller configured
+service/argocd-dex-server configured
+service/argocd-metrics configured
+service/argocd-notifications-controller-metrics configured
+service/argocd-redis configured
+service/argocd-repo-server configured
+service/argocd-server configured
+service/argocd-server-metrics configured
+deployment.apps/argocd-applicationset-controller configured
+deployment.apps/argocd-dex-server configured
+deployment.apps/argocd-notifications-controller configured
+deployment.apps/argocd-redis configured
+deployment.apps/argocd-repo-server configured
+deployment.apps/argocd-server configured
+statefulset.apps/argocd-application-controller configured
+networkpolicy.networking.k8s.io/argocd-application-controller-network-policy configured
+networkpolicy.networking.k8s.io/argocd-applicationset-controller-network-policy configured
+networkpolicy.networking.k8s.io/argocd-dex-server-network-policy configured
+networkpolicy.networking.k8s.io/argocd-notifications-controller-network-policy configured
+networkpolicy.networking.k8s.io/argocd-redis-network-policy configured
+networkpolicy.networking.k8s.io/argocd-repo-server-network-policy configured
+networkpolicy.networking.k8s.io/argocd-server-network-policy configured
+secret/h4-secret configured
+
+INFO[0033] applying argo-cd bootstrap application
+application.argoproj.io/h4-bootstrap configured
+INFO[0033]
+INFO[0033] argocd initialized. password: hIXr0K3Req4bcRkw
+INFO[0033] run:
 
     kubectl port-forward -n argocd svc/argocd-server 8080:80
 ```

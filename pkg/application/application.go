@@ -494,7 +494,7 @@ func fixResourcesPaths(k *kusttypes.Kustomization, newKustDir string) error {
 }
 
 var generateManifests = func(k *kusttypes.Kustomization) ([]byte, error) {
-	td, err := os.MkdirTemp(".", "auto-pilot")
+	td, err := os.MkdirTemp(".", "supervisor-tmp")
 	if err != nil {
 		return nil, fmt.Errorf("failed creating temp dir: %w", err)
 	}

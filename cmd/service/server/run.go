@@ -54,8 +54,15 @@ func runServer(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	if viper.GetString("env") == "production" {
+	// Set gin mode based on environment
+	if viper.GetString("env") == "production" || os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
+		log.SetLevel(log.InfoLevel)
+		log.Info("Running in production mode")
+	} else {
+		gin.SetMode(gin.DebugMode)
+		log.SetLevel(log.DebugLevel)
+		log.Info("Running in development mode")
 	}
 
 	r := setupRouter()
