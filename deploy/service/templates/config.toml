@@ -1,14 +1,16 @@
+[log]
+level = "info"
+
 [server]
 address = "0.0.0.0"
 port = 8080
 
-[kubernetes] # only support two modes: `kubeconfig` and `incluster`
-mode = "kubeconfig"
-
-[kubernetes.kubeconfig]
-path = "/Users/guohao/.kube/config"
+[argocd]
+server_address = "localhost:8080"
+username = "admin"
+password = "xxx"
 
 [application_repo]
-provider = ["github"]  # support github and bitbucket server
+provider = ["github"]
 remote_url = "https://github.com/h4-poc/application-repo.git"
-access_token = "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"
+access_token = "xxx"

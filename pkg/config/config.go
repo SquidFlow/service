@@ -4,43 +4,43 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
 )
 
-// KubernetesMode represents the mode of Kubernetes connection
-type KubernetesMode string
-
-const (
-	KubeconfigMode KubernetesMode = "kubeconfig"
-	InClusterMode  KubernetesMode = "incluster"
-)
-
-// file: deploy/service/templates/config.toml
+// Config matches config.toml structure
 type Config struct {
-	LogLevel string `mapstructure:"log_level"`
-	Server   struct {
-		Address string `mapstructure:"address"`
-		Port    int    `mapstructure:"port"`
+	Log struct {
+		Level string `mapstructure:"level" validate:"required,oneof=debug info warn error"`
+	} `mapstructure:"log"`
+
+	Server struct {
+		Address string `mapstructure:"address" validate:"required,ip"`
+		Port    int    `mapstructure:"port" validate:"required,min=1,max=65535"`
 	} `mapstructure:"server"`
-	Database struct {
-		Host     string `mapstructure:"host"`
-		Port     int    `mapstructure:"port"`
-		Username string `mapstructure:"username"`
-		Password string `mapstructure:"password"`
-		DBName   string `mapstructure:"dbname"`
-	} `mapstructure:"database"`
-	Kubernetes struct {
-		Mode       KubernetesMode `mapstructure:"mode"`
-		KubeConfig struct {
-			Path string `mapstructure:"path"`
-		} `mapstructure:"kubeconfig"`
-	} `mapstructure:"kubernetes"`
+
+	ArgoCD struct {
+		ServerAddress string `mapstructure:"server_address" validate:"required,hostname_port"`
+		Username      string `mapstructure:"username" validate:"required"`
+		Password      string `mapstructure:"password" validate:"required"`
+	} `mapstructure:"argocd"`
+
 	ApplicationRepo struct {
-		Provider    []string `mapstructure:"provider"`
-		LocalPath   string   `mapstructure:"local_path"`
-		RemoteURL   string   `mapstructure:"remote_url"`
-		AccessToken string   `mapstructure:"access_token"`
+		Provider    []string `mapstructure:"provider" validate:"required,min=1,dive,oneof=github"`
+		RemoteURL   string   `mapstructure:"remote_url" validate:"required,url"`
+		AccessToken string   `mapstructure:"access_token" validate:"required"`
 	} `mapstructure:"application_repo"`
+}
+
+func init() {
+	// support environment variable
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("H4")
+
+	// set default value
+	viper.SetDefault("server.address", "0.0.0.0")
+	viper.SetDefault("server.port", 8080)
+	viper.SetDefault("log.level", "info")
 }
 
 func ParseConfig(configFilePath string) (*Config, error) {
@@ -54,39 +54,16 @@ func ParseConfig(configFilePath string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	//  check if the config is valid
-	if err := validateConfig(&config); err != nil {
-		return nil, err
+	// Validate config using validator
+	validate := validator.New()
+	if err := validate.Struct(&config); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
-	return &config, nil
-}
-
-func validateConfig(config *Config) error {
-	if config.Server.Port == 0 {
-		return fmt.Errorf("server port is required")
-	}
-
-	if config.Kubernetes.Mode == "" {
-		return fmt.Errorf("kubernetes mode is required")
-	}
-	if config.Kubernetes.Mode != KubeconfigMode && config.Kubernetes.Mode != InClusterMode {
-		return fmt.Errorf("invalid kubernetes mode: must be either 'kubeconfig' or 'incluster'")
-	}
-	if config.Kubernetes.Mode == KubeconfigMode && config.Kubernetes.KubeConfig.Path == "" {
-		return fmt.Errorf("kubernetes kubeconfig path is required when mode is kubeconfig")
-	}
-
-	if len(config.ApplicationRepo.Provider) == 0 {
-		return fmt.Errorf("at least one application repo provider is required")
-	}
-
-	if config.ApplicationRepo.RemoteURL == "" {
-		return fmt.Errorf("application repo remote URL is required")
-	}
-	if config.ApplicationRepo.Provider[0] == "github" && config.ApplicationRepo.AccessToken == "" {
+	// Set environment variable for git token if provided
+	if config.ApplicationRepo.AccessToken != "" {
 		_ = os.Setenv("GIT_TOKEN", config.ApplicationRepo.AccessToken)
 	}
 
-	return nil
+	return &config, nil
 }

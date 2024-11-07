@@ -3,19 +3,19 @@ package server
 import (
 	"context"
 	"fmt"
-	clientCluster "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/io"
-
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	clientCluster "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
