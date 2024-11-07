@@ -17,7 +17,7 @@ import (
 
 // DeleteProject handles the HTTP request to delete a project
 func DeleteProject(c *gin.Context) {
-	projectName := c.Query("project")
+	projectName := c.Query("tenantName")
 
 	if projectName == "" {
 		c.JSON(400, gin.H{"error": "Project name is required"})

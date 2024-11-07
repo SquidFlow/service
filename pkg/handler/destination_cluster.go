@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ClusterInfo represents a Kubernetes cluster's information
@@ -81,7 +81,6 @@ type CreateClusterRequest struct {
 
 // getKubernetesClient returns a Kubernetes clientset
 func getKubernetesClient() (kubernetes.Interface, error) {
-	// 从默认位置加载 kubeconfig
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	configOverrides := &clientcmd.ConfigOverrides{}
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
@@ -104,7 +103,6 @@ func getClusterHealth(clientset kubernetes.Interface) HealthStatus {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// 检查 API Server 健康状态
 	_, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return HealthStatus{
@@ -113,7 +111,6 @@ func getClusterHealth(clientset kubernetes.Interface) HealthStatus {
 		}
 	}
 
-	// 检查核心组件状态
 	components, err := clientset.CoreV1().ComponentStatuses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return HealthStatus{

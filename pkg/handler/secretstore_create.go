@@ -94,8 +94,5 @@ func createSecretStoreYAML(ctx context.Context, opt AppCreateOptions) error {
 		"secret-store": secretStore,
 	}).Info("secret store")
 
-	// TODO: need abstract the secret store creation to a common function
-	// now it's only implemented of Application
-
 	return nil
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/config"
 	"github.com/h4-poc/service/pkg/handler"
 	"github.com/h4-poc/service/pkg/log"
@@ -77,24 +78,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	}
 
 	// connect to ArgoCD API server
-
-	opts := argocdclient.ClientOptions{
-		ConfigPath:      "",
-		ServerAddr:      viper.GetString("argocd.server_address"),
-		PlainText:       false,
-		GRPCWeb:         true,
-		Insecure:        true,
-		GRPCWebRootPath: "",
-	}
-
-	opts.AuthToken = passwordLogin(
-		context.Background(),
-		argocdclient.NewClientOrDie(&opts),
-		viper.GetString("argocd.username"),
-		viper.GetString("argocd.password"),
-	)
-
-	argocdClient := argocdclient.NewClientOrDie(&opts)
+	argocdClient := argocd.GetArgoServerClient()
 	if argocdClient == nil {
 		log.G().Fatalf("Failed to create argocd client")
 	}
@@ -105,6 +89,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	}
 	defer closer.Close()
 
+	// list cluster
 	clusterList, err := clsClient.List(context.Background(), &clientCluster.ClusterQuery{})
 	if err != nil {
 		log.G().Fatalf("Failed to list clusters: %v", err)
@@ -117,6 +102,8 @@ func runServer(cmd *cobra.Command, args []string) {
 	for _, cls := range clusterList.Items {
 		log.G().Printf(format, cls.Name, cls.Server)
 	}
+
+	//TODO: check gitops repo
 
 	r := setupRouter()
 
@@ -204,10 +191,10 @@ func setupRouter() *gin.Engine {
 	{
 		tenants.POST("", handler.CreateProject)
 		tenants.GET("", handler.ListProjects)
+		tenants.DELETE("", handler.DeleteProject)
 		tenantsOne := tenants.Group("/:tenantName")
 		{
 			tenantsOne.GET("", handler.ListProjects)
-			tenantsOne.DELETE("", handler.DeleteProject)
 		}
 	}
 

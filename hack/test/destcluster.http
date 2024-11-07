@@ -1,0 +1,4 @@
+### Get cluster
+
+# @no-redirect
+GET {{host}}:{{port}}/api/v1/destinationCluster

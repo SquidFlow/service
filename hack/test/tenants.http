@@ -1,0 +1,15 @@
+### create project
+POST http://{{host}}:{{port}}/api/v1/tenants
+
+{
+    "project-name": "testing"
+}
+
+### list project
+GET http://{{host}}:{{port}}/api/v1/tenants
+
+### delete project (wgh)
+DELETE http://{{host}}:{{port}}/api/v1/tenants?tenantName=wgh
+
+### delete project(testing)
+DELETE http://{{host}}:{{port}}/api/v1/tenants?tenantName=testing
