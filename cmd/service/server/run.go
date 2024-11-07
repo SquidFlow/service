@@ -110,8 +110,12 @@ func runServer(cmd *cobra.Command, args []string) {
 		log.G().Fatalf("Failed to list clusters: %v", err)
 	}
 
+	log.G().Info("Available clusters:")
+	format := "%-20s %-50s"
+	log.G().Printf(format, "NAME", "SERVER")
+	log.G().Printf(format, "----", "------")
 	for _, cls := range clusterList.Items {
-		log.G().Infof("Cluster list: %s, %s", cls.Name, cls.Server)
+		log.G().Printf(format, cls.Name, cls.Server)
 	}
 
 	r := setupRouter()
