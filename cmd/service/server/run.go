@@ -3,12 +3,19 @@ package server
 import (
 	"context"
 	"fmt"
+	clientCluster "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/io"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -67,6 +74,44 @@ func runServer(cmd *cobra.Command, args []string) {
 			log.G().Fatalf("Failed to configure logger: %v", err)
 		}
 		log.G().Info("Running in development mode")
+	}
+
+	// connect to ArgoCD API server
+
+	opts := argocdclient.ClientOptions{
+		ConfigPath:      "",
+		ServerAddr:      viper.GetString("argocd.server_address"),
+		PlainText:       false,
+		GRPCWeb:         true,
+		Insecure:        true,
+		GRPCWebRootPath: "",
+	}
+
+	opts.AuthToken = passwordLogin(
+		context.Background(),
+		argocdclient.NewClientOrDie(&opts),
+		viper.GetString("argocd.username"),
+		viper.GetString("argocd.password"),
+	)
+
+	argocdClient := argocdclient.NewClientOrDie(&opts)
+	if argocdClient == nil {
+		log.G().Fatalf("Failed to create argocd client")
+	}
+
+	closer, clsClient, err := argocdClient.NewClusterClient()
+	if err != nil {
+		log.G().Fatalf("Failed to create cluster client: %v", err)
+	}
+	defer closer.Close()
+
+	clusterList, err := clsClient.List(context.Background(), &clientCluster.ClusterQuery{})
+	if err != nil {
+		log.G().Fatalf("Failed to list clusters: %v", err)
+	}
+
+	for _, cls := range clusterList.Items {
+		log.G().Infof("Cluster list: %s, %s", cls.Name, cls.Server)
 	}
 
 	r := setupRouter()
@@ -212,4 +257,18 @@ func requestIDMiddleware() gin.HandlerFunc {
 // generateRequestID to generate request ID
 func generateRequestID() string {
 	return fmt.Sprintf("%d-%s", time.Now().UnixNano(), uuid.New().String()[:8])
+}
+
+// passwordLogin performs the login and returns the token
+func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
+	username, password = cli.PromptCredentials(username, password)
+	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
+	defer io.Close(sessConn)
+	sessionRequest := sessionpkg.SessionCreateRequest{
+		Username: username,
+		Password: password,
+	}
+	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
+	errors.CheckError(err)
+	return createdSession.Token
 }
