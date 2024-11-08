@@ -8,7 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -124,7 +124,8 @@ func getClusterHealth(clientset kubernetes.Interface) HealthStatus {
 }
 
 // GetDestKubernetesClient returns a Kubernetes clientset with TLS configuration
-func GetDestKubernetesClient(argocdCluster *v1alpha1.Cluster) (kubernetes.Interface, error) {
+// improve: URIToSecretName
+func GetDestKubernetesClient(argocdCluster *argoappv1.Cluster) (kubernetes.Interface, error) {
 	log.G().Debugf("Getting kubernetes client for cluster: %s", argocdCluster.Name)
 
 	// Create kubernetes client to get secrets
@@ -199,4 +200,37 @@ func GetDestKubernetesClient(argocdCluster *v1alpha1.Cluster) (kubernetes.Interf
 
 	// Create and return kubernetes client
 	return kubernetes.NewForConfig(restConfig)
+}
+
+func NewCluster(name string, namespaces []string, clusterResources bool, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig, labels, annotations map[string]string) *argoappv1.Cluster {
+	tlsClientConfig := argoappv1.TLSClientConfig{
+		Insecure:   conf.TLSClientConfig.Insecure,
+		ServerName: conf.TLSClientConfig.ServerName,
+		CAData:     conf.TLSClientConfig.CAData,
+		CertData:   conf.TLSClientConfig.CertData,
+		KeyData:    conf.TLSClientConfig.KeyData,
+	}
+
+	clst := argoappv1.Cluster{
+		Server:           conf.Host,
+		Name:             name,
+		Namespaces:       namespaces,
+		ClusterResources: clusterResources,
+		Config: argoappv1.ClusterConfig{
+			TLSClientConfig:    tlsClientConfig,
+			AWSAuthConfig:      awsAuthConf,
+			ExecProviderConfig: execProviderConf,
+		},
+		Labels:      labels,
+		Annotations: annotations,
+	}
+
+	// Bearer token will preferentially be used for auth if present,
+	// Even in presence of key/cert credentials
+	// So set bearer token only if the key/cert data is absent
+	if len(tlsClientConfig.CertData) == 0 || len(tlsClientConfig.KeyData) == 0 {
+		clst.Config.BearerToken = managerBearerToken
+	}
+
+	return &clst
 }

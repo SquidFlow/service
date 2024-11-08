@@ -178,9 +178,9 @@ func setupRouter() *gin.Engine {
 	// actually. to want handle the manifest repo
 	templates := v1.Group("/applications/templates")
 	{
+		templates.POST("/validate", handler.ValidateApplicationTemplate)
 		templates.POST("", handler.CreateApplicationTemplate)
 		templates.GET("", handler.ListApplicationTemplate)
-		templates.POST("/validate", handler.ValidateApplicationTemplate)
 		templateInstance := templates.Group("/:template_id")
 		{
 			templateInstance.PATCH("", handler.UpdateApplicationTemplate)

@@ -284,20 +284,3 @@ func (f *factory) Wait(ctx context.Context, opts *WaitOptions) error {
 		return allReady, nil
 	})
 }
-
-//func AddFlags(flags *pflag.FlagSet) Factory {
-//	timeout := "0"
-//	kubeConfig := ""
-//	namespace := ""
-//	context := ""
-//	confFlags := &genericclioptions.ConfigFlags{
-//		Timeout:    &timeout,
-//		KubeConfig: &kubeConfig,
-//		Namespace:  &namespace,
-//		Context:    &context,
-//	}
-//	confFlags.AddFlags(flags)
-//	mvFlags := cmdutil.NewMatchVersionFlags(confFlags)
-//
-//	return &factory{f: cmdutil.NewFactory(mvFlags)}
-//}
