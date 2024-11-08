@@ -1,17 +1,17 @@
 ### create app
-POST http://{{host}}:{{port}}/api/v1/applications
+POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
 
 {
     "project-name": "testing",
-    "app-name": "demo1",
+    "app-name": "demo",
     "app": "github.com/h4-poc/demo-app"
 }
 
-### get app
-GET http://{{host}}:{{port}}/api/v1/applications?project=testing
+### get app with project
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing
+
+### argocdapplications?project=testing&app=demo1
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1
 
 ### del app
-DELETE http://{{host}}:{{port}}/api/v1/applications?project=testing&app=demo1
-
-### get helm template
-GET http://{{host}}:{{port}}/api/v1/helm/templates
+DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1

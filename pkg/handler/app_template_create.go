@@ -77,7 +77,7 @@ func CreateApplicationTemplate(c *gin.Context) {
 		AppsCloneOpts: &git.CloneOptions{
 			CloneForWrite: false,
 		},
-		AppOpts: &application.CreateOptions{
+		createOpts: &application.CreateOptions{
 			AppName:          req.Name,
 			AppType:          application.AppTypeKustomize,
 			AppSpecifier:     req.Name,

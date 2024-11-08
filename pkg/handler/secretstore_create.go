@@ -46,7 +46,7 @@ func CreateSecretStore(c *gin.Context) {
 		AppsCloneOpts: &git.CloneOptions{
 			CloneForWrite: false,
 		},
-		AppOpts: &application.CreateOptions{
+		createOpts: &application.CreateOptions{
 			AppName:          req.Name,
 			AppType:          application.AppTypeKustomize,
 			AppSpecifier:     req.Name,
@@ -84,7 +84,7 @@ func createSecretStoreYAML(ctx context.Context, opt AppCreateOptions) error {
 			Kind:       "SecretStore",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      opt.AppOpts.AppName,
+			Name:      opt.createOpts.AppName,
 			Namespace: opt.ProjectName,
 		},
 		Spec: esv1beta1.SecretStoreSpec{},

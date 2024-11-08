@@ -24,39 +24,39 @@ import (
 var setAppOptsDefaults = func(ctx context.Context, repofs fs.FS, opts *AppCreateOptions) error {
 	var err error
 
-	if opts.AppOpts.DestServer == store.Default.DestServer || opts.AppOpts.DestServer == "" {
-		opts.AppOpts.DestServer, err = getProjectDestServer(repofs, opts.ProjectName)
+	if opts.createOpts.DestServer == store.Default.DestServer || opts.createOpts.DestServer == "" {
+		opts.createOpts.DestServer, err = getProjectDestServer(repofs, opts.ProjectName)
 		if err != nil {
 			return err
 		}
 	}
 
-	if opts.AppOpts.DestNamespace == "" {
-		opts.AppOpts.DestNamespace = "default"
+	if opts.createOpts.DestNamespace == "" {
+		opts.createOpts.DestNamespace = "default"
 	}
 
-	if opts.AppOpts.Labels == nil {
-		opts.AppOpts.Labels = opts.Labels
+	if opts.createOpts.Labels == nil {
+		opts.createOpts.Labels = opts.Labels
 	}
 
-	if opts.AppOpts.Annotations == nil {
-		opts.AppOpts.Annotations = opts.Annotations
+	if opts.createOpts.Annotations == nil {
+		opts.createOpts.Annotations = opts.Annotations
 	}
 
-	if opts.AppOpts.AppType != "" {
+	if opts.createOpts.AppType != "" {
 		return nil
 	}
 
 	var fsys fs.FS
-	if _, err := os.Stat(opts.AppOpts.AppSpecifier); err == nil {
+	if _, err := os.Stat(opts.createOpts.AppSpecifier); err == nil {
 		// local directory
-		fsys = fs.Create(osfs.New(opts.AppOpts.AppSpecifier))
+		fsys = fs.Create(osfs.New(opts.createOpts.AppSpecifier))
 	} else {
-		host, orgRepo, p, _, _, suffix, _ := util.ParseGitUrl(opts.AppOpts.AppSpecifier)
+		host, orgRepo, p, _, _, suffix, _ := util.ParseGitUrl(opts.createOpts.AppSpecifier)
 		url := host + orgRepo + suffix
 		log.Infof("cloning repo: '%s', to infer app type from path '%s'", url, p)
 		cloneOpts := &git.CloneOptions{
-			Repo:     opts.AppOpts.AppSpecifier,
+			Repo:     opts.createOpts.AppSpecifier,
 			Auth:     opts.CloneOpts.Auth,
 			Provider: opts.CloneOpts.Provider,
 			FS:       fs.Create(memfs.New()),
@@ -68,8 +68,8 @@ var setAppOptsDefaults = func(ctx context.Context, repofs fs.FS, opts *AppCreate
 		}
 	}
 
-	opts.AppOpts.AppType = application.InferAppType(fsys)
-	log.Infof("inferred application type: %s", opts.AppOpts.AppType)
+	opts.createOpts.AppType = application.InferAppType(fsys)
+	log.Infof("inferred application type: %s", opts.createOpts.AppType)
 
 	return nil
 }
@@ -89,7 +89,7 @@ func getProjectDestServer(repofs fs.FS, projectName string) (string, error) {
 }
 
 func getCommitMsg(opts *AppCreateOptions, repofs fs.FS) string {
-	commitMsg := fmt.Sprintf("installed app '%s' on project '%s'", opts.AppOpts.AppName, opts.ProjectName)
+	commitMsg := fmt.Sprintf("installed app '%s' on project '%s'", opts.createOpts.AppName, opts.ProjectName)
 	if repofs.Root() != "" {
 		commitMsg += fmt.Sprintf(" installation-path: '%s'", repofs.Root())
 	}

@@ -56,7 +56,7 @@ func ValidateApplicationTemplate(c *gin.Context) {
 		AppsCloneOpts: &git.CloneOptions{
 			CloneForWrite: false,
 		},
-		AppOpts: &application.CreateOptions{
+		createOpts: &application.CreateOptions{
 			AppName:          req.Path,
 			AppType:          application.AppTypeKustomize,
 			AppSpecifier:     req.Path,

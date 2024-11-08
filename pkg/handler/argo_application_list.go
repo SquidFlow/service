@@ -11,9 +11,10 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
-	"github.com/h4-poc/service/pkg/log"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/h4-poc/service/pkg/log"
 
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
@@ -97,7 +98,15 @@ func RunAppList(ctx context.Context, opts *AppListOptions) (*AppListResponse, er
 	}
 
 	// get all apps beneath apps/*/overlays/<project>
-	matches, err := billyUtils.Glob(repofs, repofs.Join(store.Default.AppsDir, "*", store.Default.OverlaysDir, opts.ProjectName))
+	path := repofs.Join(store.Default.AppsDir, "*", store.Default.OverlaysDir, opts.ProjectName)
+	log.G().WithFields(log.Fields{
+		"AppsDir":     store.Default.AppsDir,
+		"OverlaysDir": store.Default.OverlaysDir,
+		"project":     opts.ProjectName,
+		"path":        path,
+	}).Debug("listing applications")
+
+	matches, err := billyUtils.Glob(repofs, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run glob on %s: %w", opts.ProjectName, err)
 	}

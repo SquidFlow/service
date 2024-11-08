@@ -28,18 +28,32 @@ import (
 )
 
 func NewRunCommand() *cobra.Command {
-	var configFile string
+	var (
+		configFile    string
+		kubeconfigPath string
+	)
+
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run the server",
 		Long:  `Run the Application API server`,
-		Run:   runServer,
+		Run: func(cmd *cobra.Command, args []string) {
+			// Set kubeconfig path to environment variable for kube client
+			if kubeconfigPath != "" {
+				os.Setenv("KUBECONFIG", kubeconfigPath)
+			}
+			runServer(cmd, args)
+		},
 	}
+
 	runCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file")
+	runCmd.Flags().StringVar(&kubeconfigPath, "kubeconfig", "", "Path to kubeconfig file (default is $HOME/.kube/config)")
+
 	err := runCmd.MarkFlagRequired("config")
 	if err != nil {
 		panic(err)
 	}
+
 	return runCmd
 }
 

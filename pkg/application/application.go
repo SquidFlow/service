@@ -10,9 +10,9 @@ import (
 
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
-	"github.com/h4-poc/service/pkg/log"
 
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
@@ -270,6 +270,17 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 		app.overlay.Namespace = o.DestNamespace
 		app.namespace = kube.GenerateNamespace(o.DestNamespace, nil)
 	}
+
+	log.G().WithFields(log.Fields{
+		"appName":           o.AppName,
+		"destNamespace":     o.DestNamespace,
+		"destServer":        o.DestServer,
+		"srcRepoURL":        repoURL,
+		"srcPath":           path.Join(repoRoot, store.Default.AppsDir, o.AppName, store.Default.OverlaysDir, projectName),
+		"srcTargetRevision": targetRevision,
+		"labels":            o.Labels,
+		"annotations":       o.Annotations,
+	}).Debug("creating app config")
 
 	app.config = &Config{
 		AppName:           o.AppName,

@@ -8,13 +8,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 )
@@ -25,7 +25,7 @@ type (
 		AppsCloneOpts   *git.CloneOptions
 		ProjectName     string
 		KubeContextName string
-		AppOpts         *application.CreateOptions
+		createOpts      *application.CreateOptions
 		KubeFactory     kube.Factory
 		Timeout         time.Duration
 		Labels          map[string]string
@@ -37,21 +37,20 @@ type (
 
 var (
 	prepareRepo = func(ctx context.Context, cloneOpts *git.CloneOptions, projectName string) (git.Repository, fs.FS, error) {
-		log.WithFields(log.Fields{
-			"repoURL":  cloneOpts.URL(),
-			"revision": cloneOpts.Revision(),
-			"forWrite": cloneOpts.CloneForWrite,
-		}).Debug("starting with options: ")
+		log.G().WithFields(log.Fields{
+			"repo-url":      cloneOpts.URL(),
+			"repo-revision": cloneOpts.Revision(),
+			"repo-path":     cloneOpts.Path(),
+		}).Debugf("starting with options:")
 
-		// clone repo
-		log.Infof("cloning git repository: %s", cloneOpts.URL())
+		log.G().Infof("cloning git repository: %s", cloneOpts.URL())
 		r, repofs, err := getRepo(ctx, cloneOpts)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed cloning the repository: %w", err)
 		}
 
 		root := repofs.Root()
-		log.Infof("using revision: \"%s\", installation path: \"%s\"", cloneOpts.Revision(), root)
+		log.G().Infof("using revision: \"%s\", installation path: \"%s\"", cloneOpts.Revision(), root)
 		if !repofs.ExistsOrDie(store.Default.BootsrtrapDir) {
 			return nil, nil, fmt.Errorf("bootstrap directory not found, please execute `repo bootstrap` command")
 		}
@@ -63,7 +62,7 @@ var (
 			}
 		}
 
-		log.Debug("repository is ok")
+		log.G().Debug("repository is ok")
 
 		return r, repofs, nil
 	}
@@ -101,7 +100,7 @@ func CreateArgoApplication(c *gin.Context) {
 		AppsCloneOpts: &git.CloneOptions{
 			CloneForWrite: false,
 		},
-		AppOpts: &application.CreateOptions{
+		createOpts: &application.CreateOptions{
 			AppName:          createAppReq.AppName,
 			AppType:          application.AppTypeKustomize,
 			AppSpecifier:     createAppReq.App,
@@ -136,7 +135,7 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 		appsfs   fs.FS
 	)
 
-	log.WithFields(log.Fields{
+	log.G().WithFields(log.Fields{
 		"app-url":      opts.AppsCloneOpts.URL(),
 		"app-revision": opts.AppsCloneOpts.Revision(),
 		"app-path":     opts.AppsCloneOpts.Path(),
@@ -146,7 +145,7 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("repofs: %v", repofs)
+	log.G().Debugf("repofs: %v", repofs)
 
 	if opts.AppsCloneOpts.Repo != "" {
 		if opts.AppsCloneOpts.Auth.Password == "" {
@@ -169,7 +168,7 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 		return err
 	}
 
-	app, err := parseApp(opts.AppOpts, opts.ProjectName, opts.CloneOpts.URL(), opts.CloneOpts.Revision(), opts.CloneOpts.Path())
+	app, err := parseApp(opts.createOpts, opts.ProjectName, opts.CloneOpts.URL(), opts.CloneOpts.Revision(), opts.CloneOpts.Path())
 	if err != nil {
 		return fmt.Errorf("failed to parse application from flags: %w", err)
 	}
@@ -183,15 +182,15 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 	}
 
 	if opts.AppsCloneOpts != opts.CloneOpts {
-		log.Info("committing changes to apps repo...")
+		log.G().Info("committing changes to apps repo...")
 		if _, err = appsRepo.Persist(ctx, &git.PushOptions{CommitMsg: getCommitMsg(opts, appsfs)}); err != nil {
 			return fmt.Errorf("failed to push to apps repo: %w", err)
 		}
 	}
 
-	log.Info("committing changes to git-ops repo...")
+	log.G().Info("committing changes to git-ops repo...")
 	var opt = git.PushOptions{CommitMsg: getCommitMsg(opts, repofs)}
-	log.Debugf("git push option: %v", opt)
+	log.G().Debugf("git push option: %v", opt)
 	revision, err := r.Persist(ctx, &opt)
 	if err != nil {
 		return fmt.Errorf("failed to push to gitops repo: %w", err)
@@ -203,8 +202,8 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 			return fmt.Errorf("failed to get application namespace: %w", err)
 		}
 
-		log.WithField("timeout", opts.Timeout).Infof("waiting for '%s' to finish syncing", opts.AppOpts.AppName)
-		fullName := fmt.Sprintf("%s-%s", opts.ProjectName, opts.AppOpts.AppName)
+		log.G().WithField("timeout", opts.Timeout).Infof("waiting for '%s' to finish syncing", opts.createOpts.AppName)
+		fullName := fmt.Sprintf("%s-%s", opts.ProjectName, opts.createOpts.AppName)
 
 		// wait for argocd to be ready before applying argocd-apps
 		stop := util.WithSpinner(ctx, fmt.Sprintf("waiting for '%s' to be ready", fullName))
@@ -216,6 +215,6 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 		stop()
 	}
 
-	log.Infof("installed application: %s", opts.AppOpts.AppName)
+	log.G().Infof("installed application: %s", opts.createOpts.AppName)
 	return nil
 }
