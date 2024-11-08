@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"time"
 
+	"encoding/base64"
+	"encoding/json"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 )
 
 // ClusterInfo represents a Kubernetes cluster's information
@@ -35,24 +43,6 @@ type ClusterVersion struct {
 	Platform   string `json:"platform"`
 }
 
-type ResourceQuota struct {
-	CPU       string `json:"cpu"`
-	Memory    string `json:"memory"`
-	Storage   string `json:"storage"`
-	PVCs      string `json:"pvcs"`
-	NodePorts string `json:"nodeports"`
-}
-
-type HealthStatus struct {
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
-}
-
-type NodeStatus struct {
-	Ready int `json:"ready"`
-	Total int `json:"total"`
-}
-
 type Monitoring struct {
 	Prometheus   bool        `json:"prometheus"`
 	Grafana      bool        `json:"grafana"`
@@ -66,17 +56,14 @@ type MonitorURLs struct {
 	Alertmanager string `json:"alertmanager,omitempty"`
 }
 
-// CreateClusterRequest represents the request body for creating a new cluster
-type CreateClusterRequest struct {
-	Name              string        `json:"name" binding:"required"`
-	Environment       string        `json:"environment" binding:"required"`
-	Provider          string        `json:"provider" binding:"required"`
-	Region            string        `json:"region" binding:"required"`
-	ConsoleURL        string        `json:"consoleUrl,omitempty"`
-	ResourceQuota     ResourceQuota `json:"resourceQuota"`
-	NetworkPolicy     bool          `json:"networkPolicy"`
-	IngressController string        `json:"ingressController"`
-	Monitoring        Monitoring    `json:"monitoring"`
+// TLSClientConfig represents the structure of the config data in the secret
+type TLSClientConfig struct {
+	TLSClientConfig struct {
+		Insecure bool   `json:"insecure"`
+		CertData string `json:"certData"`
+		KeyData  string `json:"keyData"`
+		CAData   string `json:"caData"`
+	} `json:"tlsClientConfig"`
 }
 
 // getKubernetesClient returns a Kubernetes clientset
@@ -134,4 +121,82 @@ func getClusterHealth(clientset kubernetes.Interface) HealthStatus {
 		Status:  "Healthy",
 		Message: "All core components are healthy",
 	}
+}
+
+// GetDestKubernetesClient returns a Kubernetes clientset with TLS configuration
+func GetDestKubernetesClient(argocdCluster *v1alpha1.Cluster) (kubernetes.Interface, error) {
+	log.G().Debugf("Getting kubernetes client for cluster: %s", argocdCluster.Name)
+
+	// Create kubernetes client to get secrets
+	factory := kube.NewFactory()
+	k8sClient, err := factory.KubernetesClientSet()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	if argocdCluster.Name == "in-cluster" {
+		return k8sClient, nil
+	}
+
+	// List secrets with the ArgoCD cluster label
+	secrets, err := k8sClient.CoreV1().Secrets("argocd").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "argocd.argoproj.io/secret-type=cluster",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list secrets: %w", err)
+	}
+
+	// Find matching secret
+	var clusterSecret []byte
+	for _, secret := range secrets.Items {
+		if string(secret.Data["name"]) == argocdCluster.Name {
+			log.G().Debugf("found matching secret: %s", secret.Name)
+			clusterSecret = secret.Data["config"]
+			break
+		}
+	}
+
+	if clusterSecret == nil {
+		return nil, fmt.Errorf("no matching secret found for cluster %s", argocdCluster.Name)
+	}
+
+	// Parse the TLS config
+	var tlsConfig TLSClientConfig
+	if err := json.Unmarshal(clusterSecret, &tlsConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal TLS config: %w", err)
+	}
+
+	// Create REST config
+	restConfig := &rest.Config{
+		Host: argocdCluster.Server,
+		TLSClientConfig: rest.TLSClientConfig{
+			Insecure: tlsConfig.TLSClientConfig.Insecure,
+		},
+	}
+
+	// Decode and set certificate data
+	if tlsConfig.TLSClientConfig.CAData != "" {
+		caData, err := base64.StdEncoding.DecodeString(tlsConfig.TLSClientConfig.CAData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode CA data: %w", err)
+		}
+		restConfig.TLSClientConfig.CAData = caData
+	}
+	if tlsConfig.TLSClientConfig.CertData != "" {
+		certData, err := base64.StdEncoding.DecodeString(tlsConfig.TLSClientConfig.CertData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode cert data: %w", err)
+		}
+		restConfig.TLSClientConfig.CertData = certData
+	}
+	if tlsConfig.TLSClientConfig.KeyData != "" {
+		keyData, err := base64.StdEncoding.DecodeString(tlsConfig.TLSClientConfig.KeyData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode key data: %w", err)
+		}
+		restConfig.TLSClientConfig.KeyData = keyData
+	}
+
+	// Create and return kubernetes client
+	return kubernetes.NewForConfig(restConfig)
 }

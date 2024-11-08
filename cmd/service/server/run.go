@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
-
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,7 +29,7 @@ import (
 
 func NewRunCommand() *cobra.Command {
 	var (
-		configFile    string
+		configFile     string
 		kubeconfigPath string
 	)
 
@@ -110,15 +110,19 @@ func runServer(cmd *cobra.Command, args []string) {
 	}
 
 	log.G().Info("Available clusters:")
-	format := "%-20s %-50s"
-	log.G().Printf(format, "NAME", "SERVER")
-	log.G().Printf(format, "----", "------")
+	log.G().Info(strings.Repeat("-", 80))
+	log.G().Info(fmt.Sprintf("%-60s\t%-30s\t%-10s", "Name", "Server", "Status"))
+
 	for _, cls := range clusterList.Items {
-		log.G().Printf(format, cls.Name, cls.Server)
+		status := cls.Info.ConnectionState.Status
+		log.G().Info(fmt.Sprintf("%-60s\t%-30s\t%-10s",
+			cls.Name,
+			cls.Server,
+			status))
 	}
+	log.G().Info(strings.Repeat("-", 80))
 
-	//TODO: check gitops repo
-
+	//TODO: check gitOps repo
 	r := setupRouter()
 
 	srv := &http.Server{
