@@ -24,6 +24,7 @@ import (
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/config"
 	"github.com/h4-poc/service/pkg/handler"
+	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
 )
 
@@ -280,4 +281,15 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
 	errors.CheckError(err)
 	return createdSession.Token
+}
+
+// kubeFactoryMiddleware injects a kube factory into the context
+func kubeFactoryMiddleware() gin.HandlerFunc {
+	// Create factory once when middleware is initialized
+	factory := kube.NewFactory()
+
+	return func(c *gin.Context) {
+		c.Set("kubeFactory", factory)
+		c.Next()
+	}
 }

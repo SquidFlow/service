@@ -1,23 +1,22 @@
 package handler
 
 import (
-	"net/http"
-	"regexp"
-	"time"
+	"context"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-git/go-billy/v5/memfs"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/h4-poc/service/pkg/application"
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
+	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
+
 	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 )
 
-// CreateTemplateRequest represents the request for creating a new application template
-type CreateTemplateRequest struct {
+// CreateApplicationTemplateRequest defines the request body for creating an ApplicationTemplate
+type CreateApplicationTemplateRequest struct {
 	Name        string            `json:"name" binding:"required"`
 	Path        string            `json:"path" binding:"required"`
 	Owner       string            `json:"owner" binding:"required"`
@@ -26,139 +25,104 @@ type CreateTemplateRequest struct {
 	AppType     string            `json:"appType" binding:"required,oneof=kustomize helm"`
 }
 
-type CreateTemplateResponse struct {
+type CreateApplicationTemplateResponse struct {
 	ID      int    `json:"id"`
 	Name    string `json:"name"`
 	Success bool   `json:"success"`
 }
 
-// CreateApplicationTemplate handles the creation of a new application template
+// CreateApplicationTemplate handles HTTP requests to create an ApplicationTemplate
 func CreateApplicationTemplate(c *gin.Context) {
-	var req CreateTemplateRequest
+	// Get kube factory from context
+	factory := c.MustGet("kubeFactory").(kube.Factory)
+
+	// Get kubernetes client
+	restConfig, err := factory.ToRESTConfig()
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get kubernetes client: %v", err)})
+		return
+	}
+
+	k8sClient, err := client.New(restConfig, client.Options{})
+
+	var req CreateApplicationTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, CreateTemplateResponse{
-			Success: false,
-			ID:      0,
-			Name:    req.Name,
-		})
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 		return
 	}
 
-	// Generate template ID
-	templateID := generateTemplateID()
-
-	// Create new template with minimal required fields
-	template := ApplicationTemplate{
-		ID:          templateID,
-		Name:        req.Name,
-		Path:        req.Path,
-		Owner:       req.Owner,
-		AppType:     req.AppType,
-		Source:      req.Source,
-		Description: req.Description,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-	}
-
-	log.WithFields(log.Fields{
-		"template": template,
-	}).Info("create template")
-
-	// Clone gitops repo
-	var opt = AppCreateOptions{
-		CloneOpts: &git.CloneOptions{
-			Repo:     viper.GetString("application_repo.remote_url"),
-			FS:       fs.Create(memfs.New()),
-			Provider: "github",
-			Auth: git.Auth{
-				Password: viper.GetString("application_repo.access_token"),
-			},
-			CloneForWrite: false,
-		},
-		AppsCloneOpts: &git.CloneOptions{
-			CloneForWrite: false,
-		},
-		createOpts: &application.CreateOptions{
-			AppName:          req.Name,
-			AppType:          application.AppTypeKustomize,
-			AppSpecifier:     req.Name,
-			InstallationMode: application.InstallationModeNormal,
-			DestServer:       "https://kubernetes.default.svc",
-			Labels:           nil,
-			Annotations:      nil,
-			Include:          "",
-			Exclude:          "",
-		},
-		ProjectName: req.Name,
-		Timeout:     0,
-		KubeFactory: kube.NewFactory(),
-	}
-	opt.CloneOpts.Parse()
-	opt.AppsCloneOpts.Parse()
-
-	if err := RunCreateTemplate(opt); err != nil {
-		c.JSON(500, CreateTemplateResponse{
-			Success: false,
-			ID:      templateID,
-			Name:    req.Name,
-		})
+	// Create the application template
+	err = createApplicationTemplate(context.Background(), k8sClient, &req)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			c.JSON(409, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create application template: %v", err)})
 		return
 	}
-	c.JSON(http.StatusCreated, CreateTemplateResponse{
-		Success: true,
-		ID:      templateID,
+
+	// Return success response
+	c.JSON(201, CreateApplicationTemplateResponse{
+		ID:      1, // You may want to generate or retrieve a real ID
 		Name:    req.Name,
+		Success: true,
 	})
 }
 
-// TODO: not decided where to store the template files
-func RunCreateTemplate(opt AppCreateOptions) error {
-	log.WithFields(log.Fields{
-		"app-url":      opt.AppsCloneOpts.URL(),
-		"app-revision": opt.AppsCloneOpts.Revision(),
-		"app-path":     opt.AppsCloneOpts.Path(),
-	}).Debug("starting with options: create template")
+// CreateApplicationTemplate creates a new ApplicationTemplate
+func createApplicationTemplate(ctx context.Context, k8sClient client.Client, userReq *CreateApplicationTemplateRequest) error {
+	log.G().WithField("user input request", userReq).Info("CreateApplicationTemplateRequest")
 
-	return nil
-}
-
-// detectEnvironments analyzes the path to identify environments
-func detectEnvironments(path string) []string {
-	environments := make([]string, 0)
-	envPatterns := map[string]*regexp.Regexp{
-		"SIT": regexp.MustCompile(`(?i)(^|\W)sit($|\W)`),
-		"UAT": regexp.MustCompile(`(?i)(^|\W)(uat|staging)($|\W)`),
-		"PRD": regexp.MustCompile(`(?i)(^|\W)(prd|prod|production)($|\W)`),
+	// Create new ApplicationTemplate object
+	template := &apptempv1alpha1.ApplicationTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      userReq.Name,
+			Namespace: "argocd",
+		},
 	}
 
-	for env, pattern := range envPatterns {
-		if pattern.MatchString(path) {
-			environments = append(environments, env)
-		}
+	// Check if template already exists
+	existing := &apptempv1alpha1.ApplicationTemplate{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "argocd", Name: userReq.Name}, existing)
+	if err == nil {
+		return fmt.Errorf("application template %s already exists in namespace %s", userReq.Name, "argocd")
+	}
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to check existing template: %w", err)
 	}
 
-	return environments
-}
+	// for not found, create the template
+	template = &apptempv1alpha1.ApplicationTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      userReq.Name,
+			Namespace: "argocd",
+		},
+		Spec: apptempv1alpha1.ApplicationTemplateSpec{
+			Name:           userReq.Name,
+			RepoURL:        userReq.Source.URL,
+			TargetRevision: userReq.Source.Branch,
+			Helm: &apptempv1alpha1.HelmConfig{
+				Chart: userReq.AppType,
+			},
+			Kustomize: &apptempv1alpha1.KustomizeConfig{
+				RenderTargets: []apptempv1alpha1.KustomizeRenderTarget{
+					{
+						Path: userReq.Path,
+						DestinationCluster: apptempv1alpha1.ClusterSelector{
+							Name: userReq.Owner,
+							MatchLabels: map[string]string{
+								"env": userReq.Owner,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if err := k8sClient.Create(ctx, template); err != nil {
+		return fmt.Errorf("failed to create application template: %w", err)
+	}
 
-// storeTemplate saves the template to persistent storage
-func storeTemplate(template *ApplicationTemplate) error {
-	// TODO: Implement database storage
-	return nil
-}
-
-// updateTemplate updates an existing template in storage
-func updateTemplate(template *ApplicationTemplate) error {
-	// TODO: Implement database update
-	return nil
-}
-
-// generateTemplateID generates a unique template ID
-func generateTemplateID() int {
-	// TODO: Implement proper ID generation
-	return 1
-}
-
-// validateTemplateResources performs detailed validation of template resources
-func validateTemplateResources(template *ApplicationTemplate) error {
-	// TODO: Implement detailed template validation
 	return nil
 }

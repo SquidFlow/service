@@ -1,4 +1,4 @@
-# Application Template
+# ApplicationTemplate Design
 
 ApplicationTemplate is a custom resource for managing multi-cluster application deployments. It combines Helm charts with Kustomize to provide flexible application configuration management.
 
@@ -82,7 +82,7 @@ graph TD
 ## spec
 
 ```yaml
-apiVersion: apptemp.github.com/v1alpha1
+apiVersion: argocd-addon.github.com/v1alpha1
 kind: ApplicationTemplate
 metadata:
   name: sample-application-template
@@ -90,7 +90,7 @@ metadata:
 spec:
   name: app-chart                # required: name of the ApplicationTemplate
   repoURL: https://example.com/redis  # required: source repository URL
-
+  targetRevision: main # option: default is main
   helm:                         # required: Helm configuration
     chart: "my-app-chart"       # required: chart name
     version: "1.0.0"           # required: chart version
@@ -122,7 +122,6 @@ spec:
           matchLabels:
             environment: uat
             region: cn-beijing
-
 status:
   phase: Succeeded            # Overall status
   matchedClusters:           # List of matched destination clusters
@@ -165,3 +164,4 @@ status:
       lastUpdateTime: "2024-11-08T16:56:16+08:00"
       reason: "ClustersMatched"
       message: "Successfully matched 3 destination clusters"
+```

@@ -121,7 +121,7 @@ require (
 	github.com/go-openapi/validate v0.24.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.22.1 // indirect
+	github.com/go-playground/validator/v10 v10.22.1
 	github.com/go-playground/webhooks/v6 v6.4.0 // indirect
 	github.com/go-redis/cache/v9 v9.0.0 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
@@ -143,7 +143,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.13.0 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
@@ -327,7 +327,10 @@ replace (
 
 require github.com/onsi/ginkgo/v2 v2.21.0 // indirect
 
-require github.com/external-secrets/external-secrets v0.10.5
+require (
+	github.com/external-secrets/external-secrets v0.10.5
+	github.com/h4-poc/argocd-addon v0.0.0-20241110110635-367fdf3a3766
+)
 
 require (
 	cloud.google.com/go/auth v0.10.0 // indirect
