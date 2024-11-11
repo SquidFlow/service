@@ -38,6 +38,6 @@ func UpdateSecretStore(c *gin.Context) {
 	// For now, just return success response
 	c.JSON(200, gin.H{
 		"message": "SecretStore updated successfully",
-		"yaml":    req.YAML,
+		"yaml":    secretStore.Name,
 	})
 }

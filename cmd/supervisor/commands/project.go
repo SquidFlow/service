@@ -140,8 +140,6 @@ func NewProjectCreateCommand() *cobra.Command {
 		FS:            memfs.New(),
 		CloneForWrite: true,
 	})
-	addCmd, err := argocd.AddClusterAddFlags(cmd)
-	die(err)
 
 	return cmd
 }

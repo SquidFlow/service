@@ -1,0 +1,7 @@
+POST http://{{host}}:{{port}}/api/v1/applications/templates
+
+{
+  "name": "test-app-template",
+  "description": "test-app-template-description",
+  "template": "test-app-template-template"
+}

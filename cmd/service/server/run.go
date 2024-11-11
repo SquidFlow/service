@@ -21,6 +21,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/config"
 	"github.com/h4-poc/service/pkg/handler"
@@ -160,6 +163,7 @@ func setupRouter() *gin.Engine {
 	r.Use(gin.Recovery())
 	r.Use(corsMiddleware())
 	r.Use(requestIDMiddleware())
+	r.Use(kubeFactoryMiddleware())
 
 	v1 := r.Group("/api/v1")
 
@@ -285,11 +289,27 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 
 // kubeFactoryMiddleware injects a kube factory into the context
 func kubeFactoryMiddleware() gin.HandlerFunc {
-	// Create factory once when middleware is initialized
+	// Create factory and clients once when middleware is initialized
 	factory := kube.NewFactory()
+	restConfig, err := factory.ToRESTConfig()
+	if err != nil {
+		log.G().Fatalf("Failed to get REST config: %v", err)
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		log.G().Fatalf("Failed to create dynamic client: %v", err)
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		log.G().Fatalf("Failed to create discovery client: %v", err)
+	}
 
 	return func(c *gin.Context) {
 		c.Set("kubeFactory", factory)
+		c.Set("dynamicClient", dynamicClient)
+		c.Set("discoveryClient", discoveryClient)
 		c.Next()
 	}
 }

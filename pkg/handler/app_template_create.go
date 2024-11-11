@@ -7,11 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 
-	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
-
-	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 )
@@ -34,17 +34,8 @@ type CreateApplicationTemplateResponse struct {
 
 // CreateApplicationTemplate handles HTTP requests to create an ApplicationTemplate
 func CreateApplicationTemplate(c *gin.Context) {
-	// Get kube factory from context
-	factory := c.MustGet("kubeFactory").(kube.Factory)
-
-	// Get kubernetes client
-	restConfig, err := factory.ToRESTConfig()
-	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get kubernetes client: %v", err)})
-		return
-	}
-
-	k8sClient, err := client.New(restConfig, client.Options{})
+	dynamicClient := c.MustGet("dynamicClient").(dynamic.Interface)
+	discoveryClient := c.MustGet("discoveryClient").(*discovery.DiscoveryClient)
 
 	var req CreateApplicationTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -52,8 +43,7 @@ func CreateApplicationTemplate(c *gin.Context) {
 		return
 	}
 
-	// Create the application template
-	err = createApplicationTemplate(context.Background(), k8sClient, &req)
+	err := createApplicationTemplate(context.Background(), dynamicClient, discoveryClient, &req)
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			c.JSON(409, gin.H{"error": err.Error()})
@@ -63,29 +53,42 @@ func CreateApplicationTemplate(c *gin.Context) {
 		return
 	}
 
-	// Return success response
 	c.JSON(201, CreateApplicationTemplateResponse{
-		ID:      1, // You may want to generate or retrieve a real ID
+		ID:      1,
 		Name:    req.Name,
 		Success: true,
 	})
 }
 
-// CreateApplicationTemplate creates a new ApplicationTemplate
-func createApplicationTemplate(ctx context.Context, k8sClient client.Client, userReq *CreateApplicationTemplateRequest) error {
-	log.G().WithField("user input request", userReq).Info("CreateApplicationTemplateRequest")
+func createApplicationTemplate(ctx context.Context, dynamicClient dynamic.Interface, discoveryClient *discovery.DiscoveryClient, userReq *CreateApplicationTemplateRequest) error {
+	log.G().WithField("user input request", userReq).Info("create application template...")
 
-	// Create new ApplicationTemplate object
-	template := &apptempv1alpha1.ApplicationTemplate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      userReq.Name,
-			Namespace: "argocd",
-		},
+	_, resourceList, err := discoveryClient.ServerGroupsAndResources()
+	if err != nil {
+		return fmt.Errorf("failed to get server resources: %w", err)
 	}
 
-	// Check if template already exists
-	existing := &apptempv1alpha1.ApplicationTemplate{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "argocd", Name: userReq.Name}, existing)
+	appTemplateGVR := schema.GroupVersionResource{
+		Group:    "argocd-addon.github.com",
+		Version:  "v1alpha1",
+		Resource: "applicationtemplates",
+	}
+
+	resourceExists := false
+	for _, list := range resourceList {
+		for _, r := range list.APIResources {
+			if r.Name == appTemplateGVR.Resource {
+				resourceExists = true
+				break
+			}
+		}
+	}
+
+	if !resourceExists {
+		return fmt.Errorf("ApplicationTemplate CRD is not installed in the cluster")
+	}
+
+	_, err = dynamicClient.Resource(appTemplateGVR).Namespace("argocd").Get(ctx, userReq.Name, metav1.GetOptions{})
 	if err == nil {
 		return fmt.Errorf("application template %s already exists in namespace %s", userReq.Name, "argocd")
 	}
@@ -93,40 +96,43 @@ func createApplicationTemplate(ctx context.Context, k8sClient client.Client, use
 		return fmt.Errorf("failed to check existing template: %w", err)
 	}
 
-	// for not found, create the template
-	template = &apptempv1alpha1.ApplicationTemplate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      userReq.Name,
-			Namespace: store.Default.ArgoCDNamespace,
-		},
-		Spec: apptempv1alpha1.ApplicationTemplateSpec{
-			Name:           userReq.Name,
-			RepoURL:        userReq.Source.URL,
-			TargetRevision: userReq.Source.TargetRevision,
-			Helm: &apptempv1alpha1.HelmConfig{
-				Chart:      userReq.Name, // chart name
-				Version:    "v1",
-				Repository: userReq.Source.URL,
-				RenderTargets: []apptempv1alpha1.HelmRenderTarget{
-					{
-						DestinationCluster: apptempv1alpha1.ClusterSelector{
-							Name: userReq.Owner,
-							MatchLabels: map[string]string{
-								"env": userReq.Owner,
+	template := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "argocd-addon.github.com/v1alpha1",
+			"kind":       "ApplicationTemplate",
+			"metadata": map[string]interface{}{
+				"name":      userReq.Name,
+				"namespace": store.Default.ArgoCDNamespace,
+			},
+			"spec": map[string]interface{}{
+				"name":           userReq.Name,
+				"repoURL":        userReq.Source.URL,
+				"targetRevision": userReq.Source.TargetRevision,
+				"helm": map[string]interface{}{
+					"chart":      userReq.Name,
+					"version":    "v1",
+					"repository": userReq.Source.URL,
+					"renderTargets": []map[string]interface{}{
+						{
+							"destinationCluster": map[string]interface{}{
+								"name": userReq.Owner,
+								"matchLabels": map[string]interface{}{
+									"env": userReq.Owner,
+								},
 							},
+							"valuesPath": userReq.Path,
 						},
-						ValuesPath: userReq.Path,
 					},
 				},
-			},
-			Kustomize: &apptempv1alpha1.KustomizeConfig{
-				RenderTargets: []apptempv1alpha1.KustomizeRenderTarget{
-					{
-						Path: userReq.Path,
-						DestinationCluster: apptempv1alpha1.ClusterSelector{
-							Name: userReq.Owner,
-							MatchLabels: map[string]string{
-								"env": userReq.Owner,
+				"kustomize": map[string]interface{}{
+					"renderTargets": []map[string]interface{}{
+						{
+							"path": userReq.Path,
+							"destinationCluster": map[string]interface{}{
+								"name": userReq.Owner,
+								"matchLabels": map[string]interface{}{
+									"env": userReq.Owner,
+								},
 							},
 						},
 					},
@@ -134,7 +140,10 @@ func createApplicationTemplate(ctx context.Context, k8sClient client.Client, use
 			},
 		},
 	}
-	if err := k8sClient.Create(ctx, template); err != nil {
+
+	createOpts := metav1.CreateOptions{}
+	_, err = dynamicClient.Resource(appTemplateGVR).Namespace(store.Default.ArgoCDNamespace).Create(ctx, template, createOpts)
+	if err != nil {
 		return fmt.Errorf("failed to create application template: %w", err)
 	}
 

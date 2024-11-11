@@ -80,12 +80,35 @@ $(GOBIN)/golangci-lint:
 	@echo installing: golangci-lint
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v1.55.2
 
+# Docker ENV
+DOCKER_REGISTRY ?= wangguohao
+IMAGE_NAME ?= h4-service
+IMAGE_TAG ?= $(VERSION)
+
+.PHONY: docker-build
+docker-build:
+	docker build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		-t $(DOCKER_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) .
+
+.PHONY: docker-push
+docker-push:
+	docker push $(DOCKER_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+
+.PHONY: docker-all
+docker-all: docker-build docker-push
+
 # Help information
 .PHONY: help
 help:
 	@echo "Usage:"
-	@echo "  make build    - Build the application"
-	@echo "  make run      - Run the application"
-	@echo "  make test     - Run tests"
-	@echo "  make clean    - Clean build artifacts"
-	@echo "  make all      - Clean, build, and test"
+	@echo "  make build           - Build the application"
+	@echo "  make run            - Run the application"
+	@echo "  make test           - Run tests"
+	@echo "  make clean          - Clean build artifacts"
+	@echo "  make all            - Clean, build, and test"
+	@echo "  make docker-build   - Build Docker image"
+	@echo "  make docker-push    - Push Docker image to registry"
+	@echo "  make docker-all     - Build and push Docker image"

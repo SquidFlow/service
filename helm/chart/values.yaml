@@ -1,0 +1,69 @@
+nameOverride: ""
+fullnameOverride: ""
+namespace: "h4"
+
+image:
+  repository: docker.io/wangguohao/h4-service
+  tag: "e8b887b"
+  pullPolicy: IfNotPresent
+
+backend:
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 38080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+ingress:
+  enabled: true
+  type: "nginx"
+
+  nginx:
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+
+  alb:
+    className: "alb"
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+
+  hosts:
+    - host: "h4-service.local"
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend
+
+argocd:
+  serverAddress: "argocd-server.argocd.svc.cluster.local:80"
+  username: "admin"
+  password: ""
+
+applicationRepo:
+  remoteUrl: "https://github.com/h4-poc/gitops.git"
+  accessToken: ""

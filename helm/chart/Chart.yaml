@@ -1,0 +1,5 @@
+apiVersion: v2
+name: h4-service
+description: A Helm chart for H4 Service with Frontend and Backend
+version: 0.1.0
+appVersion: "e8b887b"

@@ -3,17 +3,14 @@ package argocd
 import (
 	"context"
 
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/util"
-
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argocdcs "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/h4-poc/service/pkg/log"
 	"github.com/spf13/cobra"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 )
 
 type (
@@ -35,24 +32,6 @@ type (
 		Insecure    bool
 	}
 )
-
-func AddClusterAddFlags(cmd *cobra.Command) (AddClusterCmd, error) {
-	root := commands.NewCommand()
-	args := []string{"cluster", "add"}
-	addcmd, _, err := root.Find(args)
-	if err != nil {
-		return nil, err
-	}
-
-	fs, err := util.StealFlags(addcmd, []string{"logformat", "loglevel", "namespace", "kube-context"})
-	if err != nil {
-		return nil, err
-	}
-
-	cmd.Flags().AddFlagSet(fs)
-
-	return &addClusterImpl{root, args}, nil
-}
 
 func (a *addClusterImpl) Execute(ctx context.Context, clusterName string) error {
 	a.cmd.SetArgs(append(a.args, clusterName))
