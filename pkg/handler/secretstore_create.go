@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"
@@ -17,7 +18,6 @@ import (
 	"github.com/h4-poc/service/pkg/kube"
 )
 
-// SecretStoreRequest 定义创建 SecretStore 的请求结构
 type SecretStoreRequest struct {
 	Name      string            `json:"name" binding:"required"`
 	Namespace string            `json:"namespace" binding:"required"`
@@ -76,8 +76,6 @@ func CreateSecretStore(c *gin.Context) {
 
 // createSecretStoreYAML generates the YAML representation of a SecretStore
 func createSecretStoreYAML(ctx context.Context, opt AppCreateOptions) error {
-
-	// 创建 SecretStore CR
 	secretStore := &esv1beta1.SecretStore{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "external-secrets.io/v1beta1",

@@ -19,9 +19,9 @@ type ApplicationTemplate struct {
 }
 
 type ApplicationSource struct {
-	Type   string `json:"type"`
-	URL    string `json:"url"`
-	Branch string `json:"branch"`
+	Type           string `json:"type"`
+	URL            string `json:"url"`
+	TargetRevision string `json:"targetRevision"`
 }
 
 type ApplicationResources struct {
@@ -54,3 +54,10 @@ type ApplicationEvent struct {
 	Reason  string `json:"reason"`
 	Message string `json:"message"`
 }
+
+type ApplicationTemplateType string
+
+var (
+	ApplicationTemplateTypeHelm      ApplicationTemplateType = "helm"
+	ApplicationTemplateTypeKustomize ApplicationTemplateType = "kustomize"
+)

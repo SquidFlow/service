@@ -1,7 +1,16 @@
 package handler
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
+
+	"github.com/h4-poc/service/pkg/kube"
 )
 
 // ListTemplateResponse represents the response structure for template listing
@@ -11,6 +20,13 @@ type ListTemplateResponse struct {
 	Items   []ApplicationTemplate `json:"items"`
 }
 
+// ListTemplateFilter represents the filter criteria for listing templates
+type ListTemplateFilter struct {
+	AppType   string
+	Owner     string
+	Validated string
+}
+
 // ListApplicationTemplate handles the retrieval of application templates
 func ListApplicationTemplate(c *gin.Context) {
 	// Get query parameters for filtering
@@ -18,12 +34,30 @@ func ListApplicationTemplate(c *gin.Context) {
 	owner := c.Query("owner")         // Filter by owner
 	validated := c.Query("validated") // Filter by validation status
 
-	// Get templates from storage with filters
-	templates, err := getTemplates(ListTemplateFilter{
-		AppType:   appType,
-		Owner:     owner,
-		Validated: validated,
-	})
+	log.WithFields(log.Fields{
+		"appType":   appType,
+		"owner":     owner,
+		"validated": validated,
+	}).Info("Listing application templates")
+
+	// Get kube factory from context
+	factory := c.MustGet("kubeFactory").(kube.Factory)
+
+	// Get kubernetes client
+	restConfig, err := factory.ToRESTConfig()
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get kubernetes client: %v", err)})
+		return
+	}
+
+	k8sClient, err := client.New(restConfig, client.Options{})
+
+	appTempList := apptempv1alpha1.ApplicationTemplateList{}
+	err = k8sClient.List(context.Background(), &appTempList, &client.ListOptions{})
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list application templates: %v", err)})
+		return
+	}
 
 	if err != nil {
 		c.JSON(500, ListTemplateResponse{
@@ -37,104 +71,58 @@ func ListApplicationTemplate(c *gin.Context) {
 	// Return success response
 	c.JSON(200, ListTemplateResponse{
 		Success: true,
-		Total:   len(templates),
-		Items:   templates,
+		Total:   len(appTempList.Items),
+		Items:   convertApplicationTemplate(&appTempList),
 	})
 }
 
-// ListTemplateFilter represents the filter criteria for listing templates
-type ListTemplateFilter struct {
-	AppType   string
-	Owner     string
-	Validated string
-}
-
-// getTemplates retrieves templates from storage with optional filters
-func getTemplates(filter ListTemplateFilter) ([]ApplicationTemplate, error) {
-	// TODO: Implement actual database query
-	// This is a mock implementation
-	templates := []ApplicationTemplate{
-		{
-			ID:          1,
-			Name:        "h4-loki",
-			Path:        "loki",
-			Description: "Loki is a horizontally scalable, highly available, multi-tenant log aggregation system inspired by Prometheus.",
-			Validated:   true,
-			Owner:       "h4-loki",
-			AppType:     "helm",
+// convertApplicationTemplate converts an ApplicationTemplate to a handler ApplicationTemplate
+func convertApplicationTemplate(template *apptempv1alpha1.ApplicationTemplateList) []ApplicationTemplate {
+	var ret []ApplicationTemplate
+	for _, item := range template.Items {
+		ret = append(ret, ApplicationTemplate{
+			Name:        item.Name,
+			Owner:       item.Annotations["owner"],
+			Description: item.Annotations["description"],
+			AppType:     getAppTempType(item),
 			Source: ApplicationSource{
-				Type:   "git",
-				URL:    "https://github.com/h4-poc/manifest",
-				Branch: "main",
+				URL:            item.Spec.RepoURL,
+				TargetRevision: item.Spec.TargetRevision,
 			},
-			Environments: []string{"SIT", "UAT", "PRD"},
-			LastApplied:  "2024-01-01T00:00:00Z",
 			Resources: ApplicationResources{
-				Deployments: 1,
-				Services:    1,
-				Configmaps:  2,
-			},
-			Events: []ApplicationEvent{
-				{
-					Time:    "2024-01-01T00:00:00Z",
-					Type:    "Normal",
-					Reason:  "Created",
-					Message: "Application template created successfully",
-				},
-			},
-			CreatedAt: "2024-01-01T00:00:00Z",
-			UpdatedAt: "2024-01-01T00:00:00Z",
-		},
-		{
-			ID:          2,
-			Name:        "h4-logging-operator",
-			Path:        "logging-operator",
-			Description: "Logging operator is a tool for managing logging resources in Kubernetes.",
-			Validated:   true,
-			Owner:       "h4-logging-operator",
-			AppType:     "helm",
-			Source: ApplicationSource{
-				Type:   "git",
-				URL:    "https://github.com/h4-poc/manifest",
-				Branch: "main",
-			},
-			Environments: []string{"SIT", "UAT"},
-			LastApplied:  "2024-01-01T00:00:00Z",
-			Resources: ApplicationResources{
-				Deployments: 1,
+				Deployments: 2,
 				Services:    1,
 				Configmaps:  1,
 			},
 			Events: []ApplicationEvent{
 				{
-					Time:    "2024-01-01T00:00:00Z",
-					Type:    "Normal",
-					Reason:  "Created",
-					Message: "Application template created successfully",
+					Time: "2021-09-01T00:00:00Z",
+					Type: "Normal",
 				},
 			},
-			CreatedAt: "2024-01-01T00:00:00Z",
-			UpdatedAt: "2024-01-01T00:00:00Z",
-		},
+		})
+	}
+	return ret
+}
+
+func getAppTempType(temp apptempv1alpha1.ApplicationTemplate) string {
+	var enableHelm, enableKustomize bool
+	if temp.Spec.Helm != nil {
+		enableHelm = true
+	}
+	if temp.Spec.Kustomize != nil {
+		enableKustomize = true
 	}
 
-	// Apply filters if provided
-	var filtered []ApplicationTemplate
-	for _, t := range templates {
-		if filter.AppType != "" && t.AppType != filter.AppType {
-			continue
-		}
-		if filter.Owner != "" && t.Owner != filter.Owner {
-			continue
-		}
-		if filter.Validated != "" {
-			isValidated := filter.Validated == "true"
-			if t.Validated != isValidated {
-				continue
-			}
-		}
-		filtered = append(filtered, t)
+	// only define 2 types: helm and kustomize
+	if enableHelm && enableKustomize {
+		return "kustomize"
 	}
-
-	return filtered, nil
+	if enableHelm {
+		return "helm"
+	}
+	if enableKustomize {
+		return "kustomize"
+	}
+	return "unknown"
 }

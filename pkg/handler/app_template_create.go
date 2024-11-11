@@ -13,16 +13,17 @@ import (
 
 	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/store"
 )
 
 // CreateApplicationTemplateRequest defines the request body for creating an ApplicationTemplate
 type CreateApplicationTemplateRequest struct {
-	Name        string            `json:"name" binding:"required"`
-	Path        string            `json:"path" binding:"required"`
-	Owner       string            `json:"owner" binding:"required"`
-	Source      ApplicationSource `json:"source" binding:"required"`
-	Description string            `json:"description,omitempty"`
-	AppType     string            `json:"appType" binding:"required,oneof=kustomize helm"`
+	Name        string                  `json:"name" binding:"required"`
+	Path        string                  `json:"path" binding:"required"`
+	Owner       string                  `json:"owner" binding:"required"`
+	Source      ApplicationSource       `json:"source" binding:"required"`
+	Description string                  `json:"description,omitempty"`
+	AppType     ApplicationTemplateType `json:"appType" binding:"required,oneof=kustomize helm"`
 }
 
 type CreateApplicationTemplateResponse struct {
@@ -96,14 +97,27 @@ func createApplicationTemplate(ctx context.Context, k8sClient client.Client, use
 	template = &apptempv1alpha1.ApplicationTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      userReq.Name,
-			Namespace: "argocd",
+			Namespace: store.Default.ArgoCDNamespace,
 		},
 		Spec: apptempv1alpha1.ApplicationTemplateSpec{
 			Name:           userReq.Name,
 			RepoURL:        userReq.Source.URL,
-			TargetRevision: userReq.Source.Branch,
+			TargetRevision: userReq.Source.TargetRevision,
 			Helm: &apptempv1alpha1.HelmConfig{
-				Chart: userReq.AppType,
+				Chart:      userReq.Name, // chart name
+				Version:    "v1",
+				Repository: userReq.Source.URL,
+				RenderTargets: []apptempv1alpha1.HelmRenderTarget{
+					{
+						DestinationCluster: apptempv1alpha1.ClusterSelector{
+							Name: userReq.Owner,
+							MatchLabels: map[string]string{
+								"env": userReq.Owner,
+							},
+						},
+						ValuesPath: userReq.Path,
+					},
+				},
 			},
 			Kustomize: &apptempv1alpha1.KustomizeConfig{
 				RenderTargets: []apptempv1alpha1.KustomizeRenderTarget{

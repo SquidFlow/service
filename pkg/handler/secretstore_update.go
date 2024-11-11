@@ -34,8 +34,6 @@ func UpdateSecretStore(c *gin.Context) {
 		}
 	}
 
-	// TODO: write to gitops fs
-
 	// TODO: Implement actual update logic here
 	// For now, just return success response
 	c.JSON(200, gin.H{
