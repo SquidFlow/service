@@ -332,6 +332,10 @@ func checkRequiredCRDs(discoveryClient *discovery.DiscoveryClient) error {
 		{"argoproj.io", "applicationsets"},
 		{"argocd-addon.github.com", "applicationtemplates"},
 		{"argoproj.io", "appprojects"},
+		{"external-secrets.io", "clusterexternalsecrets"},
+		{"external-secrets.io", "clustersecretstores"},
+		{"external-secrets.io", "externalsecrets"},
+		{"external-secrets.io", "secretstores"},
 	}
 
 	resources, err := discoveryClient.ServerPreferredResources()
