@@ -10,17 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	clientCluster "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	clusterclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 
@@ -95,6 +90,24 @@ func runServer(cmd *cobra.Command, args []string) {
 		log.G().Info("Running in development mode")
 	}
 
+	// Create kubernetes clients
+	factory := kube.NewFactory()
+	restConfig, err := factory.ToRESTConfig()
+	if err != nil {
+		log.G().Fatalf("Failed to get REST config: %v", err)
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		log.G().Fatalf("Failed to create discovery client: %v", err)
+	}
+
+	// Check required CRDs
+	log.G().Info("Checking required CRDs...")
+	if err := checkRequiredCRDs(discoveryClient); err != nil {
+		log.G().Fatalf("CRD check failed: %v", err)
+	}
+
 	// connect to ArgoCD API server
 	argocdClient := argocd.GetArgoServerClient()
 	if argocdClient == nil {
@@ -107,24 +120,10 @@ func runServer(cmd *cobra.Command, args []string) {
 	}
 	defer closer.Close()
 
-	// list cluster
-	clusterList, err := clsClient.List(context.Background(), &clientCluster.ClusterQuery{})
+	err = listDestinationCluster(context.Background(), clsClient)
 	if err != nil {
-		log.G().Fatalf("Failed to list clusters: %v", err)
+		log.G().Fatalf("Failed to list destination clusters: %v", err)
 	}
-
-	log.G().Info("Available clusters:")
-	log.G().Info(strings.Repeat("-", 80))
-	log.G().Info(fmt.Sprintf("%-60s\t%-30s\t%-10s", "Name", "Server", "Status"))
-
-	for _, cls := range clusterList.Items {
-		status := cls.Info.ConnectionState.Status
-		log.G().Info(fmt.Sprintf("%-60s\t%-30s\t%-10s",
-			cls.Name,
-			cls.Server,
-			status))
-	}
-	log.G().Info(strings.Repeat("-", 80))
 
 	//TODO: check gitOps repo
 	r := setupRouter()
@@ -272,20 +271,6 @@ func generateRequestID() string {
 	return fmt.Sprintf("%d-%s", time.Now().UnixNano(), uuid.New().String()[:8])
 }
 
-// passwordLogin performs the login and returns the token
-func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
-	username, password = cli.PromptCredentials(username, password)
-	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer io.Close(sessConn)
-	sessionRequest := sessionpkg.SessionCreateRequest{
-		Username: username,
-		Password: password,
-	}
-	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
-	errors.CheckError(err)
-	return createdSession.Token
-}
-
 // kubeFactoryMiddleware injects a kube factory into the context
 func kubeFactoryMiddleware() gin.HandlerFunc {
 	// Create factory and clients once when middleware is initialized
@@ -311,4 +296,76 @@ func kubeFactoryMiddleware() gin.HandlerFunc {
 		c.Set("discoveryClient", discoveryClient)
 		c.Next()
 	}
+}
+
+// listDestinationCluster
+func listDestinationCluster(ctx context.Context, clsClient clusterpkg.ClusterServiceClient) error {
+	// list cluster
+	clusterList, err := clsClient.List(context.Background(), &clusterclient.ClusterQuery{})
+	if err != nil {
+		log.G().Error("Failed to list clusters: %v", err)
+		return err
+	}
+
+	log.G().Info("Available clusters:")
+	log.G().Info(strings.Repeat("-", 80))
+	log.G().Info(fmt.Sprintf("%-60s\t%-30s\t%-10s", "Name", "Server", "Status"))
+
+	for _, cls := range clusterList.Items {
+		status := cls.Info.ConnectionState.Status
+		log.G().Info(fmt.Sprintf("%-60s\t%-30s\t%-10s",
+			cls.Name,
+			cls.Server,
+			status))
+	}
+	log.G().Info(strings.Repeat("-", 80))
+
+	return nil
+}
+
+func checkRequiredCRDs(discoveryClient *discovery.DiscoveryClient) error {
+	requiredCRDs := []struct {
+		group    string
+		resource string
+	}{
+		{"argoproj.io", "applications"},
+		{"argoproj.io", "applicationsets"},
+		{"argocd-addon.github.com", "applicationtemplates"},
+		{"argoproj.io", "appprojects"},
+	}
+
+	resources, err := discoveryClient.ServerPreferredResources()
+	if err != nil {
+		return fmt.Errorf("failed to get server resources: %w", err)
+	}
+
+	missingCRDs := []string{}
+
+	for _, crd := range requiredCRDs {
+		found := false
+		for _, list := range resources {
+			if !strings.Contains(list.GroupVersion, crd.group) {
+				continue
+			}
+			for _, r := range list.APIResources {
+				if r.Name == crd.resource {
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			missingCRDs = append(missingCRDs, fmt.Sprintf("%s.%s", crd.resource, crd.group))
+		}
+	}
+
+	if len(missingCRDs) > 0 {
+		return fmt.Errorf("required CRDs are not installed: %s", strings.Join(missingCRDs, ", "))
+	}
+
+	log.G().Info("All required CRDs are installed")
+	return nil
 }

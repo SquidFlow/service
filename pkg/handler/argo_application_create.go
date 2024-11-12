@@ -183,13 +183,15 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 
 	if opts.AppsCloneOpts != opts.CloneOpts {
 		log.G().Info("committing changes to apps repo...")
-		if _, err = appsRepo.Persist(ctx, &git.PushOptions{CommitMsg: getCommitMsg(opts, appsfs)}); err != nil {
+		if _, err = appsRepo.Persist(ctx, &git.PushOptions{
+			CommitMsg: genCommitMsg(ActionTypeCreate, ResourceNameApp, opts.createOpts.AppName, opts.ProjectName, repofs),
+		}); err != nil {
 			return fmt.Errorf("failed to push to apps repo: %w", err)
 		}
 	}
 
 	log.G().Info("committing changes to git-ops repo...")
-	var opt = git.PushOptions{CommitMsg: getCommitMsg(opts, repofs)}
+	var opt = git.PushOptions{CommitMsg: genCommitMsg(ActionTypeCreate, ResourceNameApp, opts.createOpts.AppName, opts.ProjectName, repofs)}
 	log.G().Debugf("git push option: %v", opt)
 	revision, err := r.Persist(ctx, &opt)
 	if err != nil {

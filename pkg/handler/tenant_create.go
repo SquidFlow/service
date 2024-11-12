@@ -58,6 +58,7 @@ func CreateProject(c *gin.Context) {
 		"project": req,
 	})
 }
+
 func RunProjectCreate(ctx context.Context, opts *ProjectCreateOptions) error {
 	var (
 		err                   error

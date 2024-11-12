@@ -6,9 +6,10 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/spf13/viper"
+
+	"github.com/h4-poc/service/pkg/log"
 )
 
 // TODO: in-cluster mode
@@ -42,6 +43,9 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 		Password: password,
 	}
 	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
-	errors.CheckError(err)
+	if err != nil {
+		log.G().Fatalf("Failed to login: %v", err)
+	}
+	log.G().Infof("connected to argocd server: %s with user: %s successfully", viper.GetString("argocd.server_address"), username)
 	return createdSession.Token
 }

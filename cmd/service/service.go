@@ -65,6 +65,7 @@ func preRun(cmd *cobra.Command, args []string) {
 		"pid":         os.Getpid(),
 		"working_dir": getCurrentWorkingDir(),
 	}).Info("Starting application server")
+
 }
 
 func main() {

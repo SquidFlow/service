@@ -1,5 +1,26 @@
 package handler
 
+import (
+	"github.com/h4-poc/service/pkg/argocd"
+	"github.com/h4-poc/service/pkg/git"
+)
+
+type ActionType string
+
+var (
+	ActionTypeCreate ActionType = "create"
+	ActionTypeDelete ActionType = "delete"
+	ActionTypeUpdate ActionType = "update"
+)
+
+type ResourceName string
+
+var (
+	ResourceNameApp         ResourceName = "app"
+	ResourceNameProject     ResourceName = "project"
+	ResourceNameAppTemplate ResourceName = "apptemplate"
+)
+
 // ApplicationTemplate represents a template for deploying applications
 type ApplicationTemplate struct {
 	ID           int                  `json:"id"`
@@ -58,6 +79,20 @@ type ApplicationEvent struct {
 type ApplicationTemplateType string
 
 var (
-	ApplicationTemplateTypeHelm      ApplicationTemplateType = "helm"
-	ApplicationTemplateTypeKustomize ApplicationTemplateType = "kustomize"
+	ApplicationTemplateTypeHelm          ApplicationTemplateType = "helm"
+	ApplicationTemplateTypeKustomize     ApplicationTemplateType = "kustomize"
+	ApplicationTemplateTypeHelmKustomize ApplicationTemplateType = "helm-kustomize"
+)
+
+type (
+	AppTemplateCreateOptions struct {
+		CloneOpts       *git.CloneOptions
+		ProjectName     string
+		DestKubeServer  string
+		DestKubeContext string
+		DryRun          bool
+		AddCmd          argocd.AddClusterCmd
+		Labels          map[string]string
+		Annotations     map[string]string
+	}
 )

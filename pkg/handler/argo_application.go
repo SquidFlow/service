@@ -10,13 +10,13 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 )
@@ -54,7 +54,7 @@ var setAppOptsDefaults = func(ctx context.Context, repofs fs.FS, opts *AppCreate
 	} else {
 		host, orgRepo, p, _, _, suffix, _ := util.ParseGitUrl(opts.createOpts.AppSpecifier)
 		url := host + orgRepo + suffix
-		log.Infof("cloning repo: '%s', to infer app type from path '%s'", url, p)
+		log.G().Infof("cloning repo: '%s', to infer app type from path '%s'", url, p)
 		cloneOpts := &git.CloneOptions{
 			Repo:     opts.createOpts.AppSpecifier,
 			Auth:     opts.CloneOpts.Auth,
@@ -69,7 +69,7 @@ var setAppOptsDefaults = func(ctx context.Context, repofs fs.FS, opts *AppCreate
 	}
 
 	opts.createOpts.AppType = application.InferAppType(fsys)
-	log.Infof("inferred application type: %s", opts.createOpts.AppType)
+	log.G().Infof("inferred application type: %s", opts.createOpts.AppType)
 
 	return nil
 }
@@ -88,8 +88,8 @@ func getProjectDestServer(repofs fs.FS, projectName string) (string, error) {
 	return p.Annotations[store.Default.DestServerAnnotation], nil
 }
 
-func getCommitMsg(opts *AppCreateOptions, repofs fs.FS) string {
-	commitMsg := fmt.Sprintf("installed app '%s' on project '%s'", opts.createOpts.AppName, opts.ProjectName)
+func genCommitMsg(action ActionType, targetResource ResourceName, appName, projectName string, repofs fs.FS) string {
+	commitMsg := fmt.Sprintf("%s %s '%s' on project '%s'", action, targetResource, appName, projectName)
 	if repofs.Root() != "" {
 		commitMsg += fmt.Sprintf(" installation-path: '%s'", repofs.Root())
 	}

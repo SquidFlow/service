@@ -5,15 +5,21 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/viper"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/yaml"
 
+	"github.com/h4-poc/service/pkg/fs"
+	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
+	"github.com/h4-poc/service/pkg/util"
 )
 
 // CreateApplicationTemplateRequest defines the request body for creating an ApplicationTemplate
@@ -23,7 +29,7 @@ type CreateApplicationTemplateRequest struct {
 	Owner       string                  `json:"owner" binding:"required"`
 	Source      ApplicationSource       `json:"source" binding:"required"`
 	Description string                  `json:"description,omitempty"`
-	AppType     ApplicationTemplateType `json:"appType" binding:"required,oneof=kustomize helm"`
+	AppType     ApplicationTemplateType `json:"appType" binding:"required,oneof=kustomize helm helm+kustomize"`
 }
 
 type CreateApplicationTemplateResponse struct {
@@ -43,9 +49,9 @@ func CreateApplicationTemplate(c *gin.Context) {
 		return
 	}
 
-	err := createApplicationTemplate(context.Background(), dynamicClient, discoveryClient, &req)
+	temp, err := generateApplicationTemplate(context.Background(), dynamicClient, discoveryClient, &req)
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
+		if k8serror.IsAlreadyExists(err) {
 			c.JSON(409, gin.H{"error": err.Error()})
 			return
 		}
@@ -53,19 +59,42 @@ func CreateApplicationTemplate(c *gin.Context) {
 		return
 	}
 
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: true,
+	}
+	cloneOpts.Parse()
+
+	err = RunAppTemplateCreate(
+		context.Background(),
+		temp,
+		&AppTemplateCreateOptions{
+			CloneOpts: cloneOpts,
+		})
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create application template: %v", err)})
+		return
+	}
+
 	c.JSON(201, CreateApplicationTemplateResponse{
 		ID:      1,
-		Name:    req.Name,
+		Name:    temp.GetName(),
 		Success: true,
 	})
 }
 
-func createApplicationTemplate(ctx context.Context, dynamicClient dynamic.Interface, discoveryClient *discovery.DiscoveryClient, userReq *CreateApplicationTemplateRequest) error {
+func generateApplicationTemplate(ctx context.Context, dynamicClient dynamic.Interface, discoveryClient *discovery.DiscoveryClient, userReq *CreateApplicationTemplateRequest) (*unstructured.Unstructured, error) {
 	log.G().WithField("user input request", userReq).Info("create application template...")
 
 	_, resourceList, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
-		return fmt.Errorf("failed to get server resources: %w", err)
+		return nil, fmt.Errorf("failed to get server resources: %w", err)
 	}
 
 	appTemplateGVR := schema.GroupVersionResource{
@@ -85,15 +114,18 @@ func createApplicationTemplate(ctx context.Context, dynamicClient dynamic.Interf
 	}
 
 	if !resourceExists {
-		return fmt.Errorf("ApplicationTemplate CRD is not installed in the cluster")
+		log.G().Error("ApplicationTemplate CRD is not installed in the cluster")
+		return nil, fmt.Errorf("ApplicationTemplate CRD is not installed in the cluster")
 	}
 
 	_, err = dynamicClient.Resource(appTemplateGVR).Namespace("argocd").Get(ctx, userReq.Name, metav1.GetOptions{})
 	if err == nil {
-		return fmt.Errorf("application template %s already exists in namespace %s", userReq.Name, "argocd")
+		log.G().Errorf("application template %s already exists in namespace %s", userReq.Name, "argocd")
+		return nil, fmt.Errorf("application template %s already exists in namespace %s", userReq.Name, "argocd")
 	}
-	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to check existing template: %w", err)
+	if !k8serror.IsNotFound(err) {
+		log.G().Errorf("failed to check existing template: %w", err)
+		return nil, fmt.Errorf("failed to check existing template: %w", err)
 	}
 
 	template := &unstructured.Unstructured{
@@ -141,11 +173,52 @@ func createApplicationTemplate(ctx context.Context, dynamicClient dynamic.Interf
 		},
 	}
 
-	createOpts := metav1.CreateOptions{}
-	_, err = dynamicClient.Resource(appTemplateGVR).Namespace(store.Default.ArgoCDNamespace).Create(ctx, template, createOpts)
+	log.G().WithField("template", template).Debug("created application template")
+
+	return template, nil
+}
+
+func RunAppTemplateCreate(ctx context.Context, appTemplate *unstructured.Unstructured, opts *AppTemplateCreateOptions) error {
+	var (
+		err error
+	)
+
+	log.G().WithField("cloneOpts", opts.CloneOpts).Debug("clone options")
+
+	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
 	if err != nil {
-		return fmt.Errorf("failed to create application template: %w", err)
+		return err
 	}
+
+	// convert the appTemplate to yaml
+	appTemplateYaml, err := yaml.Marshal(appTemplate)
+	if err != nil {
+		return err
+	}
+
+	appTemplateExists := repofs.ExistsOrDie(repofs.Join(store.Default.ArgoCDName, appTemplate.GetName()+".yaml"))
+	if appTemplateExists {
+		return fmt.Errorf("app template '%s' already exists", appTemplate.GetName())
+	}
+	log.G().Debug("repository is ok")
+
+	bulkWrites := []fs.BulkWriteRequest{}
+	bulkWrites = append(bulkWrites, fs.BulkWriteRequest{
+		Filename: repofs.Join(store.Default.ArgoCDName, appTemplate.GetName()+".yaml"),
+		Data:     util.JoinManifests(appTemplateYaml),
+		ErrMsg:   "failed to create app template file",
+	})
+
+	if err = fs.BulkWrite(repofs, bulkWrites...); err != nil {
+		return err
+	}
+
+	log.G().Infof("pushing new app template manifest to repo")
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Added app template '%s'", appTemplate.GetName())}); err != nil {
+		return err
+	}
+
+	log.G().Infof("app template created: '%s'", appTemplate.GetName())
 
 	return nil
 }
