@@ -26,7 +26,7 @@ jobs:
         go get -v -t -d ./...
 
     - name: Run tests
-      run: go test -v ./...
+      run: make test
 
     - name: Run tests with race detector
-      run:  make test
+      run:  make build
