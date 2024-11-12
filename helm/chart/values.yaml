@@ -4,7 +4,7 @@ namespace: "h4"
 
 image:
   repository: ghcr.io/h4-poc/service
-  tag: "v0.0.2"
+  tag: "v0.0.1"
   pullPolicy: IfNotPresent
 
 backend:
