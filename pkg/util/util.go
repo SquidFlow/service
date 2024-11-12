@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"strings"
@@ -10,10 +11,12 @@ import (
 
 	"github.com/h4-poc/service/pkg/store"
 
+	"errors"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -176,4 +179,35 @@ func CleanSliceWhiteSpaces(slc []string) []string {
 	}
 
 	return res
+}
+
+func Yaml2Maps(valuesfile string) (map[string]interface{}, error) {
+	currentMap := map[string]interface{}{}
+	bytes, err := os.ReadFile(valuesfile)
+	if err != nil {
+		log.Info(err)
+		return nil, err
+	}
+	yaml.Unmarshal(bytes, &currentMap)
+	return currentMap, nil
+}
+
+func WriteFile(content string, path string) error {
+	data := []byte(content)
+	err := os.WriteFile(path, data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CheckIsHelmChart(path string) bool {
+	if _, err := os.Stat(path); err == nil {
+		return true
+
+	} else if errors.Is(err, os.ErrNotExist) {
+		return false
+
+	}
+	return false
 }
