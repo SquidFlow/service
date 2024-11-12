@@ -23,12 +23,21 @@ spec:
         - name: {{ .Chart.Name }}-backend
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/app/service"]
+          args: ["run", "-c", "/etc/service/config.toml"]
           ports:
             - name: http
               containerPort: 38080
               protocol: TCP
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/service
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "service-chart.fullname" . }}-config
 ---
 # Frontend Deployment
 apiVersion: apps/v1
@@ -55,9 +64,11 @@ spec:
         - name: {{ .Chart.Name }}-frontend
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          workingDir: /app/web
+          command: ["node", "/app/server.js"]
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 3000
               protocol: TCP
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}

@@ -1,10 +1,10 @@
-nameOverride: ""
-fullnameOverride: ""
+nameOverride: "h4"
+fullnameOverride: "h4"
 namespace: "h4"
 
 image:
-  repository: docker.io/wangguohao/h4-service
-  tag: "e8b887b"
+  repository: ghcr.io/h4-poc/service
+  tag: "v0.0.2"
   pullPolicy: IfNotPresent
 
 backend:
@@ -35,29 +35,10 @@ frontend:
 
 ingress:
   enabled: true
-  type: "nginx"
-
-  nginx:
-    className: "nginx"
-    annotations:
-      nginx.ingress.kubernetes.io/rewrite-target: /
-
-  alb:
-    className: "alb"
-    annotations:
-      alb.ingress.kubernetes.io/scheme: internet-facing
-      alb.ingress.kubernetes.io/target-type: ip
-      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
-
-  hosts:
-    - host: "h4-service.local"
-      paths:
-        - path: /api
-          pathType: Prefix
-          service: backend
-        - path: /
-          pathType: Prefix
-          service: frontend
+  type: nginx
+  className: ""
+  annotations: {}
+  host: h4-service.local
 
 argocd:
   serverAddress: "argocd-server.argocd.svc.cluster.local:80"
