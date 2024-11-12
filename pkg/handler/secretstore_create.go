@@ -89,6 +89,7 @@ func createExternalSecret(ctx context.Context, ss *esv1beta1.SecretStore, opts *
 
 	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
 	if err != nil {
+		log.G().WithError(err).Error("failed to prepare repo")
 		return err
 	}
 
@@ -97,15 +98,14 @@ func createExternalSecret(ctx context.Context, ss *esv1beta1.SecretStore, opts *
 		return err
 	}
 
-	ssExists := repofs.ExistsOrDie(repofs.Join(store.Default.ArgoCDName, ss.GetName()+".yaml"))
+	ssExists := repofs.ExistsOrDie(repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, ss.GetName()+".yaml"))
 	if ssExists {
 		return fmt.Errorf("secret store '%s' already exists", ss.GetName())
 	}
-	log.G().Debug("repository is ok")
 
 	bulkWrites := []fs.BulkWriteRequest{}
 	bulkWrites = append(bulkWrites, fs.BulkWriteRequest{
-		Filename: repofs.Join(store.Default.ArgoCDName, ss.GetName()+".yaml"),
+		Filename: repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, ss.GetName()+".yaml"),
 		Data:     util.JoinManifests(ssYaml),
 		ErrMsg:   "failed to create secret store file",
 	})
@@ -114,8 +114,8 @@ func createExternalSecret(ctx context.Context, ss *esv1beta1.SecretStore, opts *
 		return err
 	}
 
-	log.G().Infof("pushing new secret store manifest to repo")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Added secret store '%s'", ss.GetName())}); err != nil {
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: added secret store '%s'", ss.GetName())}); err != nil {
+		log.G().WithError(err).Error("failed to push secret store to repo")
 		return err
 	}
 

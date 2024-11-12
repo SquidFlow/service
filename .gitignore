@@ -62,3 +62,4 @@ config.local.yaml
 vendor/
 output/
 .idea/
+hack/config.toml

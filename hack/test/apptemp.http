@@ -12,3 +12,6 @@ POST http://{{host}}:{{port}}/api/v1/applications/templates
   },
   "appType": "helm"
 }
+
+### List all Application Templates
+GET http://{{host}}:{{port}}/api/v1/applications/templates

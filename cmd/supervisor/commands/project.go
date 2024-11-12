@@ -14,7 +14,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
-	"github.com/h4-poc/service/pkg/log"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 )
@@ -231,7 +231,7 @@ func RunProjectCreate(ctx context.Context, opts *ProjectCreateOptions) error {
 	}
 
 	log.G().Infof("pushing new project manifest to repo")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Added project '%s'", opts.ProjectName)}); err != nil {
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: added project '%s'", opts.ProjectName)}); err != nil {
 		return err
 	}
 
@@ -501,7 +501,7 @@ func RunProjectDelete(ctx context.Context, opts *ProjectDeleteOptions) error {
 	}
 
 	log.G().Info("committing changes to gitops repo...")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Deleted project '%s'", opts.ProjectName)}); err != nil {
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", opts.ProjectName)}); err != nil {
 		return fmt.Errorf("failed to push to repo: %w", err)
 	}
 

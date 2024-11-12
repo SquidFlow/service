@@ -74,7 +74,7 @@ func RunProjectDelete(ctx context.Context, opts *ProjectDeleteOptions) error {
 	}
 
 	log.Info("committing changes to gitops repo...")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Deleted project '%s'", opts.ProjectName)}); err != nil {
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", opts.ProjectName)}); err != nil {
 		return fmt.Errorf("failed to push to repo: %w", err)
 	}
 

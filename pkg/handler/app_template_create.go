@@ -196,7 +196,9 @@ func RunAppTemplateCreate(ctx context.Context, appTemplate *unstructured.Unstruc
 		return err
 	}
 
-	appTemplateExists := repofs.ExistsOrDie(repofs.Join(store.Default.ArgoCDName, appTemplate.GetName()+".yaml"))
+	appTemplateExists := repofs.ExistsOrDie(
+		repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, appTemplate.GetName()+".yaml"),
+	)
 	if appTemplateExists {
 		return fmt.Errorf("app template '%s' already exists", appTemplate.GetName())
 	}
@@ -204,17 +206,22 @@ func RunAppTemplateCreate(ctx context.Context, appTemplate *unstructured.Unstruc
 
 	bulkWrites := []fs.BulkWriteRequest{}
 	bulkWrites = append(bulkWrites, fs.BulkWriteRequest{
-		Filename: repofs.Join(store.Default.ArgoCDName, appTemplate.GetName()+".yaml"),
+		Filename: repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, appTemplate.GetName()+".yaml"),
 		Data:     util.JoinManifests(appTemplateYaml),
 		ErrMsg:   "failed to create app template file",
 	})
 
 	if err = fs.BulkWrite(repofs, bulkWrites...); err != nil {
+		log.G().Errorf("failed to write new app template manifest to repo: %w", err)
 		return err
 	}
 
 	log.G().Infof("pushing new app template manifest to repo")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Added app template '%s'", appTemplate.GetName())}); err != nil {
+	if _, err = r.Persist(ctx,
+		&git.PushOptions{
+			CommitMsg: fmt.Sprintf("chore: added app template '%s'", appTemplate.GetName()),
+		}); err != nil {
+		log.G().Errorf("failed to push new app template manifest to repo: %w", err)
 		return err
 	}
 

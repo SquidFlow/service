@@ -6,11 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
-	"github.com/h4-poc/service/pkg/log"
 	"github.com/spf13/viper"
 
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 )
@@ -146,7 +146,7 @@ func RunProjectCreate(ctx context.Context, opts *ProjectCreateOptions) error {
 	}
 
 	log.G().Infof("pushing new project manifest to repo")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("Added project '%s'", opts.ProjectName)}); err != nil {
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: added project '%s'", opts.ProjectName)}); err != nil {
 		return err
 	}
 

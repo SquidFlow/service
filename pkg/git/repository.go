@@ -252,7 +252,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 
 var validateRepoWritePermission = func(ctx context.Context, r *repo) error {
 	_, err := r.Persist(ctx, &PushOptions{
-		CommitMsg: "Validating repository write permission",
+		CommitMsg: "chore: validating repository write permission",
 	})
 
 	if err != nil {
