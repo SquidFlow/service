@@ -166,9 +166,8 @@ func setupRouter() *gin.Engine {
 	r.Use(kubeFactoryMiddleware())
 
 	v1 := r.Group("/api/v1")
-
 	{
-		r.GET("/healthz", handler.Healthz)
+		v1.GET("/healthz", handler.Healthz)
 	}
 
 	// the target cluster of argo application
