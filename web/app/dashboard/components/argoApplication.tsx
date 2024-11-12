@@ -1,26 +1,52 @@
 import { useState } from 'react';
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { AlertCircle, Clock, CheckCircle, XCircle, ChevronLeft, FileText, BarChart, History, ExternalLink, Pause } from "lucide-react"
-import { Trash2, RefreshCw, Plus } from "lucide-react"
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import {
+  AlertCircle,
+  Clock,
+  CheckCircle,
+  XCircle,
+  ChevronLeft,
+  FileText,
+  BarChart,
+  History,
+  ExternalLink,
+  Pause,
+} from 'lucide-react';
+import { Trash2, RefreshCw, Plus } from 'lucide-react';
 import { DeployForm } from '@/app/dashboard/components/deploy';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ChevronRight } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ChevronRight } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { MoreHorizontal } from "lucide-react"
-import { ExtendedApplication, releaseHistoriesData as releaseHistories, applicationsData as applications  } from "./argoApplicationMock"
-
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal } from 'lucide-react';
+import {
+  ExtendedApplication,
+  releaseHistoriesData as releaseHistories,
+} from './argoApplicationMock';
+import { useApplications } from '@/app/api';
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -71,28 +97,30 @@ interface ArgoApplicationProps {
 }
 
 export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
+  const { applications } = useApplications({ project: 'testing' });
   const [selectedApps, setSelectedApps] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedAppDetails, setSelectedAppDetails] = useState<ExtendedApplication | null>(null);
+  const [selectedAppDetails, setSelectedAppDetails] =
+    useState<ExtendedApplication | null>(null);
 
   const [currentCommits, setCurrentCommits] = useState<Record<string, string>>({
     SIT: releaseHistories.SIT?.[0]?.commitHash || '',
     UAT: releaseHistories.UAT?.[0]?.commitHash || '',
-    PRD: releaseHistories.PRD?.[0]?.commitHash || ''
+    PRD: releaseHistories.PRD?.[0]?.commitHash || '',
   });
 
   const handleRollback = (env: string, commitHash: string) => {
-    setCurrentCommits(prev => ({
+    setCurrentCommits((prev) => ({
       ...prev,
-      [env]: commitHash
+      [env]: commitHash,
     }));
 
     // 更新 release histories 中的 isCurrent 标记
     const updatedHistories = { ...releaseHistories };
-    updatedHistories[env] = releaseHistories[env].map(release => ({
+    updatedHistories[env] = releaseHistories[env].map((release) => ({
       ...release,
-      isCurrent: release.commitHash === commitHash
+      isCurrent: release.commitHash === commitHash,
     }));
 
     console.log(`Rolling back to ${commitHash} in ${env}`);
@@ -125,7 +153,9 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {/* Sync Status */}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-500">Sync Status</p>
+                  <p className="text-sm font-medium text-gray-500">
+                    Sync Status
+                  </p>
                   <div className="flex items-center space-x-2">
                     {getStatusIcon(app.status)}
                     <span className="font-medium">{app.status}</span>
@@ -134,13 +164,17 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 
                 {/* Health Status */}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-500">Health Status</p>
+                  <p className="text-sm font-medium text-gray-500">
+                    Health Status
+                  </p>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
                         <div className="flex items-center space-x-2">
                           {getHealthIcon(app.health)}
-                          <span className="font-medium">{app.health.status}</span>
+                          <span className="font-medium">
+                            {app.health.status}
+                          </span>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -152,7 +186,9 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 
                 {/* Deployed Environments */}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-500">Deployed Environments</p>
+                  <p className="text-sm font-medium text-gray-500">
+                    Deployed Environments
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {app.deployedEnvironments.map((env) => (
                       <span
@@ -167,7 +203,9 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 
                 {/* ArgoCD Link */}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-500">ArgoCD Console</p>
+                  <p className="text-sm font-medium text-gray-500">
+                    ArgoCD Console
+                  </p>
                   <a
                     href={app.argocdUrl}
                     target="_blank"
@@ -195,29 +233,42 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Owner</p>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Owner
+                    </p>
                     <div className="flex items-center space-x-2 mt-1">
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="bg-blue-100 text-blue-600">
-                          {app.owner.split(' ').map(n => n[0]).join('')}
+                          {app.owner
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
                         </AvatarFallback>
                       </Avatar>
                       <span className="font-medium">{app.owner}</span>
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Update</p>
-                    <p className="mt-1">{new Date(app.lastUpdate).toLocaleString()}</p>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Last Update
+                    </p>
+                    <p className="mt-1">
+                      {new Date(app.lastUpdate).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* Remote Repository Section */}
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Remote Repository</h4>
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Remote Repository
+                </h4>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Repository URL</span>
+                    <span className="text-sm text-gray-500">
+                      Repository URL
+                    </span>
                     <a
                       href={app.remoteRepo.url}
                       target="_blank"
@@ -229,7 +280,9 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Branch</span>
-                    <span className="text-sm font-medium">{app.remoteRepo.branch}</span>
+                    <span className="text-sm font-medium">
+                      {app.remoteRepo.branch}
+                    </span>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between text-sm">
@@ -238,10 +291,16 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                         {app.remoteRepo.latestCommit.id}
                       </code>
                     </div>
-                    <p className="text-sm">{app.remoteRepo.latestCommit.message}</p>
+                    <p className="text-sm">
+                      {app.remoteRepo.latestCommit.message}
+                    </p>
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>{app.remoteRepo.latestCommit.author}</span>
-                      <time>{new Date(app.remoteRepo.latestCommit.timestamp).toLocaleString()}</time>
+                      <time>
+                        {new Date(
+                          app.remoteRepo.latestCommit.timestamp
+                        ).toLocaleString()}
+                      </time>
                     </div>
                   </div>
                 </div>
@@ -271,39 +330,64 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                   <TabsContent key={env} value={env} className="space-y-6">
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">CPU Usage</span>
-                        <span className="font-medium">{app.resources[env].cpu}</span>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          CPU Usage
+                        </span>
+                        <span className="font-medium">
+                          {app.resources[env].cpu}
+                        </span>
                       </div>
                       <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-purple-500 rounded-full" style={{ width: '60%' }} />
+                        <div
+                          className="h-full bg-purple-500 rounded-full"
+                          style={{ width: '60%' }}
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">Memory Usage</span>
-                        <span className="font-medium">{app.resources[env].memory}</span>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Memory Usage
+                        </span>
+                        <span className="font-medium">
+                          {app.resources[env].memory}
+                        </span>
                       </div>
                       <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: '45%' }} />
+                        <div
+                          className="h-full bg-blue-500 rounded-full"
+                          style={{ width: '45%' }}
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">Storage Usage</span>
-                        <span className="font-medium">{app.resources[env].storage}</span>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Storage Usage
+                        </span>
+                        <span className="font-medium">
+                          {app.resources[env].storage}
+                        </span>
                       </div>
                       <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full" style={{ width: '30%' }} />
+                        <div
+                          className="h-full bg-green-500 rounded-full"
+                          style={{ width: '30%' }}
+                        />
                       </div>
                     </div>
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-500">{app.resources[env].pods}</p>
+                          <p className="text-2xl font-bold text-blue-500">
+                            {app.resources[env].pods}
+                          </p>
                           <p className="text-sm text-gray-500">Active Pods</p>
                         </div>
                         <div className="text-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                          <p className="text-2xl font-bold text-green-500">{app.secretCount}</p>
+                          <p className="text-2xl font-bold text-green-500">
+                            {app.secretCount}
+                          </p>
                           <p className="text-sm text-gray-500">Secrets</p>
                         </div>
                       </div>
@@ -345,25 +429,45 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                         <div className="space-y-2">
                           <div className="font-medium">{release.commitLog}</div>
                           <div className="flex gap-2">
-                            {releaseHistories.SIT.find(r => r.commitHash === release.commitHash)?.isCurrent && (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-600 dark:bg-blue-900/20 font-medium text-xs">
+                            {releaseHistories.SIT.find(
+                              (r) => r.commitHash === release.commitHash
+                            )?.isCurrent && (
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-600 dark:bg-blue-900/20 font-medium text-xs"
+                              >
                                 @SIT0
                               </Badge>
                             )}
                             {/* UAT 环境状态 */}
-                            {releaseHistories.UAT.find(r => r.commitHash === release.commitHash)?.isCurrent && (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-600 dark:bg-purple-900/20 font-medium text-xs">
+                            {releaseHistories.UAT.find(
+                              (r) => r.commitHash === release.commitHash
+                            )?.isCurrent && (
+                              <Badge
+                                variant="outline"
+                                className="bg-purple-50 text-purple-600 dark:bg-purple-900/20 font-medium text-xs"
+                              >
                                 @UAT
                               </Badge>
                             )}
                             {/* PRD 环境状态 */}
-                            {releaseHistories.PRD.find(r => r.commitHash === release.commitHash)?.isCurrent && (
-                              <Badge variant="outline" className="bg-green-50 text-green-600 dark:bg-green-900/20 font-medium text-xs">
+                            {releaseHistories.PRD.find(
+                              (r) => r.commitHash === release.commitHash
+                            )?.isCurrent && (
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-600 dark:bg-green-900/20 font-medium text-xs"
+                              >
                                 @PDC
                               </Badge>
                             )}
-                            {releaseHistories.PRD.find(r => r.commitHash === release.commitHash)?.isCurrent && (
-                              <Badge variant="outline" className="bg-green-50 text-green-600 dark:bg-green-900/20 font-medium text-xs">
+                            {releaseHistories.PRD.find(
+                              (r) => r.commitHash === release.commitHash
+                            )?.isCurrent && (
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-600 dark:bg-green-900/20 font-medium text-xs"
+                              >
                                 @DDC
                               </Badge>
                             )}
@@ -387,7 +491,10 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                         <div className="flex items-center space-x-2">
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                              {release.commitAuthor.split(' ').map(n => n[0]).join('')}
+                              {release.commitAuthor
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')}
                             </AvatarFallback>
                           </Avatar>
                           <span>{release.commitAuthor}</span>
@@ -397,7 +504,10 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                         <div className="flex items-center space-x-2">
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="bg-purple-100 text-purple-600 text-xs">
-                              {release.operator.split(' ').map(n => n[0]).join('')}
+                              {release.operator
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')}
                             </AvatarFallback>
                           </Avatar>
                           <span>{release.operator}</span>
@@ -417,11 +527,17 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                           ) : (
                             <Clock className="h-4 w-4 text-blue-500" />
                           )}
-                          <span className={
-                            release.status === 'success' ? 'text-green-600' :
-                            release.status === 'failed' ? 'text-red-600' : 'text-blue-600'
-                          }>
-                            {release.status.charAt(0).toUpperCase() + release.status.slice(1)}
+                          <span
+                            className={
+                              release.status === 'success'
+                                ? 'text-green-600'
+                                : release.status === 'failed'
+                                  ? 'text-red-600'
+                                  : 'text-blue-600'
+                            }
+                          >
+                            {release.status.charAt(0).toUpperCase() +
+                              release.status.slice(1)}
                           </span>
                         </div>
                       </TableCell>
@@ -471,7 +587,9 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                             {!release.isCurrent && (
                               <DropdownMenuItem
                                 onClick={() => {
-                                  if (release.commitHash !== currentCommits['SIT']) {
+                                  if (
+                                    release.commitHash !== currentCommits['SIT']
+                                  ) {
                                     handleRollback('SIT', release.commitHash);
                                   }
                                 }}
@@ -493,10 +611,10 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
       </div>
     );
   };
-
-  const filteredApps = applications.filter(app =>
-    app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    app.owner.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredApps = applications.filter(
+    (app) =>
+      app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      app.owner.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleAppClick = (app: ExtendedApplication) => {
@@ -529,7 +647,11 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm text-sm font-medium"
           />
-          <Button variant="outline" size="icon" onClick={() => console.log('Refresh')}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => console.log('Refresh')}
+          >
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -583,7 +705,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                     checked={selectedApps.length === filteredApps.length}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setSelectedApps(filteredApps.map(app => app.id));
+                        setSelectedApps(filteredApps.map((app) => app.id));
                       } else {
                         setSelectedApps([]);
                       }
@@ -591,12 +713,24 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                   />
                 </TableHead>
                 <TableHead className="text-base font-semibold">Name</TableHead>
-                <TableHead className="text-base font-semibold">Status</TableHead>
-                <TableHead className="text-base font-semibold">Health</TableHead>
-                <TableHead className="text-base font-semibold">Repository</TableHead>
-                <TableHead className="text-base font-semibold">Environments</TableHead>
-                <TableHead className="text-base font-semibold">Last Updated</TableHead>
-                <TableHead className="text-base font-semibold text-right">ArgoCD</TableHead>
+                <TableHead className="text-base font-semibold">
+                  Status
+                </TableHead>
+                <TableHead className="text-base font-semibold">
+                  Health
+                </TableHead>
+                <TableHead className="text-base font-semibold">
+                  Repository
+                </TableHead>
+                <TableHead className="text-base font-semibold">
+                  Environments
+                </TableHead>
+                <TableHead className="text-base font-semibold">
+                  Last Updated
+                </TableHead>
+                <TableHead className="text-base font-semibold text-right">
+                  ArgoCD
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -612,7 +746,9 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                         if (checked) {
                           setSelectedApps([...selectedApps, app.id]);
                         } else {
-                          setSelectedApps(selectedApps.filter(id => id !== app.id));
+                          setSelectedApps(
+                            selectedApps.filter((id) => id !== app.id)
+                          );
                         }
                       }}
                     />
@@ -635,10 +771,13 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                   <TableCell className="py-4">
                     <Badge
                       variant={
-                        app.health.status === 'Healthy' ? 'default' :
-                        app.health.status === 'Degraded' ? 'destructive' :
-                        app.health.status === 'Progressing' ? 'secondary' :
-                        'outline'
+                        app.health.status === 'Healthy'
+                          ? 'default'
+                          : app.health.status === 'Degraded'
+                            ? 'destructive'
+                            : app.health.status === 'Progressing'
+                              ? 'secondary'
+                              : 'outline'
                       }
                       className="text-sm px-3 py-1"
                     >
@@ -695,4 +834,3 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 
   return mainListView;
 }
-
