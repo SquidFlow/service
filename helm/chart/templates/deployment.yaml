@@ -40,6 +40,8 @@ spec:
                 # container will see /root/.ssh/id_rsa as usual:
               mountPath: "/tmp/repo.pem"
               subPath: "repo.pem"
+            - mountPath: /tmp/kubeconform
+              name: kubeconform
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
       volumes:
@@ -50,6 +52,8 @@ spec:
           secret:
             secretName: ssh-keys
             defaultMode: 0600
+        - emptyDir: { }
+          name: kubeconform
 ---
 # Frontend Deployment
 apiVersion: apps/v1
