@@ -13,7 +13,6 @@ on:
       - 'web/**'
       - '.github/workflows/ci-web.yml'
       - 'Dockerfile'
-    # Skip CI if the commit message contains [skip ci]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
