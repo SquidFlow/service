@@ -2,9 +2,22 @@ name: CLI Tests
 
 on:
   pull_request:
-    branches: [ '*' ]
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/cli-test.yml'
   push:
     branches: [ main ]
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/cli-test.yml'
     paths-ignore:
       - '**/*.md'
       - 'docs/**'

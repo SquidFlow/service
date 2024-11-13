@@ -2,9 +2,22 @@ name: Go Unit testing
 
 on:
   pull_request:
-    branches: [ '*' ]
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/go-test.yml'
   push:
     branches: [ main ]
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/go-test.yml'
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
