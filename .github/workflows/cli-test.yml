@@ -1,10 +1,13 @@
 name: CLI Tests
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ '*' ]
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 jobs:
   test-clis:
@@ -30,11 +33,3 @@ jobs:
     - name: Test service CLI
       run: |
         ./output/service version
-
-    - name: Run integration tests
-      run: |
-        pwd
-
-    - name: Clean up
-      run: |
-        make clean

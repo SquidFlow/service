@@ -6,11 +6,21 @@ on:
       - 'web/**'
       - '.github/workflows/ci-web.yml'
       - 'Dockerfile'
+  push:
+    branches:
+      - master
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci-web.yml'
+      - 'Dockerfile'
+    # Skip CI if the commit message contains [skip ci]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 jobs:
-  build:
+  web-ci:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -36,3 +46,11 @@ jobs:
       - name: Lint
         working-directory: web
         run: npm run lint
+
+      # Add a condition to skip tests if they passed in PR
+      - name: Run Tests
+        if: |
+          github.event_name == 'pull_request' ||
+          !contains(github.event.head_commit.message, 'Merge pull request')
+        run: |
+          npm test
