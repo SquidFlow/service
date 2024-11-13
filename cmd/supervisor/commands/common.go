@@ -4,16 +4,12 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"time"
-
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
@@ -129,20 +125,6 @@ func createApp(opts *createAppOptions) ([]byte, error) {
 	}
 
 	return yaml.Marshal(app)
-}
-
-func waitAppSynced(ctx context.Context, f kube.Factory, timeout time.Duration, appName, namespace, revision string, waitForCreation bool) error {
-	return f.Wait(ctx, &kube.WaitOptions{
-		Interval: store.Default.WaitInterval,
-		Timeout:  timeout,
-		Resources: []kube.Resource{
-			{
-				Name:      appName,
-				Namespace: namespace,
-				WaitFunc:  argocd.GetAppSyncWaitFunc(revision, waitForCreation),
-			},
-		},
-	})
 }
 
 type createAppSetOptions struct {

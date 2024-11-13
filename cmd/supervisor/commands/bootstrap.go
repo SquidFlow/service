@@ -22,18 +22,16 @@ import (
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 
-	"github.com/h4-poc/service/pkg/log"
-
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 )
 
 const (
-	installationModeFlat   = "flat"
 	installationModeNormal = "normal"
 )
 
@@ -509,15 +507,28 @@ func writeManifestsToRepo(repoFS fs.FS, manifests *bootstrapManifests, namespace
 	argocdPath := repoFS.Join(store.Default.BootsrtrapDir, store.Default.ArgoCDName)
 	clusterResReadme := []byte(strings.ReplaceAll(string(clusterResReadmeTpl), "{CLUSTER}", store.Default.ClusterContextName))
 
+	// argocd manifests
 	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
 		{Filename: repoFS.Join(argocdPath, "kustomization.yaml"), Data: manifests.bootstrapKustomization},
+	}...)
+
+	// bootstrap manifests
+	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.RootAppName+".yaml"), Data: manifests.rootApp},                                                    // write projects root app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ArgoCDName+".yaml"), Data: manifests.argocdApp},                                                   // write argocd app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir+".yaml"), Data: manifests.clusterResAppSet},                                   // write cluster-resources appset
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, "README.md"), Data: clusterResReadme},      // write ./bootstrap/cluster-resources/in-cluster/README.md
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName+".json"), Data: manifests.clusterResConfig}, // write ./bootstrap/cluster-resources/in-cluster.json
-		{Filename: repoFS.Join(store.Default.ProjectsDir, "README.md"), Data: projectReadme},                                                                                // write ./projects/README.md
-		{Filename: repoFS.Join(store.Default.AppsDir, "README.md"), Data: appsReadme},                                                                                       // write ./apps/README.md
+	}...)
+
+	// projects and apps manifests
+	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
+		{Filename: repoFS.Join(store.Default.ProjectsDir, "README.md"), Data: projectReadme}, // write ./projects/README.md
+	}...)
+
+	// projects and apps manifests
+	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
+		{Filename: repoFS.Join(store.Default.AppsDir, "README.md"), Data: appsReadme}, // write ./apps/README.md
 	}...)
 
 	if manifests.namespace != nil {
