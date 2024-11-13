@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -v -o service \
     -X 'github.com/h4-poc/service/pkg/store.buildDate=${BUILD_DATE}' \
     -X 'github.com/h4-poc/service/pkg/store.gitCommit=${GIT_COMMIT}' \
     -X 'github.com/h4-poc/service/pkg/store.installationManifestsURL=${INSTALLATION_MANIFESTS_URL}' \
-    -X 'github.com/h4-poc/service/pkg/store.installationManifestsThirdParty=${INSTALLATION_MANIFESTS_THIRD_PARTY}' \
+    -X 'github.com/h4-poc/service/pkg/store.installationManifestsThirdParty=${INSTALLATION_MANIFESTS_THIRD_PARTY}'" \
     cmd/service/service.go
 
 FROM node:18-alpine AS base
