@@ -33,12 +33,20 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /etc/service
+            - name: ssh-keys-v
+              readOnly: true
+                # container will see /root/.ssh/id_rsa as usual:
+              mountPath: "/tmp"
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
       volumes:
         - name: config-volume
           configMap:
             name: {{ include "service-chart.fullname" . }}-config
+        - name: ssh-keys-v
+          secret:
+            secretName: ssh-keys
+            defaultMode: 0600
 ---
 # Frontend Deployment
 apiVersion: apps/v1
