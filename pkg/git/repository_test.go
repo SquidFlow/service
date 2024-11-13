@@ -1589,7 +1589,7 @@ func Test_validateRepoWritePermission(t *testing.T) {
 				w.EXPECT().AddGlob(gomock.Any()).
 					Times(1).
 					Return(nil)
-				w.EXPECT().Commit("Validating repository write permission", gomock.Any()).
+				w.EXPECT().Commit("chore: validating repository write permission", gomock.Any()).
 					Times(1).
 					Return(plumbing.Hash{}, nil)
 			},
@@ -1601,7 +1601,7 @@ func Test_validateRepoWritePermission(t *testing.T) {
 				w.EXPECT().AddGlob(gomock.Any()).
 					Times(1).
 					Return(nil)
-				w.EXPECT().Commit("Validating repository write permission", gomock.Any()).
+				w.EXPECT().Commit("chore: validating repository write permission", gomock.Any()).
 					Times(1).
 					Return(plumbing.Hash{}, fmt.Errorf("some error"))
 			},
@@ -1619,7 +1619,7 @@ func Test_validateRepoWritePermission(t *testing.T) {
 				w.EXPECT().AddGlob(gomock.Any()).
 					Times(1).
 					Return(nil)
-				w.EXPECT().Commit("Validating repository write permission", gomock.Any()).
+				w.EXPECT().Commit("chore: validating repository write permission", gomock.Any()).
 					Times(1).
 					Return(plumbing.Hash{}, nil)
 			},
