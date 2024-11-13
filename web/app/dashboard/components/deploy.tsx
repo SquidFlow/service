@@ -66,6 +66,7 @@ import {
   useGetClusterList,
   useGetSecretStore,
 } from '@/app/api';
+import { ApplicationTemplate } from '@/app/api';  // Import the type
 
 SyntaxHighlighter.registerLanguage('yaml', yaml);
 
@@ -652,7 +653,7 @@ spec:
                         <SelectValue placeholder="Choose a built-in template" />
                       </SelectTrigger>
                       <SelectContent>
-                        {kustomizationsData.map((kustomization) => (
+                        {kustomizationsData.map((kustomization: ApplicationTemplate) => (
                           <SelectItem
                             key={kustomization.id}
                             value={kustomization.name}
