@@ -2,6 +2,11 @@ package handler
 
 import (
 	"fmt"
+	custom_gogit "github.com/h4-poc/service/pkg/git/custom-gogit"
+	"github.com/h4-poc/service/pkg/util"
+	log "github.com/sirupsen/logrus"
+	"github.com/yannh/kubeconform/pkg/validator"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -35,11 +40,72 @@ type ValidateTemplateRequest struct {
 	Path           string                 `json:"path,omitempty"`
 	Parameters     map[string]interface{} `json:"parameters,omitempty"`
 	Environments   []string               `json:"environments" binding:"required"`
+	AppName        string                 `json:"appName" binding:"required"`
 }
 
 // ValidateTemplateResponse represents the response structure for template validation
 type ValidateTemplateResponse struct {
 	Results []ValidationResult `json:"results"`
+}
+
+func ValidateTemplate(c *gin.Context) {
+	var req ValidateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		return
+	}
+	if err := custom_gogit.CloneSubModule(req.TemplateSource, req.TargetRevision); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		return
+	}
+	VResult := []ValidationResult{}
+	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", req.AppName)) {
+		for _, env := range req.Environments {
+			if err := Helm_Templating(req.AppName, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			if err := KustomizeBuildInOverlay(req.AppName, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", env, req.AppName))
+			if err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			if len(errList) == 0 {
+				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: true})
+			} else {
+				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: false, Message: errList})
+			}
+
+		}
+
+	} else {
+		for _, env := range req.Environments {
+			if err := KustomizeBuildInManifest(req.AppName, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			if err := KustomizeBuildInOverlay(req.AppName, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", env, req.AppName))
+			if err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			if len(errList) == 0 {
+				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: true})
+			} else {
+				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: false, Message: errList})
+			}
+		}
+	}
+	c.JSON(200, VResult)
+
 }
 
 // DryRunArgoApplications handles the dry run request for Argo applications
@@ -233,4 +299,24 @@ func generateYAML(template map[string]interface{}) (string, error) {
 		return "", fmt.Errorf("failed to marshal template to YAML: %w", err)
 	}
 	return string(yamlBytes), nil
+}
+
+func KubeManifestValidator(generateManifestPath string) ([]string, error) {
+	f, err := os.Open(generateManifestPath)
+	if err != nil {
+		return nil, err
+	}
+	v, err := validator.New([]string{"default", "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"}, validator.Opts{Strict: true, Cache: "/tmp/kubeconform"})
+	errList := []string{}
+	for _, res := range v.Validate(generateManifestPath, f) {
+		if res.Status == validator.Invalid {
+			log.Info(res.Err.Error())
+			errList = append(errList, res.Err.Error())
+		}
+		if res.Status == validator.Error {
+			log.Info(res.Err.Error())
+			errList = append(errList, res.Err.Error())
+		}
+	}
+	return errList, nil
 }

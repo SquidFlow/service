@@ -22,7 +22,7 @@ type ValidationRequest struct {
 type ValidationResult struct {
 	Environment []string `json:"environment"` // the repo support multiple environments
 	IsValid     bool     `json:"isValid"`
-	Message     string   `json:"message,omitempty"`
+	Message     []string `json:"message,omitempty"`
 }
 
 // ValidationResponse represents the response structure for template validation
