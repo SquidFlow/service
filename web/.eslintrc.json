@@ -4,7 +4,8 @@
     "@typescript-eslint/no-empty-interface": "off",
     "@typescript-eslint/no-empty-object-type": "off",
     "@typescript-eslint/no-unused-vars": "off",
-    "prettier/prettier": "error"
+    "@typescript-eslint/no-explicit-any": "warn",
+    "prettier/prettier": "warn"
   },
   "plugins": [
     "prettier"

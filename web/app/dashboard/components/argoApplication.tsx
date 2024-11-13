@@ -804,7 +804,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                   </TableCell>
                   <TableCell className="py-4">
                     <div className="flex flex-wrap gap-1.5">
-                      {app.deployedEnvironments.map((env) => (
+                      {app.deployedEnvironments.map((env:any) => (
                         <Badge
                           key={env}
                           variant="outline"

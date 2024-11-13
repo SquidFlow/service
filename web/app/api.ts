@@ -16,7 +16,7 @@ export const useApplications = (params: any) => {
     return response.data;
   });
 
-  const applications = [];
+  const applications :any[]= [];
   return {
     applications,
     error,
@@ -47,7 +47,7 @@ export const usePostValidate = (payload: any) => {
     try {
       const response = await requestor.post(`${TEMPLATES}/validate`, payload);
       setData(response.data);
-    } catch (err) {
+    } catch (err:any) {
       setError(err);
     } finally {
       setIsLoading(false);

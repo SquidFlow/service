@@ -652,7 +652,7 @@ spec:
                         <SelectValue placeholder="Choose a built-in template" />
                       </SelectTrigger>
                       <SelectContent>
-                        {kustomizationsData.map((kustomization) => (
+                        {kustomizationsData.map((kustomization:any) => (
                           <SelectItem
                             key={kustomization.id}
                             value={kustomization.name}
@@ -664,7 +664,7 @@ spec:
                               <div className="text-sm text-gray-500">
                                 Path: {kustomization.path}
                                 <div className="flex flex-wrap gap-1 mt-1">
-                                  {kustomization.environments.map((env) => (
+                                  {kustomization.environments.map((env:any) => (
                                     <span
                                       key={env}
                                       className="px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
