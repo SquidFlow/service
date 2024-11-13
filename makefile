@@ -5,13 +5,13 @@ VERSION := $(shell git describe --tags --always)
 BUILD_DATE := $(shell date -u '+%H:%M:%S@%Y-%m-%d')
 GIT_COMMIT := $(shell git rev-parse HEAD)
 INSTALLATION_MANIFESTS_URL := "github.com/h4-poc/service/manifests/base"
-INSTALLATION_MANIFESTS_INSECURE_URL := "github.com/h4-poc/service/manifests/insecure" # ?ref=$(VERSION)
+INSTALLATION_MANIFESTS_THIRD_PARTY := "github.com/h4-poc/service/manifests/third-party"
 
 LDFLAGS=-ldflags "-X 'github.com/h4-poc/service/pkg/store.version=${VERSION}' \
 				-X 'github.com/h4-poc/service/pkg/store.buildDate=${BUILD_DATE}' \
 				-X 'github.com/h4-poc/service/pkg/store.gitCommit=${GIT_COMMIT}' \
 				-X 'github.com/h4-poc/service/pkg/store.installationManifestsURL=${INSTALLATION_MANIFESTS_URL}' \
-				-X 'github.com/h4-poc/service/pkg/store.installationManifestsInsecureURL=${INSTALLATION_MANIFESTS_INSECURE_URL}' "
+				-X 'github.com/h4-poc/service/pkg/store.installationManifestsThirdParty=${INSTALLATION_MANIFESTS_THIRD_PARTY}' "
 
 # Default target
 .DEFAULT_GOAL := build

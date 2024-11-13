@@ -86,7 +86,6 @@ func NewBootstrapCmd() *cobra.Command {
 				KubeContextName: "",
 				DryRun:          dryRun,
 				HidePassword:    hidePassword,
-				Insecure:        insecure,
 				Recover:         recover,
 				Timeout:         util.MustParseDuration("180s"),
 				KubeFactory:     kube.NewFactory(),
@@ -142,7 +141,6 @@ type (
 		KubeContextName     string
 		DryRun              bool
 		HidePassword        bool
-		Insecure            bool
 		Recover             bool
 		Timeout             time.Duration
 		KubeFactory         kube.Factory
@@ -168,20 +166,11 @@ type (
 		clusterResAppSet       []byte
 		clusterResConfig       []byte
 		argocdApp              []byte
+		thirdPartyApp          []byte
 		repoCreds              []byte
 		applyManifests         []byte
 		bootstrapKustomization []byte
 		namespace              []byte
-		externalSecret         []byte
-		hashiCorpVault         []byte
-		externalSecretManifest []byte
-		hashiCorpVaultManifest []byte
-	}
-
-	deleteClusterResourcesOptions struct {
-		Timeout     time.Duration
-		KubeFactory kube.Factory
-		FastExit    bool
 	}
 )
 
@@ -307,7 +296,7 @@ func setBootstrapOptsDefaults(opts RepoBootstrapOptions) (*RepoBootstrapOptions,
 	}
 
 	if opts.AppSpecifier == "" {
-		opts.AppSpecifier = getBootstrapAppSpecifier(opts.Insecure)
+		opts.AppSpecifier = getBootstrapAppSpecifier()
 	}
 
 	if opts.KubeContextName == "" {
@@ -386,11 +375,7 @@ func getInitialPassword(ctx context.Context, f kube.Factory, namespace string) (
 	return string(passwd), nil
 }
 
-func getBootstrapAppSpecifier(insecure bool) string {
-	if insecure {
-		return store.Get().InstallationManifestsInsecureURL
-	}
-
+func getBootstrapAppSpecifier() string {
 	return store.Get().InstallationManifestsURL
 }
 
@@ -434,6 +419,16 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 	if err != nil {
 		return nil, err
 	}
+
+	manifests.thirdPartyApp, err = createApp(&createAppOptions{
+		name:        store.Default.ThirdParty,
+		namespace:   namespace,
+		repoURL:     "https://github.com/h4-poc/service.git",
+		revision:    cloneOpts.Revision(),
+		srcPath:     "manifests/third-party",
+		noFinalizer: true,
+		labels:      bootstrapAppsLabels,
+	})
 
 	manifests.clusterResAppSet, err = createAppSet(&createAppSetOptions{
 		name:                        store.Default.ClusterResourcesDir,
@@ -516,6 +511,7 @@ func writeManifestsToRepo(repoFS fs.FS, manifests *bootstrapManifests, namespace
 	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.RootAppName+".yaml"), Data: manifests.rootApp},                                                    // write projects root app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ArgoCDName+".yaml"), Data: manifests.argocdApp},                                                   // write argocd app
+		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ThirdParty+".yaml"), Data: manifests.thirdPartyApp},                                               // write third-party app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir+".yaml"), Data: manifests.clusterResAppSet},                                   // write cluster-resources appset
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, "README.md"), Data: clusterResReadme},      // write ./bootstrap/cluster-resources/in-cluster/README.md
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName+".json"), Data: manifests.clusterResConfig}, // write ./bootstrap/cluster-resources/in-cluster.json

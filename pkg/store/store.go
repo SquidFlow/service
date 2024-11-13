@@ -9,12 +9,12 @@ import (
 var s Store
 
 var (
-	binaryName                       = "supervisor"
-	version                          = "v00.00.99"
-	buildDate                        = ""
-	gitCommit                        = ""
-	installationManifestsURL         = "manifests/base"
-	installationManifestsInsecureURL = "manifests/insecure"
+	binaryName                      = "supervisor"
+	version                         = "v00.00.99"
+	buildDate                       = ""
+	gitCommit                       = ""
+	installationManifestsURL        = "github.com/h4-poc/service/manifests/base"
+	installationManifestsThirdParty = "github.com/h4-poc/service/manifests/third-party"
 )
 
 type Version struct {
@@ -27,62 +27,60 @@ type Version struct {
 }
 
 type Store struct {
-	BinaryName                       string
-	Version                          Version
-	InstallationManifestsURL         string
-	InstallationManifestsInsecureURL string
+	BinaryName                      string
+	Version                         Version
+	InstallationManifestsURL        string
+	InstallationManifestsThirdParty string
 }
 
 var Default = struct {
-	AppsDir                string
-	ArgoCDName             string
-	ArgoCDNamespace        string
-	BuildInExternalSecrets string
-	BuildInHashiCorpVault  string
-	BaseDir                string
-	BootsrtrapAppName      string
-	BootsrtrapDir          string
-	ClusterContextName     string
-	ClusterResourcesDir    string
-	DestServer             string
-	DummyName              string
-	DestServerAnnotation   string
-	GitHubUsername         string
-	LabelKeyAppName        string
-	LabelKeyAppManagedBy   string
-	LabelKeyAppPartOf      string
-	LabelValueManagedBy    string
-	OverlaysDir            string
-	ProjectsDir            string
-	RootAppName            string
-	RepoCredsSecretName    string
-	ArgoCDApplicationSet   string
-	WaitInterval           time.Duration
+	AppsDir              string
+	ArgoCDName           string
+	ArgoCDNamespace      string
+	BaseDir              string
+	BootsrtrapAppName    string
+	BootsrtrapDir        string
+	ClusterContextName   string
+	ClusterResourcesDir  string
+	DestServer           string
+	DummyName            string
+	DestServerAnnotation string
+	GitHubUsername       string
+	LabelKeyAppName      string
+	LabelKeyAppManagedBy string
+	LabelKeyAppPartOf    string
+	LabelValueManagedBy  string
+	OverlaysDir          string
+	ProjectsDir          string
+	RootAppName          string
+	RepoCredsSecretName  string
+	ArgoCDApplicationSet string
+	ThirdParty           string
+	WaitInterval         time.Duration
 }{
-	AppsDir:                "apps",
-	ArgoCDName:             "argo-cd",
-	ArgoCDNamespace:        "argocd",
-	BuildInExternalSecrets: "external-secrets",
-	BuildInHashiCorpVault:  "vault",
-	BaseDir:                "base",
-	BootsrtrapAppName:      "h4-bootstrap",
-	BootsrtrapDir:          "bootstrap",
-	ClusterContextName:     "in-cluster",
-	ClusterResourcesDir:    "cluster-resources",
-	DestServer:             "https://kubernetes.default.svc",
-	DestServerAnnotation:   "bootstrap.h4.io/default-dest-server",
-	DummyName:              "DUMMY",
-	GitHubUsername:         "username",
-	LabelKeyAppName:        "app.kubernetes.io/name",
-	LabelKeyAppManagedBy:   "app.kubernetes.io/managed-by",
-	LabelKeyAppPartOf:      "app.kubernetes.io/part-of",
-	LabelValueManagedBy:    "bootstrap-h4",
-	OverlaysDir:            "overlays",
-	ProjectsDir:            "projects",
-	RootAppName:            "root",
-	RepoCredsSecretName:    "h4-secret",
-	ArgoCDApplicationSet:   "argocd-applicationset",
-	WaitInterval:           time.Second * 3,
+	AppsDir:              "apps",
+	ArgoCDName:           "argo-cd",
+	ArgoCDNamespace:      "argocd",
+	BaseDir:              "base",
+	BootsrtrapAppName:    "h4-bootstrap",
+	BootsrtrapDir:        "bootstrap",
+	ClusterContextName:   "in-cluster",
+	ClusterResourcesDir:  "cluster-resources",
+	DestServer:           "https://kubernetes.default.svc",
+	DestServerAnnotation: "bootstrap.h4.io/default-dest-server",
+	DummyName:            "DUMMY",
+	GitHubUsername:       "username",
+	LabelKeyAppName:      "app.kubernetes.io/name",
+	LabelKeyAppManagedBy: "app.kubernetes.io/managed-by",
+	LabelKeyAppPartOf:    "app.kubernetes.io/part-of",
+	LabelValueManagedBy:  "bootstrap-h4",
+	OverlaysDir:          "overlays",
+	ProjectsDir:          "projects",
+	RootAppName:          "root",
+	RepoCredsSecretName:  "h4-secret",
+	ArgoCDApplicationSet: "argocd-applicationset",
+	ThirdParty:           "third-party",
+	WaitInterval:         time.Second * 3,
 }
 
 // Get returns the global store
@@ -94,8 +92,7 @@ func Get() *Store {
 func init() {
 	s.BinaryName = binaryName
 	s.InstallationManifestsURL = installationManifestsURL
-	s.InstallationManifestsInsecureURL = installationManifestsInsecureURL
-
+	s.InstallationManifestsThirdParty = installationManifestsThirdParty
 	initVersion()
 }
 
