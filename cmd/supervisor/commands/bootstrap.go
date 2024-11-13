@@ -82,19 +82,18 @@ func NewBootstrapCmd() *cobra.Command {
 			cloneOpts.Parse()
 
 			return RunRepoBootstrap(cmd.Context(), &RepoBootstrapOptions{
-				AppSpecifier:     appSpecifier,
-				InstallationMode: installationMode,
-				Namespace:        "",
-				KubeConfig:       kubeConfigPath,
-				KubeContextName:  "",
-				DryRun:           dryRun,
-				HidePassword:     hidePassword,
-				Insecure:         insecure,
-				Recover:          recover,
-				Timeout:          util.MustParseDuration("180s"),
-				KubeFactory:      kube.NewFactory(),
-				CloneOptions:     cloneOpts,
-				NamespaceLabels:  namespaceLabels,
+				AppSpecifier:    appSpecifier,
+				Namespace:       "",
+				KubeConfig:      kubeConfigPath,
+				KubeContextName: "",
+				DryRun:          dryRun,
+				HidePassword:    hidePassword,
+				Insecure:        insecure,
+				Recover:         recover,
+				Timeout:         util.MustParseDuration("180s"),
+				KubeFactory:     kube.NewFactory(),
+				CloneOptions:    cloneOpts,
+				NamespaceLabels: namespaceLabels,
 			})
 		},
 	}
@@ -140,7 +139,6 @@ var (
 type (
 	RepoBootstrapOptions struct {
 		AppSpecifier        string
-		InstallationMode    string
 		Namespace           string
 		KubeConfig          string
 		KubeContextName     string
@@ -255,7 +253,7 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 
 	if !opts.Recover {
 		// write argocd manifests to repo
-		if err = writeManifestsToRepo(repofs, manifests, opts.InstallationMode, opts.Namespace); err != nil {
+		if err = writeManifestsToRepo(repofs, manifests, opts.Namespace); err != nil {
 			return fmt.Errorf("failed to write manifests to repo: %w", err)
 		}
 	}
@@ -305,13 +303,6 @@ func RunRepoBootstrap(ctx context.Context, opts *RepoBootstrapOptions) error {
 
 func setBootstrapOptsDefaults(opts RepoBootstrapOptions) (*RepoBootstrapOptions, error) {
 	var err error
-	switch opts.InstallationMode {
-	case installationModeFlat, installationModeNormal:
-	case "":
-		opts.InstallationMode = installationModeNormal
-	default:
-		return nil, fmt.Errorf("unknown installation mode: %s", opts.InstallationMode)
-	}
 
 	if opts.Namespace == "" {
 		opts.Namespace = store.Default.ArgoCDNamespace
@@ -326,11 +317,6 @@ func setBootstrapOptsDefaults(opts RepoBootstrapOptions) (*RepoBootstrapOptions,
 		if err != nil {
 			return &opts, err
 		}
-	}
-
-	if _, err := os.Stat(opts.AppSpecifier); err == nil {
-		log.G().Warnf("detected local bootstrap manifests, using 'flat' installation mode")
-		opts.InstallationMode = installationModeFlat
 	}
 
 	return &opts, nil
@@ -518,22 +504,13 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 	return manifests, nil
 }
 
-func writeManifestsToRepo(repoFS fs.FS, manifests *bootstrapManifests, installationMode, namespace string) error {
+func writeManifestsToRepo(repoFS fs.FS, manifests *bootstrapManifests, namespace string) error {
 	var bulkWrites []fs.BulkWriteRequest
 	argocdPath := repoFS.Join(store.Default.BootsrtrapDir, store.Default.ArgoCDName)
 	clusterResReadme := []byte(strings.ReplaceAll(string(clusterResReadmeTpl), "{CLUSTER}", store.Default.ClusterContextName))
 
-	if installationMode == installationModeNormal {
-		bulkWrites = []fs.BulkWriteRequest{
-			{Filename: repoFS.Join(argocdPath, "kustomization.yaml"), Data: manifests.bootstrapKustomization},
-		}
-	} else {
-		bulkWrites = []fs.BulkWriteRequest{
-			{Filename: repoFS.Join(argocdPath, "install.yaml"), Data: manifests.applyManifests},
-		}
-	}
-
 	bulkWrites = append(bulkWrites, []fs.BulkWriteRequest{
+		{Filename: repoFS.Join(argocdPath, "kustomization.yaml"), Data: manifests.bootstrapKustomization},
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.RootAppName+".yaml"), Data: manifests.rootApp},                                                    // write projects root app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ArgoCDName+".yaml"), Data: manifests.argocdApp},                                                   // write argocd app
 		{Filename: repoFS.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir+".yaml"), Data: manifests.clusterResAppSet},                                   // write cluster-resources appset
