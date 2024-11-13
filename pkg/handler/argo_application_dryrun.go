@@ -2,16 +2,17 @@ package handler
 
 import (
 	"fmt"
-	custom_gogit "github.com/h4-poc/service/pkg/git/custom-gogit"
-	"github.com/h4-poc/service/pkg/util"
-	log "github.com/sirupsen/logrus"
-	"github.com/yannh/kubeconform/pkg/validator"
 	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yannh/kubeconform/pkg/validator"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
+
+	customgogit "github.com/h4-poc/service/pkg/git/custom-gogit"
+	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/util"
 )
 
 // DryRunRequest represents the request structure for dry run
@@ -54,7 +55,7 @@ func ValidateTemplate(c *gin.Context) {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 		return
 	}
-	if err := custom_gogit.CloneSubModule(req.TemplateSource, req.TargetRevision); err != nil {
+	if err := customgogit.CloneSubModule(req.TemplateSource, req.TargetRevision); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 		return
 	}
@@ -310,11 +311,11 @@ func KubeManifestValidator(generateManifestPath string) ([]string, error) {
 	errList := []string{}
 	for _, res := range v.Validate(generateManifestPath, f) {
 		if res.Status == validator.Invalid {
-			log.Info(res.Err.Error())
+			log.G().Info(res.Err.Error())
 			errList = append(errList, res.Err.Error())
 		}
 		if res.Status == validator.Error {
-			log.Info(res.Err.Error())
+			log.G().Info(res.Err.Error())
 			errList = append(errList, res.Err.Error())
 		}
 	}
