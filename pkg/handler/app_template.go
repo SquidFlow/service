@@ -23,20 +23,20 @@ var (
 
 // ApplicationTemplate represents a template for deploying applications
 type ApplicationTemplate struct {
-	ID           int                  `json:"id"`
-	Name         string               `json:"name"`
-	Description  string               `json:"description"`
-	Path         string               `json:"path"`
-	Validated    bool                 `json:"validated"`
-	Owner        string               `json:"owner"`
-	Environments []string             `json:"environments"`
-	LastApplied  string               `json:"lastApplied"`
-	AppType      string               `json:"appType"`
-	Source       ApplicationSource    `json:"source"`
-	Resources    ApplicationResources `json:"resources"`
-	Events       []ApplicationEvent   `json:"events"`
-	CreatedAt    string               `json:"createdAt"`
-	UpdatedAt    string               `json:"updatedAt"`
+	ID           int                     `json:"id"`
+	Name         string                  `json:"name"`
+	Description  string                  `json:"description"`
+	Path         string                  `json:"path"`
+	Validated    bool                    `json:"validated"`
+	Owner        string                  `json:"owner"`
+	Environments []string                `json:"environments"`
+	LastApplied  string                  `json:"lastApplied"`
+	AppType      ApplicationTemplateType `json:"appType"`
+	Source       ApplicationSource       `json:"source"`
+	Resources    ApplicationResources    `json:"resources"`
+	Events       []ApplicationEvent      `json:"events"`
+	CreatedAt    string                  `json:"createdAt"`
+	UpdatedAt    string                  `json:"updatedAt"`
 }
 
 type ApplicationSource struct {
@@ -94,5 +94,9 @@ type (
 		AddCmd          argocd.AddClusterCmd
 		Labels          map[string]string
 		Annotations     map[string]string
+	}
+
+	AppTemplateListOptions struct {
+		CloneOpts *git.CloneOptions
 	}
 )

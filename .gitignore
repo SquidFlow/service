@@ -63,3 +63,7 @@ vendor/
 output/
 .idea/
 hack/config.toml
+docs/bootstrap.png
+docs/design-list.png
+docs/h4-arch.png
+docs/h4-introduction.tex

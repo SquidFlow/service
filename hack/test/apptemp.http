@@ -1,7 +1,7 @@
 POST http://{{host}}:{{port}}/api/v1/applications/templates
 
 {
-  "name": "test-app-template",
+  "name": "test-app-test",
   "description": "test-app-template-description",
   "path": "/apps/test-app",
   "owner": "team-a",
