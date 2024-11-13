@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/component: backend
     spec:
       serviceAccountName: {{ include "service-chart.fullname" . }}
+      securityContext:
+        fsGroup: 1001
       containers:
         - name: {{ .Chart.Name }}-backend
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -36,7 +38,8 @@ spec:
             - name: ssh-keys-v
               readOnly: true
                 # container will see /root/.ssh/id_rsa as usual:
-              mountPath: "/tmp"
+              mountPath: "/tmp/repo.pem"
+              subPath: "repo.pem"
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
       volumes:
