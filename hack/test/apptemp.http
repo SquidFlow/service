@@ -1,9 +1,9 @@
 POST http://{{host}}:{{port}}/api/v1/applications/templates
 
 {
-  "name": "mytest-app-template",
-  "description": "mytest-app-template-description",
-  "path": "/apps/mytest-app",
+  "name": "test-app-test",
+  "description": "test-app-template-description",
+  "path": "/apps/test-app",
   "owner": "team-a",
   "source": {
     "type": "git",

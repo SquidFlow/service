@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io"
 	"path"
 	"strings"
 
@@ -44,7 +43,6 @@ type (
 
 	ProjectListOptions struct {
 		CloneOpts *git.CloneOptions
-		Out       io.Writer
 	}
 
 	GenerateProjectOptions struct {

@@ -1,11 +1,28 @@
 import { useState } from 'react';
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { CheckCircle, AlertCircle, Plus, RefreshCw, Trash2, ChevronRight } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { kustomizationsData, type Kustomization } from './applicationTemplateMock';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import {
+  CheckCircle,
+  AlertCircle,
+  Plus,
+  RefreshCw,
+  Trash2,
+  ChevronRight,
+} from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  kustomizationsData,
+  type Kustomization,
+} from './applicationTemplateMock';
 import {
   Dialog,
   DialogContent,
@@ -13,23 +30,24 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
-const mockPathEnvironments: Record<string, string[]> = {
-  'production': ['SIT', 'UAT', 'PRD'],
-  'staging': ['SIT', 'UAT'],
-  'development': ['SIT'],
-  'overlays': ['SIT', 'UAT', 'PRD'],
-  'base': ['SIT', 'UAT']
-};
+// const mockPathEnvironments: Record<string, string[]> = {
+//   production: ['SIT', 'UAT', 'PRD'],
+//   staging: ['SIT', 'UAT'],
+//   development: ['SIT'],
+//   overlays: ['SIT', 'UAT', 'PRD'],
+//   base: ['SIT', 'UAT'],
+// };
 
 export function ApplicationTemplate() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAppTemplate, setSelectedAppTemplate] = useState<Kustomization | null>(null);
+  const [selectedAppTemplate, setSelectedAppTemplate] =
+    useState<Kustomization | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -45,8 +63,8 @@ export function ApplicationTemplate() {
       isValidating: false,
       status: 'pending' as 'pending' | 'success' | 'error',
       environments: [] as string[],
-      message: ''
-    }
+      message: '',
+    },
   });
 
   // 添加选中项的状态
@@ -72,9 +90,10 @@ export function ApplicationTemplate() {
   // 添加新的状态控制 Resources 卡片的展开/折叠
   const [isResourcesExpanded, setIsResourcesExpanded] = useState(false);
 
-  const filteredKustomizations = kustomizationsData.filter(k =>
-    k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    k.path.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredKustomizations = kustomizationsData.filter(
+    (k) =>
+      k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      k.path.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const renderApplicationTemplateDetail = (kustomization: Kustomization) => {
@@ -87,7 +106,8 @@ export function ApplicationTemplate() {
               {kustomization.name}
             </h2>
             <p className="text-gray-500 dark:text-gray-400">
-              Last applied: {new Date(kustomization.lastApplied).toLocaleString()}
+              Last applied:{' '}
+              {new Date(kustomization.lastApplied).toLocaleString()}
             </p>
           </div>
           <Button
@@ -111,15 +131,22 @@ export function ApplicationTemplate() {
             <CardContent className="space-y-6 pt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Name
+                  </p>
                   <p className="mt-1 font-medium">{kustomization.name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Owner</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Owner
+                  </p>
                   <div className="mt-1 flex items-center space-x-2">
                     <Avatar className="h-6 w-6 bg-blue-100 dark:bg-blue-900">
                       <AvatarFallback className="text-xs text-blue-700 dark:text-blue-300">
-                        {kustomization.owner.split(' ').map(n => n[0]).join('')}
+                        {kustomization.owner
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')}
                       </AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{kustomization.owner}</span>
@@ -127,7 +154,9 @@ export function ApplicationTemplate() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Description</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Description
+                </p>
                 <p className="mt-1 text-gray-700 dark:text-gray-300">
                   {kustomization.description || 'No description provided'}
                 </p>
@@ -145,13 +174,20 @@ export function ApplicationTemplate() {
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Application Type</p>
-                <Badge variant="outline" className="mt-1 capitalize bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Application Type
+                </p>
+                <Badge
+                  variant="outline"
+                  className="mt-1 capitalize bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                >
                   {kustomization.appType}
                 </Badge>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Repository URL</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Repository URL
+                </p>
                 <a
                   href={kustomization.source.url}
                   target="_blank"
@@ -162,35 +198,45 @@ export function ApplicationTemplate() {
                 </a>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Reference</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Reference
+                </p>
                 <div className="mt-1 flex items-center space-x-2">
                   <Badge variant="outline" className="capitalize">
-                    {kustomization.source.branch ? 'branch' :
-                     kustomization.source.tag ? 'tag' : 'commit'}
+                    {kustomization.source.branch
+                      ? 'branch'
+                      : kustomization.source.tag
+                        ? 'tag'
+                        : 'commit'}
                   </Badge>
                   <a
                     href={`${kustomization.source.url}/tree/${
                       kustomization.source.branch ||
                       kustomization.source.tag ||
-                      kustomization.source.commit || 'main'
+                      kustomization.source.commit ||
+                      'main'
                     }`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-mono text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
                   >
                     {kustomization.source.branch ||
-                     kustomization.source.tag ||
-                     kustomization.source.commit || 'main'}
+                      kustomization.source.tag ||
+                      kustomization.source.commit ||
+                      'main'}
                   </a>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Path</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Path
+                </p>
                 <a
                   href={`${kustomization.source.url}/tree/${
                     kustomization.source.branch ||
                     kustomization.source.tag ||
-                    kustomization.source.commit || 'main'
+                    kustomization.source.commit ||
+                    'main'
                   }/${kustomization.path}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -237,11 +283,7 @@ export function ApplicationTemplate() {
                 <div className="h-4 w-1 bg-orange-500 rounded-full" />
                 <span>Resources</span>
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-8 h-8 p-0"
-              >
+              <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
                 {isResourcesExpanded ? (
                   <div className="text-lg font-semibold text-gray-500">−</div>
                 ) : (
@@ -255,13 +297,22 @@ export function ApplicationTemplate() {
               {/* Core Resources */}
               <div>
                 <button
-                  onClick={() => setExpandedSections(prev => ({ ...prev, core: !prev.core }))}
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      core: !prev.core,
+                    }))
+                  }
                   className="flex items-center justify-between w-full text-left mb-3 group"
                 >
-                  <h4 className="text-sm font-medium text-gray-500">Core Resources</h4>
-                  <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    expandedSections.core ? 'rotate-90' : ''
-                  }`} />
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Core Resources
+                  </h4>
+                  <ChevronRight
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                      expandedSections.core ? 'rotate-90' : ''
+                    }`}
+                  />
                 </button>
                 {expandedSections.core && (
                   <div className="grid grid-cols-4 gap-4">
@@ -296,13 +347,22 @@ export function ApplicationTemplate() {
               {/* Network Resources */}
               <div>
                 <button
-                  onClick={() => setExpandedSections(prev => ({ ...prev, network: !prev.network }))}
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      network: !prev.network,
+                    }))
+                  }
                   className="flex items-center justify-between w-full text-left mb-3 group"
                 >
-                  <h4 className="text-sm font-medium text-gray-500">Network Resources</h4>
-                  <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    expandedSections.network ? 'rotate-90' : ''
-                  }`} />
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Network Resources
+                  </h4>
+                  <ChevronRight
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                      expandedSections.network ? 'rotate-90' : ''
+                    }`}
+                  />
                 </button>
                 {expandedSections.network && (
                   <div className="grid grid-cols-4 gap-4">
@@ -325,13 +385,22 @@ export function ApplicationTemplate() {
               {/* RBAC Resources */}
               <div>
                 <button
-                  onClick={() => setExpandedSections(prev => ({ ...prev, rbac: !prev.rbac }))}
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      rbac: !prev.rbac,
+                    }))
+                  }
                   className="flex items-center justify-between w-full text-left mb-3 group"
                 >
-                  <h4 className="text-sm font-medium text-gray-500">RBAC Resources</h4>
-                  <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    expandedSections.rbac ? 'rotate-90' : ''
-                  }`} />
+                  <h4 className="text-sm font-medium text-gray-500">
+                    RBAC Resources
+                  </h4>
+                  <ChevronRight
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                      expandedSections.rbac ? 'rotate-90' : ''
+                    }`}
+                  />
                 </button>
                 {expandedSections.rbac && (
                   <div className="grid grid-cols-4 gap-4">
@@ -360,13 +429,22 @@ export function ApplicationTemplate() {
               {/* Storage Resources */}
               <div>
                 <button
-                  onClick={() => setExpandedSections(prev => ({ ...prev, storage: !prev.storage }))}
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      storage: !prev.storage,
+                    }))
+                  }
                   className="flex items-center justify-between w-full text-left mb-3 group"
                 >
-                  <h4 className="text-sm font-medium text-gray-500">Storage Resources</h4>
-                  <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    expandedSections.storage ? 'rotate-90' : ''
-                  }`} />
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Storage Resources
+                  </h4>
+                  <ChevronRight
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                      expandedSections.storage ? 'rotate-90' : ''
+                    }`}
+                  />
                 </button>
                 {expandedSections.storage && (
                   <div className="grid grid-cols-4 gap-4">
@@ -383,13 +461,22 @@ export function ApplicationTemplate() {
               {/* Autoscaling Resources */}
               <div>
                 <button
-                  onClick={() => setExpandedSections(prev => ({ ...prev, autoscaling: !prev.autoscaling }))}
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      autoscaling: !prev.autoscaling,
+                    }))
+                  }
                   className="flex items-center justify-between w-full text-left mb-3 group"
                 >
-                  <h4 className="text-sm font-medium text-gray-500">Autoscaling Resources</h4>
-                  <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    expandedSections.autoscaling ? 'rotate-90' : ''
-                  }`} />
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Autoscaling Resources
+                  </h4>
+                  <ChevronRight
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                      expandedSections.autoscaling ? 'rotate-90' : ''
+                    }`}
+                  />
                 </button>
                 {expandedSections.autoscaling && (
                   <div className="grid grid-cols-4 gap-4">
@@ -406,50 +493,79 @@ export function ApplicationTemplate() {
               {/* Custom Resources */}
               <div>
                 <button
-                  onClick={() => setExpandedSections(prev => ({ ...prev, custom: !prev.custom }))}
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      custom: !prev.custom,
+                    }))
+                  }
                   className="flex items-center justify-between w-full text-left mb-3 group"
                 >
-                  <h4 className="text-sm font-medium text-gray-500">Custom Resources</h4>
-                  <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    expandedSections.custom ? 'rotate-90' : ''
-                  }`} />
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Custom Resources
+                  </h4>
+                  <ChevronRight
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                      expandedSections.custom ? 'rotate-90' : ''
+                    }`}
+                  />
                 </button>
                 {expandedSections.custom && (
                   <div className="grid grid-cols-4 gap-4">
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <p className="text-sm text-gray-500">External Secrets</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {kustomization.resources.customResourceDefinitions.externalSecrets}
+                        {
+                          kustomization.resources.customResourceDefinitions
+                            .externalSecrets
+                        }
                       </p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <p className="text-sm text-gray-500">Certificates</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {kustomization.resources.customResourceDefinitions.certificates}
+                        {
+                          kustomization.resources.customResourceDefinitions
+                            .certificates
+                        }
                       </p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <p className="text-sm text-gray-500">Ingress Routes</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {kustomization.resources.customResourceDefinitions.ingressRoutes}
+                        {
+                          kustomization.resources.customResourceDefinitions
+                            .ingressRoutes
+                        }
                       </p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <p className="text-sm text-gray-500">Prometheus Rules</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {kustomization.resources.customResourceDefinitions.prometheusRules}
+                        {
+                          kustomization.resources.customResourceDefinitions
+                            .prometheusRules
+                        }
                       </p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-500">Service Mesh Policies</p>
+                      <p className="text-sm text-gray-500">
+                        Service Mesh Policies
+                      </p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {kustomization.resources.customResourceDefinitions.serviceMeshPolicies}
+                        {
+                          kustomization.resources.customResourceDefinitions
+                            .serviceMeshPolicies
+                        }
                       </p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <p className="text-sm text-gray-500">Virtual Services</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {kustomization.resources.customResourceDefinitions.virtualServices}
+                        {
+                          kustomization.resources.customResourceDefinitions
+                            .virtualServices
+                        }
                       </p>
                     </div>
                   </div>
@@ -479,23 +595,33 @@ export function ApplicationTemplate() {
               </TableHeader>
               <TableBody>
                 {kustomization.events.map((event, index) => (
-                  <TableRow key={index} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
+                  <TableRow
+                    key={index}
+                    className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+                  >
                     <TableCell className="font-mono text-sm">
                       {new Date(event.time).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={event.type === 'Normal' ? 'default' : 'destructive'}
-                        className={event.type === 'Normal'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                        variant={
+                          event.type === 'Normal' ? 'default' : 'destructive'
+                        }
+                        className={
+                          event.type === 'Normal'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                         }
                       >
                         {event.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{event.reason}</TableCell>
-                    <TableCell className="text-gray-600 dark:text-gray-300">{event.message}</TableCell>
+                    <TableCell className="font-medium">
+                      {event.reason}
+                    </TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">
+                      {event.message}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -536,7 +662,9 @@ export function ApplicationTemplate() {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     placeholder="Enter template name"
                     className="border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
                   />
@@ -548,7 +676,9 @@ export function ApplicationTemplate() {
                   <Textarea
                     id="description"
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     placeholder="Enter template description"
                     className="h-[38px] border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
                   />
@@ -569,7 +699,9 @@ export function ApplicationTemplate() {
               <div className="space-y-6 pl-6">
                 {/* Application Type Display */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Application Type</Label>
+                  <Label className="text-sm font-medium">
+                    Application Type
+                  </Label>
                   <div className="h-[38px] flex items-center">
                     <div className="px-4 py-2 bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-300 rounded-md inline-flex items-center">
                       <span className="capitalize">{formData.appType}</span>
@@ -586,24 +718,35 @@ export function ApplicationTemplate() {
                       <Input
                         id="repoUrl"
                         value={formData.repoUrl}
-                        onChange={(e) => setFormData({ ...formData, repoUrl: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, repoUrl: e.target.value })
+                        }
                         placeholder="Enter repository URL"
                         className="h-full font-mono text-sm border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Reference Type</Label>
+                    <Label className="text-sm font-medium">
+                      Reference Type
+                    </Label>
                     <div className="flex space-x-4 h-[38px] items-center">
                       {(['branch', 'tag', 'commit'] as const).map((type) => (
                         <div
                           key={type}
-                          onClick={() => setFormData({ ...formData, refType: type, branch: '' })}
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              refType: type,
+                              branch: '',
+                            })
+                          }
                           className={`
                             flex items-center h-full px-4 rounded-md cursor-pointer transition-colors
-                            ${formData.refType === type
-                              ? 'bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-300'
-                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                            ${
+                              formData.refType === type
+                                ? 'bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-300'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                             }
                           `}
                         >
@@ -616,9 +759,11 @@ export function ApplicationTemplate() {
 
                 <div className="space-y-2">
                   <Label htmlFor="branch" className="text-sm font-medium">
-                    {formData.refType === 'branch' ? 'Branch Name' :
-                     formData.refType === 'tag' ? 'Tag Name' :
-                     'Commit Hash'}
+                    {formData.refType === 'branch'
+                      ? 'Branch Name'
+                      : formData.refType === 'tag'
+                        ? 'Tag Name'
+                        : 'Commit Hash'}
                   </Label>
                   <Input
                     id="branch"
@@ -628,32 +773,41 @@ export function ApplicationTemplate() {
                       if (formData.refType === 'commit') {
                         value = value.toLowerCase().replace(/[^0-9a-f]/g, '');
                       }
-                      setFormData({ ...formData, branch: value })
+                      setFormData({ ...formData, branch: value });
                     }}
                     placeholder={
-                      formData.refType === 'branch' ? 'e.g., main, develop' :
-                      formData.refType === 'tag' ? 'e.g., v1.0.0, release-1.2' :
-                      'e.g., 1a2b3c4d'
+                      formData.refType === 'branch'
+                        ? 'e.g., main, develop'
+                        : formData.refType === 'tag'
+                          ? 'e.g., v1.0.0, release-1.2'
+                          : 'e.g., 1a2b3c4d'
                     }
                     maxLength={formData.refType === 'commit' ? 40 : undefined}
-                    pattern={formData.refType === 'commit' ? '[0-9a-f]{5,40}' : undefined}
+                    pattern={
+                      formData.refType === 'commit'
+                        ? '[0-9a-f]{5,40}'
+                        : undefined
+                    }
                     className="font-mono text-sm border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-purple-500"
                   />
                   {formData.refType === 'commit' && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Enter a valid git commit hash (5-40 characters, hexadecimal)
+                      Enter a valid git commit hash (5-40 characters,
+                      hexadecimal)
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="path" className="text-sm font-medium">Path</Label>
+                  <Label htmlFor="path" className="text-sm font-medium">
+                    Path
+                  </Label>
                   <div className="flex space-x-2">
                     <Input
                       id="path"
                       value={formData.path}
                       onChange={(e) => {
-                        setFormData(prev => ({
+                        setFormData((prev) => ({
                           ...prev,
                           path: e.target.value,
                           isValidated: false,
@@ -661,8 +815,8 @@ export function ApplicationTemplate() {
                             ...prev.validation,
                             status: 'pending',
                             environments: [],
-                            message: ''
-                          }
+                            message: '',
+                          },
                         }));
                       }}
                       placeholder="Enter path to template files"
@@ -670,13 +824,15 @@ export function ApplicationTemplate() {
                     />
                     <Button
                       onClick={() => validateTemplate(formData.path)}
-                      disabled={!formData.path || formData.validation.isValidating}
+                      disabled={
+                        !formData.path || formData.validation.isValidating
+                      }
                       className={`min-w-[100px] transition-colors ${
                         formData.validation.status === 'success'
                           ? 'bg-green-500 hover:bg-green-600 text-white'
                           : formData.validation.status === 'error'
-                          ? 'bg-red-500 hover:bg-red-600 text-white'
-                          : 'bg-purple-500 hover:bg-purple-600 text-white'
+                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                            : 'bg-purple-500 hover:bg-purple-600 text-white'
                       }`}
                     >
                       {formData.validation.isValidating ? (
@@ -706,13 +862,15 @@ export function ApplicationTemplate() {
                     </div>
                   )}
                   {formData.validation.message && (
-                    <div className={`mt-2 text-sm ${
-                      formData.validation.status === 'success'
-                        ? 'text-green-600 dark:text-green-400'
-                        : formData.validation.status === 'error'
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-gray-500'
-                    }`}>
+                    <div
+                      className={`mt-2 text-sm ${
+                        formData.validation.status === 'success'
+                          ? 'text-green-600 dark:text-green-400'
+                          : formData.validation.status === 'error'
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-500'
+                      }`}
+                    >
                       {formData.validation.message}
                     </div>
                   )}
@@ -770,12 +928,17 @@ export function ApplicationTemplate() {
                 console.log('Form submitted:', formData);
                 setIsCreateDialogOpen(false);
               }}
-              disabled={!formData.isValidated || formData.validation.status !== 'success'}
+              disabled={
+                !formData.isValidated ||
+                formData.validation.status !== 'success'
+              }
               className={`
                 ${!formData.isValidated ? 'cursor-not-allowed' : ''}
-                ${formData.isValidated && formData.validation.status === 'success'
-                  ? 'bg-blue-500 hover:bg-blue-600'
-                  : 'bg-gray-300 dark:bg-gray-700'
+                ${
+                  formData.isValidated &&
+                  formData.validation.status === 'success'
+                    ? 'bg-blue-500 hover:bg-blue-600'
+                    : 'bg-gray-300 dark:bg-gray-700'
                 }
               `}
             >
@@ -789,9 +952,9 @@ export function ApplicationTemplate() {
 
   // 添加选择处理函数
   const handleSelect = (id: number) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       if (prev.includes(id)) {
-        return prev.filter(item => item !== id);
+        return prev.filter((item) => item !== id);
       }
       return [...prev, id];
     });
@@ -802,83 +965,83 @@ export function ApplicationTemplate() {
     if (selectedItems.length === filteredKustomizations.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(filteredKustomizations.map(k => k.id));
+      setSelectedItems(filteredKustomizations.map((k) => k.id));
     }
   };
 
   // 修改 validateTemplate 函数
   const validateTemplate = async (path: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       validation: {
         ...prev.validation,
         isValidating: true,
         status: 'pending',
-        message: 'Validating template...'
-      }
+        message: 'Validating template...',
+      },
     }));
 
-    try {
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // try {
+    //   // 模拟API调用延迟
+    //   await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // 查找匹配的路径
-      const matchedPath = Object.keys(mockPathEnvironments).find(
-        templatePath => path.toLowerCase().includes(templatePath.toLowerCase())
-      );
+    //   // 查找匹配的路径
+    //   const matchedPath = Object.keys(mockPathEnvironments).find(
+    //     templatePath => path.toLowerCase().includes(templatePath.toLowerCase())
+    //   );
 
-      if (matchedPath) {
-        // 找到匹配的路径，返回预定义的环境
-        const detectedEnvs = mockPathEnvironments[matchedPath];
-        setFormData(prev => ({
-          ...prev,
-          isValidated: true,
-          validation: {
-            isValidating: false,
-            status: 'success',
-            environments: detectedEnvs,
-            message: `Template validated successfully. Found ${detectedEnvs.length} environments: ${detectedEnvs.join(', ')}`
-          }
-        }));
-      } else {
-        // 使用路径检测逻辑作为后备
-        const detectedEnvs = detectEnvironments(path);
+    //   if (matchedPath) {
+    //     // 找到匹配的路径，返回预定义的环境
+    //     const detectedEnvs = mockPathEnvironments[matchedPath];
+    //     setFormData(prev => ({
+    //       ...prev,
+    //       isValidated: true,
+    //       validation: {
+    //         isValidating: false,
+    //         status: 'success',
+    //         environments: detectedEnvs,
+    //         message: `Template validated successfully. Found ${detectedEnvs.length} environments: ${detectedEnvs.join(', ')}`
+    //       }
+    //     }));
+    //   } else {
+    //     // 使用路径检测逻辑作为后备
+    //     const detectedEnvs = detectEnvironments(path);
 
-        if (detectedEnvs.length > 0) {
-          setFormData(prev => ({
-            ...prev,
-            isValidated: true,
-            validation: {
-              isValidating: false,
-              status: 'success',
-              environments: detectedEnvs,
-              message: `Template validated successfully. Found ${detectedEnvs.length} environments: ${detectedEnvs.join(', ')}`
-            }
-          }));
-        } else {
-          throw new Error('No environments detected in the specified path');
-        }
-      }
-    } catch (error) {
-      setFormData(prev => ({
-        ...prev,
-        isValidated: false,
-        validation: {
-          isValidating: false,
-          status: 'error',
-          environments: [],
-          message: 'Validation failed: ' + (error as Error).message
-        }
-      }));
-    }
+    //     if (detectedEnvs.length > 0) {
+    //       setFormData(prev => ({
+    //         ...prev,
+    //         isValidated: true,
+    //         validation: {
+    //           isValidating: false,
+    //           status: 'success',
+    //           environments: detectedEnvs,
+    //           message: `Template validated successfully. Found ${detectedEnvs.length} environments: ${detectedEnvs.join(', ')}`
+    //         }
+    //       }));
+    //     } else {
+    //       throw new Error('No environments detected in the specified path');
+    //     }
+    //   }
+    // } catch (error) {
+    //   setFormData(prev => ({
+    //     ...prev,
+    //     isValidated: false,
+    //     validation: {
+    //       isValidating: false,
+    //       status: 'error',
+    //       environments: [],
+    //       message: 'Validation failed: ' + (error as Error).message
+    //     }
+    //   }));
+    // }
   };
 
   const detectEnvironments = (path: string): string[] => {
     // 这里是示例逻辑，���际实现时需要根据���的文件结构来检测
     const envPatterns = {
-      'dev': /(dev|development)/i,
-      'staging': /(staging|uat)/i,
-      'prod': /(prod|production)/i
+      dev: /(dev|development)/i,
+      staging: /(staging|uat)/i,
+      prod: /(prod|production)/i,
     };
 
     const detectedEnvs: string[] = [];
@@ -903,7 +1066,7 @@ export function ApplicationTemplate() {
         </h1>
         <div className="flex space-x-2">
           <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4"/>
+            <Plus className="mr-2 h-4 w-4" />
             Create
           </Button>
           <Button
@@ -950,12 +1113,15 @@ export function ApplicationTemplate() {
                     className="flex items-center justify-center w-5 h-5 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     onClick={handleSelectAll}
                   >
-                    {selectedItems.length > 0 && selectedItems.length === filteredKustomizations.length && (
-                      <CheckCircle className="h-4 w-4 text-blue-500" />
-                    )}
-                    {selectedItems.length > 0 && selectedItems.length < filteredKustomizations.length && (
-                      <div className="w-3 h-3 bg-blue-500 rounded-sm" />
-                    )}
+                    {selectedItems.length > 0 &&
+                      selectedItems.length ===
+                        filteredKustomizations.length && (
+                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                      )}
+                    {selectedItems.length > 0 &&
+                      selectedItems.length < filteredKustomizations.length && (
+                        <div className="w-3 h-3 bg-blue-500 rounded-sm" />
+                      )}
                   </div>
                 </TableHead>
                 <TableHead>Name</TableHead>
@@ -985,12 +1151,18 @@ export function ApplicationTemplate() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="link" onClick={() => setSelectedAppTemplate(kustomization)} className="text-sm">
+                    <Button
+                      variant="link"
+                      onClick={() => setSelectedAppTemplate(kustomization)}
+                      className="text-sm"
+                    >
                       {kustomization.name}
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <span className="font-mono text-sm">{kustomization.path}</span>
+                    <span className="font-mono text-sm">
+                      {kustomization.path}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
@@ -999,8 +1171,12 @@ export function ApplicationTemplate() {
                       ) : (
                         <AlertCircle className="h-4 w-4 text-yellow-500" />
                       )}
-                      <span className={`text-sm ${kustomization.validated ? 'text-green-600' : 'text-yellow-600'}`}>
-                        {kustomization.validated ? 'Validated' : 'Not Validated'}
+                      <span
+                        className={`text-sm ${kustomization.validated ? 'text-green-600' : 'text-yellow-600'}`}
+                      >
+                        {kustomization.validated
+                          ? 'Validated'
+                          : 'Not Validated'}
                       </span>
                     </div>
                   </TableCell>
@@ -1008,7 +1184,10 @@ export function ApplicationTemplate() {
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="bg-primary/10 text-xs">
-                          {kustomization.owner.split(' ').map(n => n[0]).join('')}
+                          {kustomization.owner
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm">{kustomization.owner}</span>
@@ -1020,11 +1199,13 @@ export function ApplicationTemplate() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className={`capitalize px-2 py-1 rounded-full text-sm ${
-                      kustomization.appType === 'kustomization'
-                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-                        : 'bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
-                    }`}>
+                    <span
+                      className={`capitalize px-2 py-1 rounded-full text-sm ${
+                        kustomization.appType === 'kustomization'
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                          : 'bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
+                      }`}
+                    >
                       {kustomization.appType}
                     </span>
                   </TableCell>

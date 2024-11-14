@@ -8,9 +8,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/yaml"
@@ -91,42 +89,6 @@ func CreateApplicationTemplate(c *gin.Context) {
 
 func generateApplicationTemplate(ctx context.Context, dynamicClient dynamic.Interface, discoveryClient *discovery.DiscoveryClient, userReq *CreateApplicationTemplateRequest) (*unstructured.Unstructured, error) {
 	log.G().WithField("user input request", userReq).Info("create application template...")
-
-	_, resourceList, err := discoveryClient.ServerGroupsAndResources()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get server resources: %w", err)
-	}
-
-	appTemplateGVR := schema.GroupVersionResource{
-		Group:    "argocd-addon.github.com",
-		Version:  "v1alpha1",
-		Resource: "applicationtemplates",
-	}
-
-	resourceExists := false
-	for _, list := range resourceList {
-		for _, r := range list.APIResources {
-			if r.Name == appTemplateGVR.Resource {
-				resourceExists = true
-				break
-			}
-		}
-	}
-
-	if !resourceExists {
-		log.G().Error("ApplicationTemplate CRD is not installed in the cluster")
-		return nil, fmt.Errorf("ApplicationTemplate CRD is not installed in the cluster")
-	}
-
-	_, err = dynamicClient.Resource(appTemplateGVR).Namespace("argocd").Get(ctx, userReq.Name, metav1.GetOptions{})
-	if err == nil {
-		log.G().Errorf("application template %s already exists in namespace %s", userReq.Name, "argocd")
-		return nil, fmt.Errorf("application template %s already exists in namespace %s", userReq.Name, "argocd")
-	}
-	if !k8serror.IsNotFound(err) {
-		log.G().Errorf("failed to check existing template: %w", err)
-		return nil, fmt.Errorf("failed to check existing template: %w", err)
-	}
 
 	template := &unstructured.Unstructured{
 		Object: map[string]interface{}{

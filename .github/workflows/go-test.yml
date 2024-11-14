@@ -1,18 +1,31 @@
 name: Go Unit testing
 
 on:
+  pull_request:
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/go-test.yml'
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ '*' ]
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/go-test.yml'
+      - '!**/*.md'
+      - '!docs/**'
 
 jobs:
-
   test:
     name: Run Go Tests
     runs-on: ubuntu-latest
     steps:
-
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
@@ -27,6 +40,3 @@ jobs:
 
     - name: Run tests
       run: make test
-
-    - name: Run tests with race detector
-      run:  make build

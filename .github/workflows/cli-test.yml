@@ -1,10 +1,25 @@
 name: CLI Tests
 
 on:
+  pull_request:
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/cli-test.yml'
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ '*' ]
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.github/workflows/cli-test.yml'
+      - '!**/*.md'
+      - '!docs/**'
 
 jobs:
   test-clis:
@@ -30,11 +45,3 @@ jobs:
     - name: Test service CLI
       run: |
         ./output/service version
-
-    - name: Run integration tests
-      run: |
-        pwd
-
-    - name: Clean up
-      run: |
-        make clean
