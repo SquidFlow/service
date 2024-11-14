@@ -168,6 +168,10 @@ func setupRouter() *gin.Engine {
 	{
 		v1.GET("/healthz", handler.Healthz)
 	}
+	// app code
+	{
+		v1.GET("/appcode", handler.ListAppCode)
+	}
 
 	// the target cluster of argo application
 	clusters := v1.Group("/destinationCluster")

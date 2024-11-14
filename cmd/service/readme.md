@@ -17,6 +17,9 @@ The service provides the following RESTful API endpoints:
 ### System Health
 - `GET /healthz` - Health check endpoint
 
+### AppCode
+- `GET /api/v1/appcode` - List AppCode
+
 ### Destination Clusters
 - `GET /api/v1/destinationCluster` - List destination clusters
 - `POST /api/v1/destinationCluster` - Create a destination cluster

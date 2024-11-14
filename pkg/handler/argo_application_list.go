@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -40,19 +41,21 @@ type AppListResponse struct {
 }
 
 type AppDetailResponse struct {
-	Name          string          `json:"name"`
-	DestNamespace string          `json:"dest_namespace"`
-	DestServer    string          `json:"dest_server"`
-	Creator       string          `json:"creator"`
-	LastUpdater   string          `json:"last_updater"`
-	LastCommitID  string          `json:"last_commit_id"`
-	LastCommitLog string          `json:"last_commit_message"`
-	PodCount      int             `json:"pod_count"`
-	SecretCount   int             `json:"secret_count"`
-	ResourceUsage ResourceMetrics `json:"resource_usage"`
-	Status        string          `json:"status"`
-	Health        string          `json:"health"`
-	SyncStatus    string          `json:"sync_status"`
+	Name                 string          `json:"name"`
+	DestNamespace        string          `json:"dest_namespace"`
+	DestServer           string          `json:"dest_server"`
+	DeployedEnvironments []string        `json:"deployed_environments"`
+	RemoteRepo           string          `json:"remote_repo"`
+	Creator              string          `json:"creator"`
+	LastUpdater          string          `json:"last_updater"`
+	LastCommitID         string          `json:"last_commit_id"`
+	LastCommitLog        string          `json:"last_commit_message"`
+	PodCount             int             `json:"pod_count"`
+	SecretCount          int             `json:"secret_count"`
+	ResourceUsage        ResourceMetrics `json:"resource_usage"`
+	Status               string          `json:"status"`
+	Health               string          `json:"health"`
+	SyncStatus           string          `json:"sync_status"`
 }
 
 func ListArgoApplications(c *gin.Context) {
@@ -157,9 +160,11 @@ func RunAppList(ctx context.Context, opts *AppListOptions) (*AppListResponse, er
 				CPUCores:    resourceMetrics.CPU,
 				MemoryUsage: resourceMetrics.Memory,
 			},
-			Status:     getAppStatus(argoApp),
-			Health:     getAppHealth(argoApp),
-			SyncStatus: getAppSyncStatus(argoApp),
+			Status:               getAppStatus(argoApp),
+			Health:               getAppHealth(argoApp),
+			SyncStatus:           getAppSyncStatus(argoApp),
+			RemoteRepo:           viper.GetString("application_repo.remote_url"),
+			DeployedEnvironments: []string{"sit"},
 		}
 		response.Apps = append(response.Apps, app)
 	}
