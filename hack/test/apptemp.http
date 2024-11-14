@@ -1,7 +1,7 @@
 POST http://{{host}}:{{port}}/api/v1/applications/templates
 
 {
-  "name": "test-app-test",
+  "name": "test-app-test1",
   "description": "test-app-template-description",
   "path": "/apps/test-app",
   "owner": "team-a",
@@ -16,3 +16,16 @@ POST http://{{host}}:{{port}}/api/v1/applications/templates
 ### List all Application Templates
 GET http://{{host}}:{{port}}/api/v1/applications/templates
 
+### GET Application Template
+GET http://{{host}}:{{port}}/api/v1/applications/templates/e23dedb1-1ec8-4343-98f8-82b980e1358e
+
+### Update Application Template
+PATCH http://{{host}}:{{port}}/api/v1/applications/templates/e23dedb1-1ec8-4343-98f8-82b980e1358e
+
+{
+  "name": "test-app-2",
+  "description": "test-app-template-description"
+}
+
+### Delete Application Template
+DELETE http://{{host}}:{{port}}/api/v1/applications/templates/e23dedb1-1ec8-4343-98f8-82b980e1358e

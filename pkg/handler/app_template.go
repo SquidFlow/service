@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"github.com/google/uuid"
+
+	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/git"
 )
@@ -23,7 +26,7 @@ var (
 
 // ApplicationTemplate represents a template for deploying applications
 type ApplicationTemplate struct {
-	ID           int                     `json:"id"`
+	ID           string                  `json:"id"`
 	Name         string                  `json:"name"`
 	Description  string                  `json:"description"`
 	Path         string                  `json:"path"`
@@ -100,3 +103,29 @@ type (
 		CloneOpts *git.CloneOptions
 	}
 )
+
+func getNewId() string {
+	return uuid.New().String()
+}
+
+func getAppTempType(temp apptempv1alpha1.ApplicationTemplate) ApplicationTemplateType {
+	var enableHelm, enableKustomize bool
+	if temp.Spec.Helm != nil {
+		enableHelm = true
+	}
+	if temp.Spec.Kustomize != nil {
+		enableKustomize = true
+	}
+
+	// only define 2 types: helm and kustomize
+	if enableHelm && enableKustomize {
+		return ApplicationTemplateTypeHelmKustomize
+	}
+	if enableHelm {
+		return ApplicationTemplateTypeHelm
+	}
+	if enableKustomize {
+		return ApplicationTemplateTypeKustomize
+	}
+	return "unknown"
+}

@@ -3,16 +3,16 @@ package handler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 
+	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/log"
@@ -31,23 +31,20 @@ type CreateApplicationTemplateRequest struct {
 }
 
 type CreateApplicationTemplateResponse struct {
-	ID      int    `json:"id"`
-	Name    string `json:"name"`
-	Success bool   `json:"success"`
+	Item    ApplicationTemplate `json:"item"`
+	Success bool                `json:"success"`
+	Message string              `json:"message"`
 }
 
 // CreateApplicationTemplate handles HTTP requests to create an ApplicationTemplate
 func CreateApplicationTemplate(c *gin.Context) {
-	dynamicClient := c.MustGet("dynamicClient").(dynamic.Interface)
-	discoveryClient := c.MustGet("discoveryClient").(*discovery.DiscoveryClient)
-
 	var req CreateApplicationTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 		return
 	}
 
-	temp, err := generateApplicationTemplate(context.Background(), dynamicClient, discoveryClient, &req)
+	argocdArgoTemplate, err := generateApplicationTemplate(context.Background(), &req)
 	if err != nil {
 		if k8serror.IsAlreadyExists(err) {
 			c.JSON(409, gin.H{"error": err.Error()})
@@ -68,9 +65,9 @@ func CreateApplicationTemplate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	err = RunAppTemplateCreate(
+	err = WriteAppTemplateToRepo(
 		context.Background(),
-		temp,
+		argocdArgoTemplate,
 		&AppTemplateCreateOptions{
 			CloneOpts: cloneOpts,
 		})
@@ -81,52 +78,84 @@ func CreateApplicationTemplate(c *gin.Context) {
 	}
 
 	c.JSON(201, CreateApplicationTemplateResponse{
-		ID:      1,
-		Name:    temp.GetName(),
+		Item: ApplicationTemplate{
+			Name:        argocdArgoTemplate.Name,
+			Owner:       argocdArgoTemplate.Annotations["h4-poc.github.io/owner"],
+			Description: argocdArgoTemplate.Annotations["h4-poc.github.io/description"],
+			ID:          argocdArgoTemplate.Annotations["h4-poc.github.io/id"],
+			CreatedAt:   argocdArgoTemplate.Annotations["h4-poc.github.io/created-at"],
+			UpdatedAt:   argocdArgoTemplate.Annotations["h4-poc.github.io/updated-at"],
+			AppType:     getAppTempType(*argocdArgoTemplate),
+			Validated:   true,
+			Path:        argocdArgoTemplate.Spec.Helm.RenderTargets[0].ValuesPath,
+			Source: ApplicationSource{
+				URL:            argocdArgoTemplate.Spec.RepoURL,
+				TargetRevision: argocdArgoTemplate.Spec.TargetRevision,
+			},
+			Resources: ApplicationResources{
+				Deployments: 2,
+				Services:    1,
+				Configmaps:  1,
+			},
+			Events: []ApplicationEvent{
+				{
+					Time: "2021-09-01T00:00:00Z",
+					Type: "Normal",
+				},
+			},
+		},
 		Success: true,
+		Message: "application template created",
 	})
 }
 
-func generateApplicationTemplate(ctx context.Context, dynamicClient dynamic.Interface, discoveryClient *discovery.DiscoveryClient, userReq *CreateApplicationTemplateRequest) (*unstructured.Unstructured, error) {
+func generateApplicationTemplate(ctx context.Context, userReq *CreateApplicationTemplateRequest) (*apptempv1alpha1.ApplicationTemplate, error) {
 	log.G().WithField("user input request", userReq).Info("create application template...")
 
-	template := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "argocd-addon.github.com/v1alpha1",
-			"kind":       "ApplicationTemplate",
-			"metadata": map[string]interface{}{
-				"name":      userReq.Name,
-				"namespace": store.Default.ArgoCDNamespace,
+	template := &apptempv1alpha1.ApplicationTemplate{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "argocd-addon.github.com/v1alpha1",
+			Kind:       "ApplicationTemplate",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      userReq.Name,
+			Namespace: store.Default.ArgoCDNamespace,
+			Annotations: map[string]string{
+				"h4-poc.github.io/id":          getNewId(),
+				"h4-poc.github.io/owner":       userReq.Owner,
+				"h4-poc.github.io/description": userReq.Description,
+				"h4-poc.github.io/created-at":  time.Now().Format(time.RFC3339),
+				"h4-poc.github.io/updated-at":  time.Now().Format(time.RFC3339),
 			},
-			"spec": map[string]interface{}{
-				"name":           userReq.Name,
-				"repoURL":        userReq.Source.URL,
-				"targetRevision": userReq.Source.TargetRevision,
-				"helm": map[string]interface{}{
-					"chart":      userReq.Name,
-					"version":    "v1",
-					"repository": userReq.Source.URL,
-					"renderTargets": []map[string]interface{}{
-						{
-							"destinationCluster": map[string]interface{}{
-								"name": userReq.Owner,
-								"matchLabels": map[string]interface{}{
-									"env": userReq.Owner,
-								},
+		},
+		Spec: apptempv1alpha1.ApplicationTemplateSpec{
+			Name:           userReq.Name,
+			RepoURL:        userReq.Source.URL,
+			TargetRevision: userReq.Source.TargetRevision,
+			Helm: &apptempv1alpha1.HelmConfig{
+				Chart:      userReq.Name,
+				Version:    "v1",
+				Repository: userReq.Source.URL,
+				RenderTargets: []apptempv1alpha1.HelmRenderTarget{
+					{
+						DestinationCluster: apptempv1alpha1.ClusterSelector{
+							Name: userReq.Owner,
+							MatchLabels: map[string]string{
+								"env": userReq.Owner,
 							},
-							"valuesPath": userReq.Path,
 						},
+						ValuesPath: userReq.Path,
 					},
 				},
-				"kustomize": map[string]interface{}{
-					"renderTargets": []map[string]interface{}{
-						{
-							"path": userReq.Path,
-							"destinationCluster": map[string]interface{}{
-								"name": userReq.Owner,
-								"matchLabels": map[string]interface{}{
-									"env": userReq.Owner,
-								},
+			},
+			Kustomize: &apptempv1alpha1.KustomizeConfig{
+				RenderTargets: []apptempv1alpha1.KustomizeRenderTarget{
+					{
+						Path: userReq.Path,
+						DestinationCluster: apptempv1alpha1.ClusterSelector{
+							Name: userReq.Owner,
+							MatchLabels: map[string]string{
+								"env": userReq.Owner,
 							},
 						},
 					},
@@ -140,26 +169,27 @@ func generateApplicationTemplate(ctx context.Context, dynamicClient dynamic.Inte
 	return template, nil
 }
 
-func RunAppTemplateCreate(ctx context.Context, appTemplate *unstructured.Unstructured, opts *AppTemplateCreateOptions) error {
+func WriteAppTemplateToRepo(ctx context.Context, appTemplate *apptempv1alpha1.ApplicationTemplate, opts *AppTemplateCreateOptions) error {
 	var (
 		err error
 	)
 
-	log.G().WithField("cloneOpts", opts.CloneOpts).Debug("clone options")
-
+	log.G().WithField("cloneOpts", opts.CloneOpts).Debug("run app template create with clone options")
 	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
 	if err != nil {
 		return err
 	}
 
-	// convert the appTemplate to yaml
 	appTemplateYaml, err := yaml.Marshal(appTemplate)
 	if err != nil {
 		return err
 	}
 
 	appTemplateExists := repofs.ExistsOrDie(
-		repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, appTemplate.GetName()+".yaml"),
+		repofs.Join(store.Default.BootsrtrapDir,
+			store.Default.ClusterResourcesDir,
+			store.Default.ClusterContextName,
+			"apptemp"+appTemplate.Annotations["h4-poc.github.io/id"]+".yaml"),
 	)
 	if appTemplateExists {
 		return fmt.Errorf("app template '%s' already exists", appTemplate.GetName())
@@ -168,9 +198,14 @@ func RunAppTemplateCreate(ctx context.Context, appTemplate *unstructured.Unstruc
 
 	bulkWrites := []fs.BulkWriteRequest{}
 	bulkWrites = append(bulkWrites, fs.BulkWriteRequest{
-		Filename: repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, appTemplate.GetName()+".yaml"),
-		Data:     util.JoinManifests(appTemplateYaml),
-		ErrMsg:   "failed to create app template file",
+		Filename: repofs.Join(
+			store.Default.BootsrtrapDir,
+			store.Default.ClusterResourcesDir,
+			store.Default.ClusterContextName,
+			fmt.Sprintf("apptemp-%s.yaml", appTemplate.Annotations["h4-poc.github.io/id"]),
+		),
+		Data:   util.JoinManifests(appTemplateYaml),
+		ErrMsg: "failed to create app template file",
 	})
 
 	if err = fs.BulkWrite(repofs, bulkWrites...); err != nil {

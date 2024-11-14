@@ -190,8 +190,9 @@ func setupRouter() *gin.Engine {
 		templates.GET("", handler.ListApplicationTemplate)
 		templateInstance := templates.Group("/:template_id")
 		{
+			templateInstance.GET("", handler.DescribeApplicationTemplate)
 			templateInstance.PATCH("", handler.UpdateApplicationTemplate)
-			templateInstance.DELETE("", handler.UpdateApplicationTemplate)
+			templateInstance.DELETE("", handler.DeleteApplicationTemplate)
 		}
 	}
 

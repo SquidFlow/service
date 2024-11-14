@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/viper"
 
 	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
-
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/log"
@@ -22,13 +21,7 @@ type ListTemplateResponse struct {
 	Success bool                  `json:"success"`
 	Total   int                   `json:"total"`
 	Items   []ApplicationTemplate `json:"items"`
-}
-
-// ListTemplateFilter represents the filter criteria for listing templates
-type ListTemplateFilter struct {
-	AppType   string
-	Owner     string
-	Validated string
+	Message string                `json:"message"`
 }
 
 // ListApplicationTemplate handles the retrieval of application templates
@@ -59,6 +52,7 @@ func ListApplicationTemplate(c *gin.Context) {
 		Success: true,
 		Total:   len(templates),
 		Items:   templates,
+		Message: "success",
 	})
 }
 
@@ -74,7 +68,7 @@ func RunApplicationTemplateList(ctx context.Context, opts *AppTemplateListOption
 		store.Default.BootsrtrapDir,
 		store.Default.ClusterResourcesDir,
 		store.Default.ClusterContextName,
-		"*.yaml",
+		"apptemp-*.yaml",
 	))
 	if err != nil {
 		return nil, err
@@ -82,25 +76,35 @@ func RunApplicationTemplateList(ctx context.Context, opts *AppTemplateListOption
 
 	var templates []ApplicationTemplate
 
-	for _, name := range matches {
-		log.G().Debugf("Reading template from %s", name)
+	for _, file := range matches {
+		log.G().WithField("file", file).Debug("Found application template")
+
 		template := &apptempv1alpha1.ApplicationTemplate{}
-		if err := repofs.ReadYamls(name, template); err != nil {
-			log.G().Warnf("Failed to read template from %s: %v", name, err)
+		if err := repofs.ReadYamls(file, template); err != nil {
+			log.G().Warnf("Failed to read template from %s: %v", file, err)
 			continue
 		}
 
-		if template.Kind != "ApplicationTemplate" {
-			log.G().Warnf("skip %s/%s", template.Kind, name)
-			continue
-		}
+		log.G().WithFields(log.Fields{
+			"id":          template.Annotations["h4-poc.github.io/id"],
+			"name":        template.Name,
+			"owner":       template.Annotations["h4-poc.github.io/owner"],
+			"description": template.Annotations["h4-poc.github.io/description"],
+			"created-at":  template.Annotations["h4-poc.github.io/created-at"],
+			"updated-at":  template.Annotations["h4-poc.github.io/updated-at"],
+		}).Debug("Found application template")
 
 		// Convert to response type
 		appTemplate := ApplicationTemplate{
+			ID:          template.Annotations["h4-poc.github.io/id"],
 			Name:        template.Name,
-			Owner:       template.Annotations["owner"],
-			Description: template.Annotations["description"],
+			Owner:       template.Annotations["h4-poc.github.io/owner"],
+			Description: template.Annotations["h4-poc.github.io/description"],
 			AppType:     getAppTempType(*template),
+			Validated:   true,
+			Path:        template.Spec.Helm.RenderTargets[0].ValuesPath,
+			CreatedAt:   template.Annotations["h4-poc.github.io/created-at"],
+			UpdatedAt:   template.Annotations["h4-poc.github.io/updated-at"],
 			Source: ApplicationSource{
 				URL:            template.Spec.RepoURL,
 				TargetRevision: template.Spec.TargetRevision,
@@ -121,55 +125,4 @@ func RunApplicationTemplateList(ctx context.Context, opts *AppTemplateListOption
 	}
 
 	return templates, nil
-}
-
-// convertApplicationTemplate converts an ApplicationTemplate to a handler ApplicationTemplate
-func convertApplicationTemplate(template *apptempv1alpha1.ApplicationTemplateList) []ApplicationTemplate {
-	var ret []ApplicationTemplate
-	for _, item := range template.Items {
-		ret = append(ret, ApplicationTemplate{
-			Name:        item.Name,
-			Owner:       item.Annotations["owner"],
-			Description: item.Annotations["description"],
-			AppType:     getAppTempType(item),
-			Source: ApplicationSource{
-				URL:            item.Spec.RepoURL,
-				TargetRevision: item.Spec.TargetRevision,
-			},
-			Resources: ApplicationResources{
-				Deployments: 2,
-				Services:    1,
-				Configmaps:  1,
-			},
-			Events: []ApplicationEvent{
-				{
-					Time: "2021-09-01T00:00:00Z",
-					Type: "Normal",
-				},
-			},
-		})
-	}
-	return ret
-}
-
-func getAppTempType(temp apptempv1alpha1.ApplicationTemplate) ApplicationTemplateType {
-	var enableHelm, enableKustomize bool
-	if temp.Spec.Helm != nil {
-		enableHelm = true
-	}
-	if temp.Spec.Kustomize != nil {
-		enableKustomize = true
-	}
-
-	// only define 2 types: helm and kustomize
-	if enableHelm && enableKustomize {
-		return ApplicationTemplateTypeHelmKustomize
-	}
-	if enableHelm {
-		return ApplicationTemplateTypeHelm
-	}
-	if enableKustomize {
-		return ApplicationTemplateTypeKustomize
-	}
-	return "unknown"
 }

@@ -3,54 +3,39 @@ package handler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/viper"
 
 	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/fs"
+	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/store"
 )
 
 // UpdateTemplateRequest represents the request for updating an application template
 type UpdateTemplateRequest struct {
-	Name        string                  `json:"name" binding:"required"`
-	Path        string                  `json:"path" binding:"required"`
-	Owner       string                  `json:"owner" binding:"required"`
-	Source      ApplicationSource       `json:"source" binding:"required"`
+	Name        string                  `json:"name,omitempty"`
+	Path        string                  `json:"path,omitempty"`
+	Owner       string                  `json:"owner,omitempty"`
+	Source      *ApplicationSource      `json:"source,omitempty"`
 	Description string                  `json:"description,omitempty"`
-	AppType     ApplicationTemplateType `json:"appType" binding:"required,oneof=kustomize helm"`
+	AppType     ApplicationTemplateType `json:"appType,omitempty"`
 }
 
 // UpdateTemplateResponse represents the response for template update operation
 type UpdateTemplateResponse struct {
-	Success bool   `json:"success"`
-	Name    string `json:"name"`
+	Item    ApplicationTemplate `json:"item"`
+	Success bool                `json:"success"`
+	Message string              `json:"message"`
 }
 
 func UpdateApplicationTemplate(c *gin.Context) {
-	// Get template ID from path parameter
-	templateName := c.Param("template_id")
-	if templateName == "" {
-		c.JSON(400, gin.H{"error": "template name is required"})
-		return
-	}
-
-	// Get kube factory from context
-	factory := c.MustGet("kubeFactory").(kube.Factory)
-
-	// Get kubernetes client
-	restConfig, err := factory.ToRESTConfig()
-	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get kubernetes client: %v", err)})
-		return
-	}
-
-	k8sClient, err := client.New(restConfig, client.Options{})
-	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create kubernetes client: %v", err)})
+	templateID := c.Param("template_id")
+	if templateID == "" {
+		c.JSON(400, gin.H{"error": "template ID is required"})
 		return
 	}
 
@@ -60,80 +45,135 @@ func UpdateApplicationTemplate(c *gin.Context) {
 		return
 	}
 
-	// Update the template
-	err = updateApplicationTemplate(context.Background(), k8sClient, templateName, &req)
+	// Get kube factory from context
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: false,
+	}
+	cloneOpts.Parse()
+
+	_, repofs, err := prepareRepo(context.Background(), cloneOpts, "")
 	if err != nil {
-		if errors.IsNotFound(err) {
-			c.JSON(404, gin.H{"error": "Template not found"})
-			return
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get application template: %v", err)})
+		return
+	}
+
+	templatePath := repofs.Join(
+		store.Default.BootsrtrapDir,
+		store.Default.ClusterResourcesDir,
+		store.Default.ClusterContextName,
+		fmt.Sprintf("apptemp-%s.yaml", templateID),
+	)
+
+	template := &apptempv1alpha1.ApplicationTemplate{}
+	if err := repofs.ReadYamls(templatePath, template); err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get application template: %v", err)})
+		return
+	}
+
+	if req.Name != "" {
+		template.Name = req.Name
+	}
+
+	if req.Source != nil {
+		if req.Source.URL != "" {
+			template.Spec.RepoURL = req.Source.URL
 		}
+		if req.Source.TargetRevision != "" {
+			template.Spec.TargetRevision = req.Source.TargetRevision
+		}
+	}
+	if req.Owner != "" {
+		template.Annotations["h4-poc.github.io/owner"] = req.Owner
+	}
+	if req.Description != "" {
+		template.Annotations["h4-poc.github.io/description"] = req.Description
+	}
+	template.Annotations["h4-poc.github.io/updated-at"] = time.Now().Format(time.RFC3339)
+
+	if req.AppType != "" {
+		switch req.AppType {
+		case ApplicationTemplateTypeHelm:
+			template.Spec.Helm = &apptempv1alpha1.HelmConfig{
+				Chart:      template.Name,
+				Version:    "v1",
+				Repository: template.Spec.RepoURL,
+				RenderTargets: []apptempv1alpha1.HelmRenderTarget{
+					{
+						DestinationCluster: apptempv1alpha1.ClusterSelector{
+							Name: template.Annotations["h4-poc.github.io/owner"],
+							MatchLabels: map[string]string{
+								"env": template.Annotations["h4-poc.github.io/owner"],
+							},
+						},
+						ValuesPath: req.Path,
+					},
+				},
+			}
+			template.Spec.Kustomize = nil
+		case ApplicationTemplateTypeKustomize:
+			template.Spec.Kustomize = &apptempv1alpha1.KustomizeConfig{
+				RenderTargets: []apptempv1alpha1.KustomizeRenderTarget{
+					{
+						Path: req.Path,
+						DestinationCluster: apptempv1alpha1.ClusterSelector{
+							Name: template.Annotations["h4-poc.github.io/owner"],
+							MatchLabels: map[string]string{
+								"env": template.Annotations["h4-poc.github.io/owner"],
+							},
+						},
+					},
+				},
+			}
+			template.Spec.Helm = nil
+		}
+	}
+
+	err = WriteAppTemplateToRepo(
+		context.Background(),
+		template,
+		&AppTemplateCreateOptions{
+			CloneOpts: cloneOpts,
+		},
+	)
+	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update template: %v", err)})
 		return
 	}
 
 	c.JSON(200, UpdateTemplateResponse{
+		Item: ApplicationTemplate{
+			Name:        template.Name,
+			Owner:       template.Annotations["h4-poc.github.io/owner"],
+			Description: template.Annotations["h4-poc.github.io/description"],
+			ID:          template.Annotations["h4-poc.github.io/id"],
+			CreatedAt:   template.Annotations["h4-poc.github.io/created-at"],
+			UpdatedAt:   template.Annotations["h4-poc.github.io/updated-at"],
+			AppType:     getAppTempType(*template),
+			Validated:   true,
+			Path:        template.Spec.Helm.RenderTargets[0].ValuesPath,
+			Source: ApplicationSource{
+				URL:            template.Spec.RepoURL,
+				TargetRevision: template.Spec.TargetRevision,
+			},
+			Resources: ApplicationResources{
+				Deployments: 2,
+				Services:    1,
+				Configmaps:  1,
+			},
+			Events: []ApplicationEvent{
+				{
+					Time: "2021-09-01T00:00:00Z",
+					Type: "Normal",
+				},
+			},
+		},
 		Success: true,
-		Name:    req.Name,
+		Message: "template updated successfully",
 	})
-}
-
-func updateApplicationTemplate(ctx context.Context, k8sClient client.Client, templateName string, req *UpdateTemplateRequest) error {
-	log.G().WithField("template", templateName).Info("Updating application template")
-
-	// Get existing template
-	existing := &apptempv1alpha1.ApplicationTemplate{}
-	err := k8sClient.Get(ctx, client.ObjectKey{
-		Namespace: store.Default.ArgoCDNamespace,
-		Name:      templateName,
-	}, existing)
-	if err != nil {
-		return err
-	}
-
-	// Update template fields
-	existing.Spec.Name = req.Name
-	existing.Spec.RepoURL = req.Source.URL
-	existing.Spec.TargetRevision = req.Source.TargetRevision
-
-	if req.AppType == "helm" {
-		existing.Spec.Helm = &apptempv1alpha1.HelmConfig{
-			Chart:      req.Name,
-			Version:    "v1",
-			Repository: req.Source.URL,
-			RenderTargets: []apptempv1alpha1.HelmRenderTarget{
-				{
-					DestinationCluster: apptempv1alpha1.ClusterSelector{
-						Name: req.Owner,
-						MatchLabels: map[string]string{
-							"env": req.Owner,
-						},
-					},
-					ValuesPath: req.Path,
-				},
-			},
-		}
-		existing.Spec.Kustomize = nil
-	} else {
-		existing.Spec.Kustomize = &apptempv1alpha1.KustomizeConfig{
-			RenderTargets: []apptempv1alpha1.KustomizeRenderTarget{
-				{
-					Path: req.Path,
-					DestinationCluster: apptempv1alpha1.ClusterSelector{
-						Name: req.Owner,
-						MatchLabels: map[string]string{
-							"env": req.Owner,
-						},
-					},
-				},
-			},
-		}
-		existing.Spec.Helm = nil
-	}
-
-	// Update the template
-	if err := k8sClient.Update(ctx, existing); err != nil {
-		return fmt.Errorf("failed to update application template: %w", err)
-	}
-
-	return nil
 }
