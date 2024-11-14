@@ -37,6 +37,7 @@ import {
   monitoringTypeStyles,
   IconType
 } from "./destinationClusterMock";
+import { useGetClusterList } from "@/app/api";
 
 const icons: Record<IconType, LucideIcon> = {
   CheckCircle,
@@ -251,13 +252,14 @@ const ClusterNameCell = ({ cluster }: { cluster: ClusterInfo }) => (
 );
 
 export function DestinationCluster() {
+  const { clusterList } = useGetClusterList();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>('all');
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCluster, setSelectedCluster] = useState<ClusterInfo | null>(null);
 
-  const filteredClusters = clusters.filter((cluster: ClusterInfo) => {
+  const filteredClusters = clusterList.filter((cluster: ClusterInfo) => {
     const matchesSearch =
       cluster.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cluster.region.toLowerCase().includes(searchTerm.toLowerCase());
@@ -277,10 +279,10 @@ export function DestinationCluster() {
   };
 
   const stats = {
-    totalClusters: clusters.length,
-    activeNodes: clusters.reduce((acc: number, cluster: ClusterInfo) => acc + cluster.nodes.ready, 0),
-    totalNodes: clusters.reduce((acc: number, cluster: ClusterInfo) => acc + cluster.nodes.total, 0),
-    healthyClusters: clusters.filter((c: ClusterInfo) => c.health.status === 'Healthy').length,
+    totalClusters: clusterList.length,
+    activeNodes: clusterList.reduce((acc: number, cluster: ClusterInfo) => acc + cluster.nodes.ready, 0),
+    totalNodes: clusterList.reduce((acc: number, cluster: ClusterInfo) => acc + cluster.nodes.total, 0),
+    healthyClusters: clusterList.filter((c: ClusterInfo) => c.health.status === 'Healthy').length,
   };
 
   return (
@@ -328,7 +330,7 @@ export function DestinationCluster() {
         />
         <StatsCard
           title="Environments"
-          value={new Set(clusters.map(c => c.environment)).size}
+          value={new Set(clusterList.map(c => c.environment)).size}
           icon={Layout}
           description="Distinct deployment environments"
         />
