@@ -211,3 +211,37 @@ func CheckIsHelmChart(path string) bool {
 	}
 	return false
 }
+
+func FetchEnvList(app string) ([]string, error) {
+
+	entries, err := os.ReadDir(fmt.Sprintf("/tmp/platform/overlays/app/%s", app))
+	if err != nil {
+		return nil, err
+	}
+	envMap := map[string]bool{
+		"sit":  true,
+		"sit1": true,
+		"sit2": true,
+		"uat":  true,
+		"uat1": true,
+		"uat2": true,
+	}
+	env := []string{}
+	for _, e := range entries {
+		if e.Type().IsDir() {
+			if envMap[e.Name()] {
+				env = append(env, e.Name())
+			}
+		}
+
+	}
+	return env, nil
+}
+
+func ReadFile(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}

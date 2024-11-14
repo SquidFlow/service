@@ -17,10 +17,13 @@ import (
 
 // DryRunRequest represents the request structure for dry run
 type DryRunRequest struct {
-	Clusters   []string               `json:"clusters" binding:"required"`
-	Namespace  string                 `json:"namespace" binding:"required"`
-	Template   map[string]interface{} `json:"template" binding:"required"`
-	Parameters map[string]interface{} `json:"parameters,omitempty"`
+	Clusters       []string               `json:"clusters" binding:"required"`
+	Namespace      string                 `json:"namespace" binding:"required"`
+	Path           string                 `json:"path" binding:"required"`
+	TemplateSource string                 `json:"templateSource" binding:"required"`
+	TargetRevision string                 `json:"targetRevision" binding:"required"`
+	Template       map[string]interface{} `json:"template,omitempty"`
+	Parameters     map[string]interface{} `json:"parameters,omitempty"`
 }
 
 // DryRunResponse represents the response structure for dry run
@@ -47,6 +50,62 @@ type ValidateTemplateResponse struct {
 	Results []ValidationResult `json:"results"`
 }
 
+func DryRun(c *gin.Context) {
+	var req DryRunRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		return
+	}
+	if err := customgogit.CloneSubModule(req.TemplateSource, req.TargetRevision); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		return
+	}
+	clusterYaml := []ClusterYAML{}
+	strList := strings.Split(req.Path, "/")
+	app := strList[len(strList)-1]
+	envList := req.Clusters
+	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", app)) {
+		for _, env := range envList {
+			if err := Helm_Templating(app, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			if err := KustomizeBuildInOverlay(app, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+
+			data, err := util.ReadFile(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
+			if err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			clusterYaml = append(clusterYaml, ClusterYAML{Cluster: env, Content: string(data)})
+		}
+
+	} else {
+		for _, env := range envList {
+			if err := KustomizeBuildInManifest(app, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			if err := KustomizeBuildInOverlay(app, env); err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			data, err := util.ReadFile(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
+			if err != nil {
+				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+				return
+			}
+			clusterYaml = append(clusterYaml, ClusterYAML{Cluster: env, Content: string(data)})
+
+		}
+	}
+	c.JSON(200, clusterYaml)
+
+}
+
 func ValidateTemplate(c *gin.Context) {
 	var req ValidateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -60,30 +119,13 @@ func ValidateTemplate(c *gin.Context) {
 	VResult := []ValidationResult{}
 	strList := strings.Split(req.Path, "/")
 	app := strList[len(strList)-1]
-	entries, err := os.ReadDir(fmt.Sprintf("/tmp/platform/overlays/app/%s", app))
+	envList, err := util.FetchEnvList(app)
 	if err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 		return
 	}
-	envMap := map[string]bool{
-		"sit":  true,
-		"sit1": true,
-		"sit2": true,
-		"uat":  true,
-		"uat1": true,
-		"uat2": true,
-	}
-	env := []string{}
-	for _, e := range entries {
-		if e.Type().IsDir() {
-			if envMap[e.Name()] {
-				env = append(env, e.Name())
-			}
-		}
-
-	}
 	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", app)) {
-		for _, env := range env {
+		for _, env := range envList {
 			if err := Helm_Templating(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
@@ -106,7 +148,7 @@ func ValidateTemplate(c *gin.Context) {
 		}
 
 	} else {
-		for _, env := range env {
+		for _, env := range envList {
 			if err := KustomizeBuildInManifest(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
