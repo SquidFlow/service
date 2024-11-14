@@ -20,7 +20,7 @@ type ValidationRequest struct {
 
 // ValidationResult represents the validation result for each environment
 type ValidationResult struct {
-	Environment []string `json:"environment"` // the repo support multiple environments
+	Environment string   `json:"environment"` // the repo support multiple environments
 	IsValid     bool     `json:"isValid"`
 	Message     []string `json:"message,omitempty"`
 }

@@ -40,8 +40,6 @@ type ValidateTemplateRequest struct {
 	TargetRevision string                 `json:"targetRevision" binding:"required"`
 	Path           string                 `json:"path,omitempty"`
 	Parameters     map[string]interface{} `json:"parameters,omitempty"`
-	Environments   []string               `json:"environments" binding:"required"`
-	AppName        string                 `json:"appName" binding:"required"`
 }
 
 // ValidateTemplateResponse represents the response structure for template validation
@@ -60,48 +58,72 @@ func ValidateTemplate(c *gin.Context) {
 		return
 	}
 	VResult := []ValidationResult{}
-	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", req.AppName)) {
-		for _, env := range req.Environments {
-			if err := Helm_Templating(req.AppName, env); err != nil {
+	strList := strings.Split(req.Path, "/")
+	app := strList[len(strList)-1]
+	entries, err := os.ReadDir(fmt.Sprintf("/tmp/platform/overlays/app/%s", app))
+	if err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		return
+	}
+	envMap := map[string]bool{
+		"sit":  true,
+		"sit1": true,
+		"sit2": true,
+		"uat":  true,
+		"uat1": true,
+		"uat2": true,
+	}
+	env := []string{}
+	for _, e := range entries {
+		if e.Type().IsDir() {
+			if envMap[e.Name()] {
+				env = append(env, e.Name())
+			}
+		}
+
+	}
+	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", app)) {
+		for _, env := range env {
+			if err := Helm_Templating(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}
-			if err := KustomizeBuildInOverlay(req.AppName, env); err != nil {
+			if err := KustomizeBuildInOverlay(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}
-			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", env, req.AppName))
+			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
 			if err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}
 			if len(errList) == 0 {
-				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: true})
+				VResult = append(VResult, ValidationResult{Environment: env, IsValid: true})
 			} else {
-				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: false, Message: errList})
+				VResult = append(VResult, ValidationResult{Environment: env, IsValid: false, Message: errList})
 			}
 
 		}
 
 	} else {
-		for _, env := range req.Environments {
-			if err := KustomizeBuildInManifest(req.AppName, env); err != nil {
+		for _, env := range env {
+			if err := KustomizeBuildInManifest(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}
-			if err := KustomizeBuildInOverlay(req.AppName, env); err != nil {
+			if err := KustomizeBuildInOverlay(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}
-			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", env, req.AppName))
+			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
 			if err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}
 			if len(errList) == 0 {
-				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: true})
+				VResult = append(VResult, ValidationResult{Environment: env, IsValid: true})
 			} else {
-				VResult = append(VResult, ValidationResult{Environment: []string{env}, IsValid: false, Message: errList})
+				VResult = append(VResult, ValidationResult{Environment: env, IsValid: false, Message: errList})
 			}
 		}
 	}

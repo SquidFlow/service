@@ -9,7 +9,7 @@ import (
 )
 
 func CloneSubModule(url string, refname string) error {
-	
+
 	os.RemoveAll("/tmp/platform")
 	publicKeys, err := ssh.NewPublicKeysFromFile("git", "/tmp/repo.pem", "")
 
@@ -34,16 +34,19 @@ func CloneSubModule(url string, refname string) error {
 		log.Info(err)
 		return err
 	}
-	sub, err := w.Submodule("manifest")
+	subs, err := w.Submodules()
 	if err != nil {
 		log.Info(err)
 		return err
 	}
-	_, err = sub.Repository()
-	if err != nil {
-		log.Info(err)
-		return err
+	for _, sub := range subs {
+		_, err = sub.Repository()
+		if err != nil {
+			log.Info(err)
+			return err
+		}
 	}
+
 	return nil
 
 }

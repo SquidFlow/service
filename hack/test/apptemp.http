@@ -1,13 +1,13 @@
 POST http://{{host}}:{{port}}/api/v1/applications/templates
 
 {
-  "name": "test-app-template",
-  "description": "test-app-template-description",
-  "path": "/apps/test-app",
+  "name": "mytest-app-template",
+  "description": "mytest-app-template-description",
+  "path": "/apps/mytest-app",
   "owner": "team-a",
   "source": {
     "type": "git",
-    "url": "https://github.com/example/test-app.git",
+    "url": "https://github.com/example/mytest-app.git",
     "targetRevision": "main"
   },
   "appType": "helm"

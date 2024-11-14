@@ -53,6 +53,7 @@ func ListApplicationTemplate(c *gin.Context) {
 	k8sClient, err := client.New(restConfig, client.Options{})
 
 	appTempList := apptempv1alpha1.ApplicationTemplateList{}
+
 	err = k8sClient.List(context.Background(), &appTempList, &client.ListOptions{})
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list application templates: %v", err)})
