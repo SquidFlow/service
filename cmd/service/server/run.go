@@ -201,6 +201,7 @@ func setupRouter() *gin.Engine {
 		applications.POST("", handler.CreateArgoApplication)
 		applications.GET("", handler.ListArgoApplications)
 		applications.POST("/sync", handler.SyncArgoApplication)
+		applications.POST("/dryruntemplate", handler.DryRun)
 		applications.POST("/dryrun", handler.DryRunArgoApplications)
 		applications.POST("/validate", handler.ValidateTemplate)
 
