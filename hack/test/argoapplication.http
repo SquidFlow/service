@@ -1,0 +1,7 @@
+POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+
+{
+    "templateSource":"git@github.com:h4-poc/platform.git",
+    "targetRevision":"main",
+    "path":"manifest/fluent-operator"
+}
