@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, MoreHorizontal, Trash2, FileText } from "lucide-react"
-import { secretStoreMockData as secretStores, SecretStore } from './securityMock';
+import {  SecretStore } from './securityMock';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Editor } from '@monaco-editor/react';
 import { load as yamlLoad } from 'js-yaml';
+import { useGetSecretStore } from '@/app/api';
 
 const getSecretStoreYAML = (store: SecretStore) => {
   const isCluster = store.type === 'ClusterSecretStore';
@@ -46,14 +47,14 @@ ${!isCluster ? '  namespace: default\n' : ''}spec:
 };
 
 // 添加导出函数用于获取可用的 SecretStore
-export const getAvailableSecretStores = () => {
-  return secretStores.filter(store => store.health.status === 'Healthy');
-};
+// export const getAvailableSecretStores = () => {
+//   return secretStoreList.filter(store => store.health.status === 'Healthy');
+// };
 
 // 添加导出函数用于获取特定 SecretStore 的详细信息
-export const getSecretStoreDetails = (name: string) => {
-  return secretStores.find(store => store.name === name);
-};
+// export const getSecretStoreDetails = (name: string) => {
+//   return secretStoreList.find(store => store.name === name);
+// };
 
 const defaultYAML = `apiVersion: external-secrets.io/v1beta1
 kind: SecretStore
@@ -72,6 +73,7 @@ spec:
           key: "token"`;
 
 export function Security({ activeSubMenu }: { activeSubMenu: string }) {
+  const { secretStoreList } = useGetSecretStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStores, setSelectedStores] = useState<number[]>([]);
   const [isYAMLDialogOpen, setIsYAMLDialogOpen] = useState(false);
@@ -83,7 +85,7 @@ export function Security({ activeSubMenu }: { activeSubMenu: string }) {
     error?: string;
   }>({ isValid: true });
 
-  const filteredSecretStores = secretStores.filter(store =>
+  const filteredSecretStores = secretStoreList.filter(store =>
     store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     store.provider.toLowerCase().includes(searchTerm.toLowerCase()) ||
     store.type.toLowerCase().includes(searchTerm.toLowerCase())
