@@ -66,8 +66,8 @@ import {
 	useGetSecretStore,
 	usePostValidate,
 	useDryRun,
+	useGetAppCode,
 } from "@/app/api";
-import { ApplicationTemplate } from "@/app/api"; // Import the type
 import { Environment, Kustomization } from "./applicationTemplateMock";
 
 SyntaxHighlighter.registerLanguage("yaml", yaml);
@@ -81,6 +81,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
 	const { availableTenants } = useGetAvailableTenants();
 	const { clusterList } = useGetClusterList();
 	const { secretStoreList } = useGetSecretStore();
+	const { appCodeData } = useGetAppCode();
 	const [ingresses, setIngresses] = useState<Ingress[]>([
 		{ name: "", service: "", port: "" },
 	]);
@@ -93,7 +94,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
 	});
 
 	const [selectedClusters, setSelectedClusters] = useState<string[]>([]);
-
+	const [selectedAppCode, setSelectedAppCode] = useState("");
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		console.log("Form submitted");
@@ -1065,14 +1066,19 @@ export function DeployForm({ onCancel }: DeployFormProps) {
 													</Tooltip>
 												</TooltipProvider>
 											</div>
-											<Select>
+											<Select
+												value={selectedAppCode}
+												onValueChange={setSelectedAppCode}
+											>
 												<SelectTrigger id="appCode">
 													<SelectValue placeholder="Select app code" />
 												</SelectTrigger>
 												<SelectContent>
-													<SelectItem value="code1">Code 1</SelectItem>
-													<SelectItem value="code2">Code 2</SelectItem>
-													<SelectItem value="code3">Code 3</SelectItem>
+													{appCodeData.map((code) => (
+														<SelectItem key={code} value={code}>
+															{code}
+														</SelectItem>
+													))}
 												</SelectContent>
 											</Select>
 										</div>
