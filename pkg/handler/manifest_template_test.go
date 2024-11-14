@@ -7,6 +7,7 @@ import (
 	"os"
 	"sigs.k8s.io/kustomize/kustomize/v5/commands/build"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
+	"strings"
 	"testing"
 )
 
@@ -42,4 +43,32 @@ func Test_Kubeconform(t *testing.T) {
 func Test_Remove(t *testing.T) {
 	err := os.RemoveAll("/tmp/platform")
 	fmt.Println(err)
+}
+
+func Test_Path(t *testing.T) {
+	path := "manifest/fluent-operator"
+	strList := strings.Split(path, "/")
+	app := strList[len(strList)-1]
+	overlayPath := fmt.Sprintf("/tmp/platform/overlays/app/%s", app)
+	entries, err := os.ReadDir(overlayPath)
+	env := map[string]bool{
+		"sit":  true,
+		"sit1": true,
+		"sit2": true,
+		"uat":  true,
+		"uat1": true,
+		"uat2": true,
+	}
+	if err != nil {
+		fmt.Println(err)
+	}
+	for _, e := range entries {
+		if e.Type().IsDir() {
+			if env[e.Name()] {
+				fmt.Println(e.Name())
+			}
+		}
+
+	}
+
 }

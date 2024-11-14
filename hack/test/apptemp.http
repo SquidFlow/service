@@ -7,7 +7,7 @@ POST http://{{host}}:{{port}}/api/v1/applications/templates
   "owner": "team-a",
   "source": {
     "type": "git",
-    "url": "https://github.com/example/test-app.git",
+    "url": "https://github.com/example/mytest-app.git",
     "targetRevision": "main"
   },
   "appType": "helm"

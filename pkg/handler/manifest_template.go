@@ -22,7 +22,7 @@ func Helm_Templating(app string, env string) error {
 	if err != nil {
 		return err
 	}
-	currentMap, err := util.Yaml2Maps(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/values.yaml", env, app))
+	currentMap, err := util.Yaml2Maps(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/values.yaml", app, env))
 
 	result, err := helm.Template(ctx, helm.TemplateConfig{
 		Chart:       chart,
@@ -37,7 +37,7 @@ func Helm_Templating(app string, env string) error {
 	if err != nil {
 		return err
 	}
-	err = util.WriteFile(result, fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/manifest.yaml", env, app))
+	err = util.WriteFile(result, fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/manifest.yaml", app, env))
 	if err != nil {
 		return err
 	}
@@ -48,10 +48,10 @@ func KustomizeBuildInOverlay(app string, env string) error {
 	fSys := filesys.MakeFsOnDisk()
 	buffy := new(bytes.Buffer)
 	cmd := build.NewCmdBuild(fSys, build.MakeHelp("foo", "bar"), buffy)
-	if err := cmd.RunE(cmd, []string{fmt.Sprintf("/tmp/platform/overlays/app/%s/%s", env, app)}); err != nil {
+	if err := cmd.RunE(cmd, []string{fmt.Sprintf("/tmp/platform/overlays/app/%s/%s", app, env)}); err != nil {
 		return err
 	}
-	err := util.WriteFile(buffy.String(), fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", env, app))
+	err := util.WriteFile(buffy.String(), fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func KustomizeBuildInManifest(app string, env string) error {
 	if err := cmd.RunE(cmd, []string{fmt.Sprintf("/tmp/platform/manifest/%s", app)}); err != nil {
 		return err
 	}
-	err := util.WriteFile(buffy.String(), fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/manifest.yaml", env, app))
+	err := util.WriteFile(buffy.String(), fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/manifest.yaml", app, env))
 	if err != nil {
 		return err
 	}
