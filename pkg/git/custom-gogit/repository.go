@@ -5,6 +5,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	log "github.com/sirupsen/logrus"
+	ssh2 "golang.org/x/crypto/ssh"
 	"os"
 )
 
@@ -12,7 +13,7 @@ func CloneSubModule(url string, refname string) error {
 
 	os.RemoveAll("/tmp/platform")
 	publicKeys, err := ssh.NewPublicKeysFromFile("git", "/tmp/repo.pem", "")
-
+	publicKeys.HostKeyCallback = ssh2.InsecureIgnoreHostKey()
 	if err != nil {
 		log.Info(err)
 		return err
