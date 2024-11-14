@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,13 @@ type SecretStoreCreateReq struct {
 	SecretStoreYaml string `json:"secret_store_yaml"`
 }
 
+type SecretStoreCreateResponse struct {
+	Name    string `json:"name"`
+	ID      string `json:"id"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 func CreateSecretStore(c *gin.Context) {
 	var req SecretStoreCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -28,7 +36,6 @@ func CreateSecretStore(c *gin.Context) {
 		return
 	}
 
-	// SecretStoreYaml
 	want := esv1beta1.SecretStore{}
 	err := yaml.Unmarshal([]byte(req.SecretStoreYaml), &want)
 	if err != nil {
@@ -46,9 +53,26 @@ func CreateSecretStore(c *gin.Context) {
 		return
 	}
 
+	if want.Annotations != nil && want.Annotations["h4-poc.github.io/id"] != "" {
+		c.JSON(400, gin.H{"error": "id not allow set via client"})
+		return
+	}
+	if want.Annotations == nil {
+		want.Annotations = make(map[string]string)
+	}
+	want.Annotations["h4-poc.github.io/last-synced"] = time.Now().Format(time.RFC3339)
+	want.Annotations["h4-poc.github.io/created-at"] = time.Now().Format(time.RFC3339)
+	want.Annotations["h4-poc.github.io/updated-at"] = time.Now().Format(time.RFC3339)
+	want.Annotations["h4-poc.github.io/id"] = getNewId()
+
+	log.G().WithFields(log.Fields{
+		"id": want.Annotations["h4-poc.github.io/id"],
+	}).Debug("generated id for secret store")
+
 	log.G().WithFields(log.Fields{
 		"name":          want.Name,
 		"namespace":     want.Namespace,
+		"annotations":   want.Annotations,
 		"vault_auth":    want.Spec.Provider.Vault.Auth,
 		"vault_server":  want.Spec.Provider.Vault.Server,
 		"vault_path":    want.Spec.Provider.Vault.Path,
@@ -66,28 +90,29 @@ func CreateSecretStore(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	if err := createExternalSecret(context.Background(), &want, &AppTemplateCreateOptions{
-		CloneOpts: cloneOpts,
-	}); err != nil {
+	if err := writeSecretStore2Repo(context.Background(), &want, cloneOpts, false); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create external secret: %v", err)})
 		return
 	}
 
-	c.JSON(201, gin.H{
-		"name":    want.Name,
-		"message": "SecretStore created successfully",
+	c.JSON(201, SecretStoreCreateResponse{
+		Name:    want.Name,
+		ID:      want.Annotations["h4-poc.github.io/id"],
+		Success: true,
+		Message: "SecretStore created successfully",
 	})
 }
 
 // create the external secret to gitops repo
-func createExternalSecret(ctx context.Context, ss *esv1beta1.SecretStore, opts *AppTemplateCreateOptions) error {
-	var (
-		err error
-	)
+func writeSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
+	log.G().WithFields(log.Fields{
+		"name":      ss.Name,
+		"id":        ss.Annotations["h4-poc.github.io/id"],
+		"cloneOpts": cloneOpts,
+		"force":     force,
+	}).Debug("clone options")
 
-	log.G().WithField("cloneOpts", opts.CloneOpts).Debug("clone options")
-
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+	r, repofs, err := prepareRepo(ctx, cloneOpts, "")
 	if err != nil {
 		log.G().WithError(err).Error("failed to prepare repo")
 		return err
@@ -95,19 +120,32 @@ func createExternalSecret(ctx context.Context, ss *esv1beta1.SecretStore, opts *
 
 	ssYaml, err := yaml.Marshal(ss)
 	if err != nil {
+		log.G().WithError(err).Error("failed to marshal secret store")
 		return err
 	}
 
-	ssExists := repofs.ExistsOrDie(repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, ss.GetName()+".yaml"))
-	if ssExists {
+	ssExists := repofs.ExistsOrDie(
+		repofs.Join(
+			store.Default.BootsrtrapDir,
+			store.Default.ClusterResourcesDir,
+			store.Default.ClusterContextName,
+			fmt.Sprintf("ss-%s.yaml", ss.Annotations["h4-poc.github.io/id"]),
+		),
+	)
+	if ssExists && !force {
 		return fmt.Errorf("secret store '%s' already exists", ss.GetName())
 	}
 
 	bulkWrites := []fs.BulkWriteRequest{}
 	bulkWrites = append(bulkWrites, fs.BulkWriteRequest{
-		Filename: repofs.Join(store.Default.BootsrtrapDir, store.Default.ClusterResourcesDir, store.Default.ClusterContextName, ss.GetName()+".yaml"),
-		Data:     util.JoinManifests(ssYaml),
-		ErrMsg:   "failed to create secret store file",
+		Filename: repofs.Join(
+			store.Default.BootsrtrapDir,
+			store.Default.ClusterResourcesDir,
+			store.Default.ClusterContextName,
+			fmt.Sprintf("ss-%s.yaml", ss.Annotations["h4-poc.github.io/id"]),
+		),
+		Data:   util.JoinManifests(ssYaml),
+		ErrMsg: "failed to create secret store file",
 	})
 
 	if err = fs.BulkWrite(repofs, bulkWrites...); err != nil {

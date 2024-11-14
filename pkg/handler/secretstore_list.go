@@ -1,108 +1,119 @@
 package handler
 
 import (
+	"context"
+	"fmt"
+
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
+	billyUtils "github.com/go-git/go-billy/v5/util"
+	"github.com/spf13/viper"
+
+	"github.com/h4-poc/service/pkg/fs"
+	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/store"
 )
 
-// SecretStoreHealth represents the health status of a secret store
-type SecretStoreHealth struct {
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
-}
-
-// SecretStore represents a secret store configuration
-type SecretStore struct {
-	ID          int               `json:"id"`
-	Name        string            `json:"name"`
-	Provider    string            `json:"provider"`
-	Type        string            `json:"type"`
-	Status      string            `json:"status"`
-	Path        string            `json:"path,omitempty"`
-	LastSynced  string            `json:"lastSynced"`
-	CreatedAt   string            `json:"createdAt"`
-	LastUpdated string            `json:"lastUpdated"`
-	Health      SecretStoreHealth `json:"health"`
+type ListSecretStoreResponse struct {
+	Success bool                `json:"success"`
+	Total   int                 `json:"total"`
+	Items   []SecretStoreDetail `json:"items"`
+	Message string              `json:"message"`
 }
 
 // ListSecretStore returns a list of secret stores
 func ListSecretStore(c *gin.Context) {
-	mockData := []SecretStore{
-		{
-			ID:          1,
-			Name:        "aws-secrets-manager",
-			Provider:    "AWS",
-			Type:        "SecretStore",
-			Status:      "Active",
-			Path:        "aws/data/applications/*",
-			LastSynced:  "2024-03-15T08:30:00Z",
-			CreatedAt:   "2024-01-15",
-			LastUpdated: "2024-03-15",
-			Health: SecretStoreHealth{
-				Status:  "Healthy",
-				Message: "Connected to AWS Secrets Manager",
-			},
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
 		},
-		{
-			ID:          2,
-			Name:        "vault-kv",
-			Provider:    "Vault",
-			Type:        "ClusterSecretStore",
-			Status:      "Active",
-			Path:        "secret/data/applications",
-			LastSynced:  "2024-03-15T08:25:00Z",
-			CreatedAt:   "2024-01-20",
-			LastUpdated: "2024-03-15",
-			Health: SecretStoreHealth{
-				Status:  "Healthy",
-				Message: "Connected to Vault server",
-			},
-		},
-		{
-			ID:          3,
-			Name:        "azure-key-vault",
-			Provider:    "Azure",
-			Type:        "SecretStore",
-			Status:      "Active",
-			Path:        "azure/data/certificates",
-			LastSynced:  "2024-03-15T08:20:00Z",
-			CreatedAt:   "2024-02-01",
-			LastUpdated: "2024-03-15",
-			Health: SecretStoreHealth{
-				Status:  "Warning",
-				Message: "High latency detected",
-			},
-		},
-		{
-			ID:          4,
-			Name:        "gcp-secret-manager",
-			Provider:    "GCP",
-			Type:        "ClusterSecretStore",
-			Status:      "Active",
-			Path:        "gcp/data/projects/*/secrets",
-			LastSynced:  "2024-03-15T08:15:00Z",
-			CreatedAt:   "2024-02-15",
-			LastUpdated: "2024-03-15",
-			Health: SecretStoreHealth{
-				Status:  "Healthy",
-				Message: "Connected to GCP Secret Manager",
-			},
-		},
-		{
-			ID:          5,
-			Name:        "cyberark-conjur",
-			Provider:    "CyberArk",
-			Type:        "SecretStore",
-			Status:      "Error",
-			Path:        "cyberark/data/apps/credentials",
-			LastSynced:  "2024-03-15T07:00:00Z",
-			CreatedAt:   "2024-03-01",
-			LastUpdated: "2024-03-15",
-			Health: SecretStoreHealth{
-				Status:  "Error",
-				Message: "Authentication failed",
-			},
-		},
+		CloneForWrite: false,
+	}
+	cloneOpts.Parse()
+
+	secretStores, err := RunListSecretStore(context.Background(), &SecretStoreListOptions{
+		CloneOpts: cloneOpts,
+	})
+	if err != nil {
+		log.G().Errorf("Failed to list secret stores: %v", err)
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list secret stores: %v", err)})
+		return
 	}
 
-	c.JSON(200, mockData)
+	c.JSON(200, ListSecretStoreResponse{
+		Success: true,
+		Total:   len(secretStores),
+		Items:   secretStores,
+		Message: "secret stores retrieved successfully",
+	})
+}
+
+type SecretStoreListOptions struct {
+	CloneOpts *git.CloneOptions
+}
+
+func RunListSecretStore(ctx context.Context, opts *SecretStoreListOptions) ([]SecretStoreDetail, error) {
+	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	matches, err := billyUtils.Glob(repofs, repofs.Join(
+		store.Default.BootsrtrapDir,
+		store.Default.ClusterResourcesDir,
+		store.Default.ClusterContextName,
+		"ss-*.yaml",
+	))
+	if err != nil {
+		return nil, err
+	}
+
+	var secretStores []SecretStoreDetail
+
+	for _, file := range matches {
+		log.G().WithField("file", file).Debug("Found secret store")
+
+		secretStore := &esv1beta1.SecretStore{}
+		if err := repofs.ReadYamls(file, secretStore); err != nil {
+			log.G().Warnf("Failed to read secret store from %s: %v", file, err)
+			continue
+		}
+
+		if secretStore.Kind != "SecretStore" {
+			log.G().Warnf("Skip %s: not a SecretStore", file)
+			continue
+		}
+
+		log.G().WithFields(log.Fields{
+			"id":       secretStore.Annotations["h4-poc.github.io/id"],
+			"name":     secretStore.Name,
+			"provider": "vault",
+		}).Debug("Found secret store")
+
+		detail := SecretStoreDetail{
+			ID:          secretStore.Annotations["h4-poc.github.io/id"],
+			Name:        secretStore.Name,
+			Provider:    "vault",
+			Type:        "SecretStore",
+			Status:      "Active",
+			Path:        *secretStore.Spec.Provider.Vault.Path,
+			LastSynced:  secretStore.Annotations["h4-poc.github.io/last-synced"],
+			CreatedAt:   secretStore.Annotations["h4-poc.github.io/created-at"],
+			LastUpdated: secretStore.Annotations["h4-poc.github.io/updated-at"],
+			Environment: []string{"sit", "uat", "prod"},
+			Health: SecretStoreHealth{
+				Status:  "Healthy",
+				Message: "Secret store is operating normally",
+			},
+		}
+
+		secretStores = append(secretStores, detail)
+	}
+
+	return secretStores, nil
 }

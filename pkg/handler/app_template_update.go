@@ -134,7 +134,7 @@ func UpdateApplicationTemplate(c *gin.Context) {
 		}
 	}
 
-	err = WriteAppTemplateToRepo(
+	err = writeAppTemplate2Repo(
 		context.Background(),
 		template,
 		&AppTemplateCreateOptions{

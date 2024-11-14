@@ -65,7 +65,7 @@ func CreateApplicationTemplate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	err = WriteAppTemplateToRepo(
+	err = writeAppTemplate2Repo(
 		context.Background(),
 		argocdArgoTemplate,
 		&AppTemplateCreateOptions{
@@ -169,7 +169,7 @@ func generateApplicationTemplate(ctx context.Context, userReq *CreateApplication
 	return template, nil
 }
 
-func WriteAppTemplateToRepo(ctx context.Context, appTemplate *apptempv1alpha1.ApplicationTemplate, opts *AppTemplateCreateOptions) error {
+func writeAppTemplate2Repo(ctx context.Context, appTemplate *apptempv1alpha1.ApplicationTemplate, opts *AppTemplateCreateOptions) error {
 	var (
 		err error
 	)

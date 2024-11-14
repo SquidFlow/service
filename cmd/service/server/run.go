@@ -206,7 +206,7 @@ func setupRouter() *gin.Engine {
 		applications.POST("/dryrun", handler.DryRunArgoApplications)
 		applications.POST("/validate", handler.ValidateTemplate)
 
-		app := applications.Group("/:appName")
+		app := applications.Group("/:id")
 		{
 			app.GET("", handler.DescribeArgoApplications)
 			app.PATCH("", handler.UpdateArgoApplication)
@@ -233,8 +233,9 @@ func setupRouter() *gin.Engine {
 		{
 			secretStore.POST("", handler.CreateSecretStore)
 			secretStore.GET("", handler.ListSecretStore)
-			secretStoreOne := secretStore.Group("/:name")
+			secretStoreOne := secretStore.Group("/:id")
 			{
+				secretStoreOne.GET("", handler.DescribeSecretStore)
 				secretStoreOne.PATCH("", handler.UpdateSecretStore)
 				secretStoreOne.DELETE("", handler.DeleteSecretStore)
 			}

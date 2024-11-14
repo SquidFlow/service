@@ -1,43 +1,114 @@
 package handler
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/gin-gonic/gin"
-	"sigs.k8s.io/yaml"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/viper"
+
+	"github.com/h4-poc/service/pkg/fs"
+	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/store"
 )
 
-// SecretStoreUpdateRequest represents the update request with YAML content
 type SecretStoreUpdateRequest struct {
-	YAML string `json:"yaml" binding:"required"`
+	Name    string                        `json:"name,omitempty"`
+	Path    string                        `json:"path,omitempty"`
+	Auth    *esv1beta1.VaultAuth          `json:"auth,omitempty"`
+	Server  string                        `json:"server,omitempty"`
+	Version esv1beta1.VaultKVStoreVersion `json:"version,omitempty"`
 }
 
-// UpdateSecretStore handles the update of a SecretStore configuration
-func UpdateSecretStore(c *gin.Context) {
-	var req SecretStoreUpdateRequest
+type SecretStoreUpdateResponse struct {
+	Item    SecretStoreDetail `json:"item"`
+	Success bool              `json:"success"`
+	Message string            `json:"message"`
+}
 
-	// Parse request JSON
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request format: %v", err)})
+func UpdateSecretStore(c *gin.Context) {
+	secretStoreID := c.Param("id")
+	if secretStoreID == "" {
+		c.JSON(400, gin.H{"error": "secret store ID is required"})
 		return
 	}
 
-	// Validate YAML by unmarshaling into SecretStore struct
-	secretStore := &esv1beta1.SecretStore{}
-	if err := yaml.Unmarshal([]byte(req.YAML), secretStore); err != nil {
-		// Try ClusterSecretStore if SecretStore fails
-		clusterSecretStore := &esv1beta1.ClusterSecretStore{}
-		if err := yaml.Unmarshal([]byte(req.YAML), clusterSecretStore); err != nil {
-			c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid SecretStore YAML: %v", err)})
-			return
-		}
+	var req SecretStoreUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		return
 	}
 
-	// TODO: Implement actual update logic here
-	// For now, just return success response
-	c.JSON(200, gin.H{
-		"message": "SecretStore updated successfully",
-		"yaml":    secretStore.Name,
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: true,
+	}
+	cloneOpts.Parse()
+
+	_, repofs, err := prepareRepo(context.Background(), cloneOpts, "")
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to prepare repo: %v", err)})
+		return
+	}
+
+	secretStorePath := repofs.Join(
+		store.Default.BootsrtrapDir,
+		store.Default.ClusterResourcesDir,
+		store.Default.ClusterContextName,
+		fmt.Sprintf("ss-%s.yaml", secretStoreID),
+	)
+
+	secretStore := &esv1beta1.SecretStore{}
+	if err := repofs.ReadYamls(secretStorePath, secretStore); err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to read secret store: %v", err)})
+		return
+	}
+
+	if req.Name != "" {
+		secretStore.Name = req.Name
+	}
+	if req.Path != "" {
+		secretStore.Spec.Provider.Vault.Path = &req.Path
+	}
+	if req.Auth != nil {
+		secretStore.Spec.Provider.Vault.Auth = *req.Auth
+	}
+	if req.Server != "" {
+		secretStore.Spec.Provider.Vault.Server = req.Server
+	}
+
+	secretStore.Annotations["h4-poc.github.io/updated-at"] = time.Now().Format(time.RFC3339)
+
+	if err := writeSecretStore2Repo(context.Background(), secretStore, cloneOpts, true); err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to write secret store to repo: %v", err)})
+		return
+	}
+
+	c.JSON(200, SecretStoreUpdateResponse{
+		Item: SecretStoreDetail{
+			ID:          secretStore.Annotations["h4-poc.github.io/id"],
+			Name:        secretStore.Name,
+			Provider:    "vault",
+			Type:        "SecretStore",
+			Status:      "Active",
+			Path:        *secretStore.Spec.Provider.Vault.Path,
+			LastSynced:  secretStore.Annotations["h4-poc.github.io/last-synced"],
+			CreatedAt:   secretStore.Annotations["h4-poc.github.io/created-at"],
+			LastUpdated: secretStore.Annotations["h4-poc.github.io/updated-at"],
+			Health: SecretStoreHealth{
+				Status:  "Healthy",
+				Message: "Secret store updated successfully",
+			},
+		},
+		Success: true,
+		Message: "secret store updated successfully",
 	})
 }
