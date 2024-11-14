@@ -50,6 +50,7 @@ import { useApplications } from "@/app/api";
 
 const getStatusIcon = (status: string) => {
 	switch (status) {
+		case "Succeeded":
 		case "Synced":
 			return <CheckCircle className="h-4 w-4 text-green-500" />;
 		case "OutOfSync":
@@ -63,8 +64,8 @@ const getStatusIcon = (status: string) => {
 	}
 };
 
-const getHealthIcon = (health: ExtendedApplication["health"]) => {
-	switch (health.status) {
+const getHealthIcon = (health: string) => {
+	switch (health) {
 		case "Healthy":
 			return <CheckCircle className="h-4 w-4 text-green-500" />;
 		case "Degraded":
@@ -172,14 +173,12 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 											<TooltipTrigger>
 												<div className="flex items-center space-x-2">
 													{getHealthIcon(app.health)}
-													<span className="font-medium">
-														{app.health.status}
-													</span>
+													<span className="font-medium">{app.health}</span>
 												</div>
 											</TooltipTrigger>
-											<TooltipContent>
-												<p>{app.health.message}</p>
-											</TooltipContent>
+											{/* <TooltipContent>
+                        <p>{app.health.message}</p>
+                      </TooltipContent> */}
 										</Tooltip>
 									</TooltipProvider>
 								</div>
@@ -190,7 +189,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 										Deployed Environments
 									</p>
 									<div className="flex flex-wrap gap-2">
-										{app.deployedEnvironments?.map((env) => (
+										{app.deployed_environments?.map((env) => (
 											<span
 												key={env}
 												className="px-2 py-1 text-sm rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
@@ -317,16 +316,16 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<Tabs defaultValue={app.deployedEnvironments?.[0]}>
+							<Tabs defaultValue={app.deployed_environments?.[0]}>
 								<TabsList className="grid w-full grid-cols-3 mb-6">
-									{app.deployedEnvironments?.map((env) => (
+									{app.deployed_environments?.map((env) => (
 										<TabsTrigger key={env} value={env}>
 											{env}
 										</TabsTrigger>
 									))}
 								</TabsList>
 
-								{app.deployedEnvironments?.map((env) => (
+								{app.deployed_environments?.map((env) => (
 									<TabsContent key={env} value={env} className="space-y-6">
 										<div className="space-y-2">
 											<div className="flex justify-between items-center text-sm">
@@ -773,11 +772,11 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 									<TableCell className="py-4">
 										<Badge
 											variant={
-												app.health.status === "Healthy"
+												app.health === "Healthy"
 													? "default"
-													: app.health.status === "Degraded"
+													: app.health === "Degraded"
 														? "destructive"
-														: app.health.status === "Progressing"
+														: app.health === "Progressing"
 															? "secondary"
 															: "outline"
 											}
@@ -785,7 +784,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 										>
 											<div className="flex items-center space-x-2">
 												{getHealthIcon(app.health)}
-												<span>{app.health.status}</span>
+												<span>{app.health}</span>
 											</div>
 										</Badge>
 									</TableCell>
@@ -806,7 +805,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 									</TableCell>
 									<TableCell className="py-4">
 										<div className="flex flex-wrap gap-1.5">
-											{app.deployedEnvironments?.map((env: any) => (
+											{app.deployed_environments?.map((env: any) => (
 												<Badge
 													key={env}
 													variant="outline"

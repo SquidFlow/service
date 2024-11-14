@@ -18,7 +18,7 @@ import {
 	Trash2,
 	ChevronRight,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+// import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
 	Environment,
 	// kustomizationsData,
@@ -36,7 +36,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { useKustomizationsData, usePostValidate } from "@/app/api";
+import {
+	useDeleteTemplate,
+	useGetTemplateDetail,
+	useKustomizationsData,
+	usePostValidate,
+} from "@/app/api";
 
 // const mockPathEnvironments: Record<string, string[]> = {
 //   production: ['SIT', 'UAT', 'PRD'],
@@ -47,7 +52,10 @@ import { useKustomizationsData, usePostValidate } from "@/app/api";
 // };
 
 export function ApplicationTemplate() {
-	const { kustomizationsData } = useKustomizationsData();
+	const { kustomizationsData, triggerGetKustomizationsData } =
+		useKustomizationsData();
+	const { triggerGetTemplateDetail } = useGetTemplateDetail();
+	const { deleteTemplates } = useDeleteTemplate();
 	const { triggerValidate } = usePostValidate();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedAppTemplate, setSelectedAppTemplate] =
@@ -73,7 +81,7 @@ export function ApplicationTemplate() {
 	});
 
 	// 添加选中项的状态
-	const [selectedItems, setSelectedItems] = useState<number[]>([]);
+	const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
 	// 在组件顶部添加新的状态
 	const [expandedSections, setExpandedSections] = useState<{
@@ -146,14 +154,14 @@ export function ApplicationTemplate() {
 										Owner
 									</p>
 									<div className="mt-1 flex items-center space-x-2">
-										<Avatar className="h-6 w-6 bg-blue-100 dark:bg-blue-900">
+										{/* <Avatar className="h-6 w-6 bg-blue-100 dark:bg-blue-900">
 											<AvatarFallback className="text-xs text-blue-700 dark:text-blue-300">
 												{kustomization.owner
 													.split(" ")
 													.map((n) => n[0])
 													.join("")}
 											</AvatarFallback>
-										</Avatar>
+										</Avatar> */}
 										<span className="font-medium">{kustomization.owner}</span>
 									</div>
 								</div>
@@ -640,7 +648,14 @@ export function ApplicationTemplate() {
 	const renderCreateDialog = () => {
 		return (
 			<Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-				<DialogContent className="sm:max-w-[800px]">
+				<DialogContent
+					className="sm:max-w-[800px]"
+					style={{
+						overflow: "auto",
+						maxHeight: "600px",
+						WebkitOverflowScrolling: "touch",
+					}}
+				>
 					<DialogHeader>
 						<DialogTitle className="text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
 							Create Application Template
@@ -956,7 +971,7 @@ export function ApplicationTemplate() {
 	};
 
 	// 添加选择处理函数
-	const handleSelect = (id: number) => {
+	const handleSelect = (id: string) => {
 		setSelectedItems((prev) => {
 			if (prev.includes(id)) {
 				return prev.filter((item) => item !== id);
@@ -972,6 +987,14 @@ export function ApplicationTemplate() {
 		} else {
 			setSelectedItems(filteredKustomizations.map((k) => k.id));
 		}
+	};
+
+	const handleDelete = async () => {
+		try {
+			const result = await deleteTemplates(selectedItems);
+			await triggerGetKustomizationsData();
+			console.log(result);
+		} catch (error) {}
 	};
 
 	// 修改 validateTemplate 函数
@@ -1060,23 +1083,23 @@ export function ApplicationTemplate() {
 		// }
 	};
 
-	const detectEnvironments = (path: string): string[] => {
-		// 这里是示例逻辑，���际实现时需要根据���的文件结构来检测
-		const envPatterns = {
-			dev: /(dev|development)/i,
-			staging: /(staging|uat)/i,
-			prod: /(prod|production)/i,
-		};
+	// const detectEnvironments = (path: string): string[] => {
+	// 	// 这里是示例逻辑，���际实现时需要根据���的文件结构来检测
+	// 	const envPatterns = {
+	// 		dev: /(dev|development)/i,
+	// 		staging: /(staging|uat)/i,
+	// 		prod: /(prod|production)/i,
+	// 	};
 
-		const detectedEnvs: string[] = [];
-		Object.entries(envPatterns).forEach(([env, pattern]) => {
-			if (pattern.test(path)) {
-				detectedEnvs.push(env);
-			}
-		});
+	// 	const detectedEnvs: string[] = [];
+	// 	Object.entries(envPatterns).forEach(([env, pattern]) => {
+	// 		if (pattern.test(path)) {
+	// 			detectedEnvs.push(env);
+	// 		}
+	// 	});
 
-		return detectedEnvs;
-	};
+	// 	return detectedEnvs;
+	// };
 
 	if (selectedAppTemplate) {
 		return renderApplicationTemplateDetail(selectedAppTemplate);
@@ -1108,7 +1131,7 @@ export function ApplicationTemplate() {
 						variant="destructive"
 						className="hover:bg-red-600"
 						disabled={selectedItems.length === 0}
-						onClick={() => console.log("Delete selected:", selectedItems)}
+						onClick={handleDelete}
 					>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Delete
@@ -1177,7 +1200,16 @@ export function ApplicationTemplate() {
 									<TableCell>
 										<Button
 											variant="link"
-											onClick={() => setSelectedAppTemplate(kustomization)}
+											onClick={async () => {
+												try {
+													const detail = await triggerGetTemplateDetail({
+														id: kustomization.id,
+													});
+													setSelectedAppTemplate(detail);
+												} catch (error) {
+													console.log(error);
+												}
+											}}
 											className="text-sm"
 										>
 											{kustomization.name}
@@ -1206,14 +1238,14 @@ export function ApplicationTemplate() {
 									</TableCell>
 									<TableCell>
 										<div className="flex items-center space-x-2">
-											<Avatar className="h-6 w-6">
+											{/* <Avatar className="h-6 w-6">
 												<AvatarFallback className="bg-primary/10 text-xs">
 													{kustomization.owner
 														.split(" ")
 														.map((n) => n[0])
 														.join("")}
 												</AvatarFallback>
-											</Avatar>
+											</Avatar> */}
 											<span className="text-sm">{kustomization.owner}</span>
 										</div>
 									</TableCell>

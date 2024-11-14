@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import requestor from "@/requestor";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SecretStore } from "./dashboard/components/securityMock";
 import { ClusterInfo } from "./dashboard/components/destinationClusterMock";
 import { TenantInfo } from "./dashboard/components/mockData";
@@ -11,6 +11,7 @@ const TEMPLATES = "/api/v1/applications/templates";
 const TENANTS = "/api/v1/tenants";
 const CLUSTER = "/api/v1/destinationCluster";
 const SECRETSTORE = "/api/v1/security/externalsecrets/secretstore";
+const APPCODE = "/api/v1/appcode";
 export interface ApplicationTemplate {
 	id: number;
 	name: string;
@@ -65,11 +66,8 @@ export interface ApplicationTemplate {
 			timestamp: string;
 		};
 	};
-	deployedEnvironments: string[];
-	health: {
-		status: "Healthy" | "Degraded" | "Progressing" | "Suspended" | "Missing";
-		message?: string;
-	};
+	deployed_environments: string[];
+	health: "Healthy" | "Degraded" | "Progressing" | "Suspended" | "Missing";
 	argocdUrl: string;
 	events: Array<{
 		time: string;
@@ -133,15 +131,38 @@ export const useApplications = (params: ApplicationParams) => {
 };
 
 export const useKustomizationsData = () => {
-	const { data, error } = useSWR(TEMPLATES, async (url: string) => {
-		const response = await requestor.get(url);
-		return response.data;
-	});
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+	const [kustomizationsData, setKustomizationsData] = useState<Kustomization[]>(
+		[]
+	);
 
-	const kustomizationsData: Kustomization[] = data?.items || [];
+	const triggerGetKustomizationsData = async () => {
+		setIsLoading(true);
+		setError(null);
+		try {
+			const response = await requestor.get(TEMPLATES);
+			// 假设接口返回的数据结构中有个类似items的数组存放Kustomization相关数据，根据实际情况调整
+			const kustomizations = response.data.items || [];
+			setKustomizationsData(kustomizations);
+			return kustomizations;
+		} catch (err) {
+			setError(err instanceof Error ? err : new Error("Unknown error"));
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	// 使用useEffect在组件挂载时（依赖项为空数组[]）触发数据获取操作
+	useEffect(() => {
+		triggerGetKustomizationsData();
+	}, []);
+
 	return {
 		kustomizationsData,
 		error,
+		isLoading,
+		triggerGetKustomizationsData,
 	};
 };
 
@@ -172,6 +193,33 @@ export const usePostValidate = () => {
 		error,
 		isValidating,
 		triggerValidate,
+	};
+};
+
+export const useGetTemplateDetail = () => {
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+	const [data, setData] = useState<unknown | null>(null);
+
+	const triggerGetTemplateDetail = async (payload: { id: string }) => {
+		setIsLoading(true);
+		setError(null);
+		try {
+			const response = await requestor.get(`${TEMPLATES}/${payload.id}`);
+			setData(response.data);
+			return response.data.item; // 返回接口数据
+		} catch (err) {
+			setError(err instanceof Error ? err : new Error("Unknown error"));
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	return {
+		data,
+		error,
+		isLoading,
+		triggerGetTemplateDetail,
 	};
 };
 
@@ -244,5 +292,67 @@ export const useDryRun = () => {
 		error,
 		isLoading,
 		triggerDryRun,
+	};
+};
+
+// useDeleteTemplate 自定义钩子函数，支持传入数组批量删除模板
+export const useDeleteTemplate = () => {
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+	const [successCount, setSuccessCount] = useState(0); // 用于记录成功删除的模板数量
+
+	const deleteTemplates = async (templateIds: string[]) => {
+		setIsLoading(true);
+		setError(null);
+		setSuccessCount(0); // 在每次发起批量删除请求前，重置成功删除数量为 0
+		try {
+			for (const templateId of templateIds) {
+				await requestor.delete(`${TEMPLATES}/${templateId}`);
+				setSuccessCount((prevCount) => prevCount + 1); // 每成功删除一个，成功数量加 1
+			}
+			return successCount; // 返回成功删除的模板数量
+		} catch (err) {
+			setError(err instanceof Error ? err : new Error("Unknown error"));
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	return {
+		isLoading,
+		error,
+		successCount,
+		deleteTemplates,
+	};
+};
+
+export const useGetAppCode = () => {
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+	const [appCodeData, setAppCodeData] = useState([]);
+
+	const triggerGetAppCode = async () => {
+		setIsLoading(true);
+		setError(null);
+		try {
+			const response = await requestor.get(APPCODE);
+			setAppCodeData(response.data.appCodes);
+			return response.data;
+		} catch (err) {
+			setError(err instanceof Error ? err : new Error("Unknown error"));
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		triggerGetAppCode();
+	}, []);
+
+	return {
+		appCodeData,
+		error,
+		isLoading,
+		triggerGetAppCode,
 	};
 };
