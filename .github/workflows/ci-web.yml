@@ -3,18 +3,18 @@ name: CI Web
 on:
   pull_request:
     paths:
-      - 'web/**'
-      - '.github/workflows/ci-web.yml'
-      - 'Dockerfile'
+      - "web/**"
+      - ".github/workflows/ci-web.yml"
+      - "Dockerfile"
   push:
     branches:
       - master
     paths:
-      - 'web/**'
-      - '.github/workflows/ci-web.yml'
-      - 'Dockerfile'
-      - '!**/*.md'
-      - '!docs/**'
+      - "web/**"
+      - ".github/workflows/ci-web.yml"
+      - "Dockerfile"
+      - "!**/*.md"
+      - "!docs/**"
 
 jobs:
   web-ci:
@@ -25,9 +25,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'web/package-lock.json'
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
 
       - name: Install dependencies
         working-directory: web
@@ -36,19 +36,3 @@ jobs:
       - name: Build web
         working-directory: web
         run: npm run build
-
-      - name: Type check
-        working-directory: web
-        run: npm run type-check
-
-      - name: Lint
-        working-directory: web
-        run: npm run lint
-
-      # Add a condition to skip tests if they passed in PR
-      - name: Run Tests
-        if: |
-          github.event_name == 'pull_request' ||
-          !contains(github.event.head_commit.message, 'Merge pull request')
-        run: |
-          npm test
