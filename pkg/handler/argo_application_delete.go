@@ -7,11 +7,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/middleware"
 	"github.com/h4-poc/service/pkg/store"
 )
 
@@ -23,11 +26,26 @@ type AppDeleteOptions struct {
 }
 
 func DeleteArgoApplication(c *gin.Context) {
-	projectName := c.Query("project")
-	appName := c.Query("app")
+	username := c.GetString(middleware.UserNameKey)
+	tenant := c.GetString(middleware.TenantKey)
+	appName := c.Param("name")
 
-	if projectName == "" || appName == "" {
-		c.JSON(400, gin.H{"error": "Both project and app query parameters are required"})
+	log.G().WithFields(log.Fields{
+		"username": username,
+		"tenant":   tenant,
+		"appName":  appName,
+	}).Debug("delete argo application")
+
+	argoClient, err := kube.NewArgoCdClient()
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
+		return
+	}
+
+	applicationName := fmt.Sprintf("%s-%s", tenant, appName)
+	_, err = argoClient.Applications(store.Default.ArgoCDNamespace).Get(context.Background(), applicationName, metav1.GetOptions{})
+	if err != nil {
+		c.JSON(404, gin.H{"error": fmt.Sprintf("Application not found: %v", err)})
 		return
 	}
 
@@ -42,24 +60,20 @@ func DeleteArgoApplication(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	opts := &AppDeleteOptions{
+	if err := deleteApplication(context.Background(), &AppDeleteOptions{
 		CloneOpts:   cloneOpts,
-		ProjectName: projectName,
+		ProjectName: tenant,
 		AppName:     appName,
-		Global:      false, // Set to true if you want to delete the app globally
-	}
-
-	err := RunAppDelete(context.Background(), opts)
-	if err != nil {
-		log.Errorf("Failed to delete application: %v", err)
+		Global:      false,
+	}); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete application: %v", err)})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": fmt.Sprintf("Application '%s' deleted from project '%s'", appName, projectName)})
+	c.JSON(204, nil)
 }
 
-func RunAppDelete(ctx context.Context, opts *AppDeleteOptions) error {
+func deleteApplication(ctx context.Context, opts *AppDeleteOptions) error {
 	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
 	if err != nil {
 		return err
@@ -106,7 +120,7 @@ func RunAppDelete(ctx context.Context, opts *AppDeleteOptions) error {
 		return fmt.Errorf("failed to delete directory '%s': %w", dirToRemove, err)
 	}
 
-	log.Info("committing changes to gitops repo...")
+	log.G().Info("committing changes to gitops repo...")
 	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg}); err != nil {
 		return fmt.Errorf("failed to push to repo: %w", err)
 	}

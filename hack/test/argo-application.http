@@ -23,8 +23,8 @@ Authorization: Bearer username@tenant1
         "targetRevision": "main",
         "path": "/"
     },
-    "application_name": "demo2",
-    "tenant_name": "testing",
+    "application_name": "abc",
+    "tenant_name": "tenant1",
     "appcode": "edsf",
     "description": "this application description",
     "destination_clusters": {
@@ -49,19 +49,19 @@ Authorization: Bearer username@tenant1
 }
 
 ### get app with project
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
-### argocdapplications?project=testing&app=demo1
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1
+### argocdapplications/abcs
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/abcs
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 ### del app
-DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1
+DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/abcs
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1

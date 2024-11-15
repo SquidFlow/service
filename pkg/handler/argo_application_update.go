@@ -1,146 +1,146 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/viper"
+
+	"github.com/h4-poc/service/pkg/fs"
+	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/middleware"
 )
 
-// UpdateRequest represents the request structure for updating an application
-type UpdateRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Namespace   string                 `json:"namespace" binding:"required"`
-	Template    map[string]interface{} `json:"template" binding:"required"`
-	Clusters    []string               `json:"clusters" binding:"required"`
-	Description string                 `json:"description,omitempty"`
-	Parameters  map[string]interface{} `json:"parameters,omitempty"`
-	SyncOptions *SyncOptions           `json:"syncOptions,omitempty"`
+type ApplicationUpdate struct {
+	Description         string              `json:"description,omitempty"`
+	DestinationClusters DestinationClusters `json:"destination_clusters,omitempty"`
+	Ingress             *Ingress            `json:"ingress,omitempty"`
+	Security            *Security           `json:"security,omitempty"`
 }
 
-// SyncOptions represents the synchronization options for the application
-type SyncOptions struct {
-	Prune              bool `json:"prune"`
-	Force              bool `json:"force"`
-	ValidateOnly       bool `json:"validateOnly"`
-	ReplaceOnly        bool `json:"replaceOnly"`
-	CreateNamespace    bool `json:"createNamespace"`
-	ServerSideApply    bool `json:"serverSideApply"`
-	ApplyOutOfSyncOnly bool `json:"applyOutOfSyncOnly"`
+type UpdateOptions struct {
+	CloneOpts   *git.CloneOptions
+	ProjectName string
+	AppName     string
+	Username    string
+	UpdateReq   *ApplicationUpdate
+	KubeFactory kube.Factory
+	Annotations map[string]string
 }
 
-// UpdateResponse represents the response structure for an update operation
-type UpdateResponse struct {
-	Name            string    `json:"name"`
-	Namespace       string    `json:"namespace"`
-	Status          string    `json:"status"`
-	Message         string    `json:"message,omitempty"`
-	UpdatedAt       time.Time `json:"updatedAt"`
-	SyncedClusters  []string  `json:"syncedClusters"`
-	FailedClusters  []string  `json:"failedClusters,omitempty"`
-	ValidationError string    `json:"validationError,omitempty"`
-}
-
-// UpdateArgoApplication handles the update of an existing Argo CD application
 func UpdateArgoApplication(c *gin.Context) {
-	var req UpdateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+	username := c.GetString(middleware.UserNameKey)
+	tenant := c.GetString(middleware.TenantKey)
+	appName := c.Param("name")
+
+	log.G().WithFields(log.Fields{
+		"username": username,
+		"tenant":   tenant,
+		"appName":  appName,
+	}).Debug("update argo application")
+
+	var updateReq ApplicationUpdate
+	if err := c.BindJSON(&updateReq); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
 
-	exists, err := validateApplicationExists(req.Name, req.Namespace)
+	if err := validateUpdateRequest(&updateReq); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: true,
+	}
+	cloneOpts.Parse()
+
+	annotations := make(map[string]string)
+	if updateReq.Description != "" {
+		annotations["h4-poc.github.io/description"] = updateReq.Description
+	}
+	if updateReq.Ingress != nil {
+		annotations["h4-poc.github.io/ingress.host"] = updateReq.Ingress.Host
+		if updateReq.Ingress.TLS != nil {
+			annotations["h4-poc.github.io/ingress.tls.enabled"] = fmt.Sprintf("%v", updateReq.Ingress.TLS.Enabled)
+			annotations["h4-poc.github.io/ingress.tls.secretName"] = updateReq.Ingress.TLS.SecretName
+		}
+	}
+	if updateReq.Security != nil && updateReq.Security.ExternalSecret != nil {
+		annotations["h4-poc.github.io/security.external_secret.secret_store_ref.id"] = updateReq.Security.ExternalSecret.SecretStoreRef.ID
+	}
+	annotations["h4-poc.github.io/last-modified-by"] = username
+
+	updateOpts := &UpdateOptions{
+		CloneOpts:   cloneOpts,
+		ProjectName: tenant,
+		AppName:     appName,
+		Username:    username,
+		UpdateReq:   &updateReq,
+		KubeFactory: kube.NewFactory(),
+		Annotations: annotations,
+	}
+
+	if err := updateApplication(context.Background(), updateOpts); err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update application: %v", err)})
+		return
+	}
+
+	argoClient, err := kube.NewArgoCdClient()
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to validate application: %v", err)})
-		return
-	}
-	if !exists {
-		c.JSON(404, gin.H{"error": fmt.Sprintf("Application %s not found in namespace %s", req.Name, req.Namespace)})
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
 		return
 	}
 
-	if err := validateClusters(req.Clusters); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid clusters: %v", err)})
-		return
-	}
+	app, err := getApplicationDetail(context.Background(), &AppListOptions{
+		CloneOpts:    cloneOpts,
+		ProjectName:  tenant,
+		ArgoCDClient: argoClient,
+	}, appName)
 
-	if err := validateUpdateTemplate(req.Template); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid template: %v", err)})
-		return
-	}
-
-	response, err := performUpdate(&req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Update failed: %v", err)})
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get updated application details: %v", err)})
 		return
 	}
 
-	c.JSON(200, response)
+	c.JSON(200, gin.H{
+		"message":     "Application updated successfully",
+		"application": app,
+	})
 }
 
-// validateApplicationExists checks if the application exists
-func validateApplicationExists(name, namespace string) (bool, error) {
-	// TODO: Implement application existence check
-	// This should query Argo CD API to check if the application exists
-	return true, nil
-}
-
-// validateClusters validates the target clusters
-func validateClusters(clusters []string) error {
-	// TODO: Implement cluster validation
-	// This should check if all specified clusters are registered and available
+func updateApplication(ctx context.Context, opts *UpdateOptions) error {
 	return nil
 }
 
-// validateUpdateTemplate validates the update template
-func validateUpdateTemplate(template map[string]interface{}) error {
-	// TODO: Implement template validation
-	// This should validate the structure and content of the update template
-	return nil
-}
-
-// performUpdate executes the update operation
-func performUpdate(req *UpdateRequest) (*UpdateResponse, error) {
-	response := &UpdateResponse{
-		Name:           req.Name,
-		Namespace:      req.Namespace,
-		Status:         "InProgress",
-		UpdatedAt:      time.Now().UTC(),
-		SyncedClusters: make([]string, 0),
-		FailedClusters: make([]string, 0),
-	}
-
-	for _, cluster := range req.Clusters {
-		err := updateCluster(cluster, req)
-		if err != nil {
-			response.FailedClusters = append(response.FailedClusters, cluster)
-			response.Status = "PartiallySucceeded"
-		} else {
-			response.SyncedClusters = append(response.SyncedClusters, cluster)
+func validateUpdateRequest(update *ApplicationUpdate) error {
+	if update.Ingress != nil {
+		if err := validateIngress(update.Ingress); err != nil {
+			return fmt.Errorf("invalid ingress configuration: %w", err)
 		}
 	}
 
-	if len(response.FailedClusters) == 0 {
-		response.Status = "Succeeded"
-		response.Message = "Application updated successfully on all clusters"
-	} else if len(response.SyncedClusters) == 0 {
-		response.Status = "Failed"
-		response.Message = "Application update failed on all clusters"
-	} else {
-		response.Message = fmt.Sprintf("Application updated on %d/%d clusters",
-			len(response.SyncedClusters), len(req.Clusters))
+	if update.Security != nil {
+		if err := validateSecurity(update.Security); err != nil {
+			return fmt.Errorf("invalid security configuration: %w", err)
+		}
 	}
 
-	return response, nil
-}
+	if update.DestinationClusters.Clusters != nil {
+		if err := validateDestinationClusters(&update.DestinationClusters); err != nil {
+			return fmt.Errorf("invalid destination_clusters: %w", err)
+		}
+	}
 
-// updateCluster updates the application on a specific cluster
-func updateCluster(cluster string, req *UpdateRequest) error {
-	// TODO: Implement cluster-specific update logic
-	// This should:
-	// 1. Apply the template to the cluster
-	// 2. Handle sync options
-	// 3. Validate the result
-	// 4. Handle rollback if needed
 	return nil
 }

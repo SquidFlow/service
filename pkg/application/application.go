@@ -334,6 +334,7 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 	// create Overlay
 	overlayPath := appsfs.Join(appPath, "overlays", projectName)
 	overlayKustomizationPath := appsfs.Join(overlayPath, "kustomization.yaml")
+	log.G().Debugf("overlay path: %s", overlayKustomizationPath)
 	if appsfs.ExistsOrDie(overlayKustomizationPath) {
 		return ErrAppAlreadyInstalledOnProject
 	}

@@ -133,6 +133,11 @@ func CreateArgoApplication(c *gin.Context) {
 		return
 	}
 
+	if tenant != createReq.TenantName {
+		c.JSON(400, gin.H{"error": "tenant in request body does not match tenant in authorization header"})
+		return
+	}
+
 	if err := validateApplication(&createReq); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
@@ -167,11 +172,9 @@ func CreateArgoApplication(c *gin.Context) {
 			AppSpecifier:     createReq.ApplicationSource.URL,
 			InstallationMode: application.InstallationModeNormal,
 			DestServer:       "https://kubernetes.default.svc",
-			Labels: map[string]string{
-				"h4-poc.github.io/created-by": username,
-				"h4-poc.github.io/tenant":     tenant,
-			},
 			Annotations: map[string]string{
+				"h4-poc.github.io/created-by":  username,
+				"h4-poc.github.io/tenant":      tenant,
 				"h4-poc.github.io/description": createReq.Description,
 				"h4-poc.github.io/appcode":     createReq.AppCode,
 			},
@@ -194,8 +197,8 @@ func CreateArgoApplication(c *gin.Context) {
 		opt.createOpts.Annotations["security.external-secret.store-id"] = createReq.Security.ExternalSecret.SecretStoreRef.ID
 	}
 
+	// TODO: support multiple clusters
 	// for _, cluster := range createReq.DestinationClusters.Clusters {
-	// 	// TODO: get dest server from cluster
 	// 	opt.createOpts.DestServer = cluster
 
 	// 	if err := RunAppCreate(context.Background(), &opt); err != nil {

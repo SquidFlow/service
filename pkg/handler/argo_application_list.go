@@ -18,6 +18,7 @@ import (
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/middleware"
 	"github.com/h4-poc/service/pkg/store"
 )
 
@@ -33,34 +34,58 @@ type ResourceMetrics struct {
 	MemoryUsage string `json:"memory_usage"`
 }
 
-type AppListResponse struct {
-	ProjectName string              `json:"project_name"`
-	Apps        []AppDetailResponse `json:"apps"`
-}
+type (
+	ArgoApplicationListResponse struct {
+		Success bool                    `json:"success"`
+		Total   int                     `json:"total"`
+		Items   []ArgoApplicationDetail `json:"items"`
+	}
 
-type AppDetailResponse struct {
-	Name                 string          `json:"name"`
-	DestNamespace        string          `json:"dest_namespace"`
-	DestServer           string          `json:"dest_server"`
-	DeployedEnvironments []string        `json:"deployed_environments"`
-	RemoteRepo           string          `json:"remote_repo"`
-	Creator              string          `json:"creator"`
-	LastUpdater          string          `json:"last_updater"`
-	LastCommitID         string          `json:"last_commit_id"`
-	LastCommitLog        string          `json:"last_commit_message"`
-	PodCount             int             `json:"pod_count"`
-	SecretCount          int             `json:"secret_count"`
-	ResourceUsage        ResourceMetrics `json:"resource_usage"`
-	Status               string          `json:"status"`
-	Health               string          `json:"health"`
-	SyncStatus           string          `json:"sync_status"`
-}
+	ArgoApplicationDetail struct {
+		Name                string              `json:"name"`
+		TenantName          string              `json:"tenant_name"`
+		AppCode             string              `json:"appcode"`
+		Description         string              `json:"description"`
+		CreatedBy           string              `json:"created_by"`
+		Template            TemplateInfo        `json:"template"`
+		DestinationClusters DestinationClusters `json:"destination_clusters"`
+		Ingress             *Ingress            `json:"ingress,omitempty"`
+		Security            *Security           `json:"security,omitempty"`
+		Labels              map[string]string   `json:"labels,omitempty"`
+		Annotations         map[string]string   `json:"annotations,omitempty"`
+		RuntimeStatus       RuntimeStatusInfo   `json:"runtime_status"`
+	}
+
+	TemplateInfo struct {
+		Source         ApplicationSource `json:"source"`
+		LastCommitInfo GitInfo           `json:"last_commit_info"`
+	}
+
+	RuntimeStatusInfo struct {
+		Status           string          `json:"status"`
+		Health           string          `json:"health"`
+		SyncStatus       string          `json:"sync_status"`
+		DeployedClusters []ClusterStatus `json:"deployed_clusters"`
+		ResourceMetrics  ResourceMetrics `json:"resource_metrics"`
+	}
+
+	ClusterStatus struct {
+		Name         string `json:"name"`
+		Namespace    string `json:"namespace"`
+		PodCount     int    `json:"pod_count"`
+		SecretCount  int    `json:"secret_count"`
+		Status       string `json:"status"`
+		LastSyncTime string `json:"last_sync_time"`
+	}
+)
 
 func ListArgoApplications(c *gin.Context) {
-	var project string
-	if c.Query("project") != "" {
-		project = c.Query("project")
-	}
+	tenant := c.GetString(middleware.TenantKey)
+	username := c.GetString(middleware.UserNameKey)
+
+	log.G().Infof("tenant: %s, username: %s", tenant, username)
+
+	var project = tenant
 
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
@@ -73,13 +98,13 @@ func ListArgoApplications(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	// argocd client
 	argoClient, err := kube.NewArgoCdClient()
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
+		return
 	}
 
-	response, err := RunAppList(context.Background(), &AppListOptions{
+	apps, err := RunAppList(context.Background(), &AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  project,
 		ArgoCDClient: argoClient,
@@ -89,16 +114,15 @@ func ListArgoApplications(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, response)
+	c.JSON(200, apps)
 }
 
-func RunAppList(ctx context.Context, opts *AppListOptions) (*AppListResponse, error) {
+func RunAppList(ctx context.Context, opts *AppListOptions) (*ArgoApplicationListResponse, error) {
 	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
 	if err != nil {
 		return nil, err
 	}
 
-	// get all apps beneath apps/*/overlays/<project>
 	path := repofs.Join(store.Default.AppsDir, "*", store.Default.OverlaysDir, opts.ProjectName)
 	log.G().WithFields(log.Fields{
 		"AppsDir":     store.Default.AppsDir,
@@ -112,9 +136,9 @@ func RunAppList(ctx context.Context, opts *AppListOptions) (*AppListResponse, er
 		return nil, fmt.Errorf("failed to run glob on %s: %w", opts.ProjectName, err)
 	}
 
-	response := &AppListResponse{
-		ProjectName: opts.ProjectName,
-		Apps:        make([]AppDetailResponse, 0),
+	response := &ArgoApplicationListResponse{
+		Total: len(matches),
+		Items: make([]ArgoApplicationDetail, 0, len(matches)),
 	}
 
 	for _, appPath := range matches {
@@ -133,38 +157,69 @@ func RunAppList(ctx context.Context, opts *AppListOptions) (*AppListResponse, er
 			applicationNs   = store.Default.ArgoCDNamespace
 		)
 		log.G().Debugf("applicationName: %s, applicationNs: %s", applicationName, applicationNs)
-		argoApp, err := opts.ArgoCDClient.Applications(applicationNs).Get(ctx, applicationName, metav1.GetOptions{})
-		if err != nil {
-			log.G().Errorf("failed to get ArgoCD app info for %s: %v", conf.UserGivenName, err)
-			return nil, err
-		}
 
 		resourceMetrics, err := getResourceMetrics(ctx, opts.KubeClient, conf.DestNamespace)
 		if err != nil {
 			log.G().Warnf("failed to get resource metrics for %s: %v", conf.DestNamespace, err)
 		}
 
-		app := AppDetailResponse{
-			Name:          conf.UserGivenName,
-			DestNamespace: conf.DestNamespace,
-			DestServer:    conf.DestServer,
-			Creator:       gitInfo.Creator,
-			LastUpdater:   gitInfo.LastUpdater,
-			LastCommitID:  gitInfo.LastCommitID,
-			LastCommitLog: gitInfo.LastCommitMessage,
-			PodCount:      resourceMetrics.PodCount,
-			SecretCount:   resourceMetrics.SecretCount,
-			ResourceUsage: ResourceMetrics{
-				CPUCores:    resourceMetrics.CPU,
-				MemoryUsage: resourceMetrics.Memory,
+		app := ArgoApplicationDetail{
+			Name:        conf.UserGivenName,
+			TenantName:  opts.ProjectName,
+			AppCode:     conf.Annotations["h4-poc.github.io/appcode"],
+			Description: conf.Annotations["h4-poc.github.io/description"],
+			CreatedBy:   conf.Annotations["h4-poc.github.io/created-by"],
+			Template: TemplateInfo{
+				Source: ApplicationSource{
+					Type: string(ApplicationTemplateTypeKustomize),
+					Path: conf.SrcPath,
+					URL:  conf.SrcRepoURL,
+				},
+				LastCommitInfo: GitInfo{
+					LastCommitID:      gitInfo.LastCommitID,
+					LastCommitMessage: gitInfo.LastCommitMessage,
+				},
 			},
-			Status:               getAppStatus(argoApp),
-			Health:               getAppHealth(argoApp),
-			SyncStatus:           getAppSyncStatus(argoApp),
-			RemoteRepo:           viper.GetString("application_repo.remote_url"),
-			DeployedEnvironments: []string{"sit"},
+			DestinationClusters: DestinationClusters{
+				Clusters:  []string{"in-cluster"},
+				Namespace: conf.DestNamespace,
+			},
+			Ingress: &Ingress{
+				Host: conf.Annotations["h4-poc.github.io/ingress.host"],
+				TLS: &TLS{
+					Enabled:    conf.Annotations["h4-poc.github.io/ingress.tls.enabled"] == "true",
+					SecretName: conf.Annotations["h4-poc.github.io/ingress.tls.secretName"],
+				},
+			},
+			Security: &Security{
+				ExternalSecret: &ExternalSecret{
+					SecretStoreRef: SecretStoreRef{
+						ID: conf.Annotations["h4-poc.github.io/security.external_secret.secret_store_ref.id"],
+					},
+				},
+			},
+			RuntimeStatus: RuntimeStatusInfo{
+				ResourceMetrics: ResourceMetrics{
+					CPUCores:    resourceMetrics.CPU,
+					MemoryUsage: resourceMetrics.Memory,
+				},
+			},
 		}
-		response.Apps = append(response.Apps, app)
+
+		// runtime status
+		argoApp, err := opts.ArgoCDClient.Applications(applicationNs).Get(ctx, applicationName, metav1.GetOptions{})
+		if err != nil {
+			log.G().Warnf("failed to get ArgoCD app info for %s: %v", conf.UserGivenName, err)
+			app.RuntimeStatus.Status = "Unknown"
+			app.RuntimeStatus.Health = "Unknown"
+			app.RuntimeStatus.SyncStatus = "Unknown"
+		} else {
+			app.RuntimeStatus.Status = getAppStatus(argoApp)
+			app.RuntimeStatus.Health = getAppHealth(argoApp)
+			app.RuntimeStatus.SyncStatus = getAppSyncStatus(argoApp)
+		}
+
+		response.Items = append(response.Items, app)
 	}
 
 	return response, nil
@@ -197,10 +252,10 @@ type ResourceMetricsInfo struct {
 // TODO: Implement this function later
 func getResourceMetrics(ctx context.Context, kubeClient kubernetes.Interface, namespace string) (*ResourceMetricsInfo, error) {
 	return &ResourceMetricsInfo{
-		PodCount:    0,
-		SecretCount: 0,
-		CPU:         "0",
-		Memory:      "0",
+		PodCount:    5,
+		SecretCount: 12,
+		CPU:         "0.25",
+		Memory:      "200Mi",
 	}, nil
 }
 

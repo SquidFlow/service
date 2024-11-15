@@ -12,6 +12,11 @@ import (
 	"github.com/h4-poc/service/pkg/kube"
 )
 
+type SyncOptions struct {
+	Prune        bool `json:"prune"`
+	ValidateOnly bool `json:"validateOnly"`
+}
+
 // SyncRequest represents the request structure for syncing applications
 type SyncRequest struct {
 	Applications []string    `json:"applications" binding:"required,min=1"`

@@ -567,6 +567,170 @@ components:
           type: string
           example: "https://kubernetes.default.svc"
 
+    ArgoApplicationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Application created successfully"
+        application:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "demo1"
+            tenant_name:
+              type: string
+              example: "testing"
+            appcode:
+              type: string
+              example: "edsf"
+            description:
+              type: string
+              example: "test description"
+            source:
+              $ref: '#/components/schemas/ApplicationSource'
+            destination_clusters:
+              $ref: '#/components/schemas/DestinationCluster'
+            ingress:
+              $ref: '#/components/schemas/Ingress'
+            security:
+              $ref: '#/components/schemas/Security'
+            created_by:
+              type: string
+              example: "username"
+            labels:
+              type: object
+              additionalProperties:
+                type: string
+            annotations:
+              type: object
+              additionalProperties:
+                type: string
+            status:
+              type: string
+              example: "Pending"
+            revision:
+              type: string
+              example: "main"
+
+    ArgoApplicationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        total:
+          type: integer
+          example: 2
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArgoApplicationDetail'
+
+    ArgoApplicationDetail:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "demo-app"
+        tenant_name:
+          type: string
+          example: "tenant1"
+        appcode:
+          type: string
+          example: "demo"
+        description:
+          type: string
+          example: "Demo application"
+        created_by:
+          type: string
+          example: "john.doe"
+        template:
+          type: object
+          properties:
+            source:
+              $ref: '#/components/schemas/ApplicationSource'
+            last_commit_info:
+              type: object
+              properties:
+                commit_id:
+                  type: string
+                  example: "abc123"
+                message:
+                  type: string
+                  example: "Update configuration"
+                author:
+                  type: string
+                  example: "jane.doe"
+                timestamp:
+                  type: string
+                  format: date-time
+        h4_config:
+          type: object
+          properties:
+            destination_clusters:
+              $ref: '#/components/schemas/DestinationCluster'
+            ingress:
+              $ref: '#/components/schemas/Ingress'
+            security:
+              $ref: '#/components/schemas/Security'
+            labels:
+              type: object
+              additionalProperties:
+                type: string
+            annotations:
+              type: object
+              additionalProperties:
+                type: string
+        runtime_status:
+          type: object
+          properties:
+            status:
+              type: string
+              example: "Healthy"
+            health:
+              type: string
+              example: "Healthy"
+            sync_status:
+              type: string
+              example: "Synced"
+            deployed_clusters:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "cluster-1"
+                  namespace:
+                    type: string
+                    example: "default"
+                  pod_count:
+                    type: integer
+                    example: 3
+                  secret_count:
+                    type: integer
+                    example: 2
+                  status:
+                    type: string
+                    example: "Running"
+                  last_sync_time:
+                    type: string
+                    format: date-time
+            resource_metrics:
+              $ref: '#/components/schemas/ResourceMetrics'
+
+    ResourceMetrics:
+      type: object
+      properties:
+        cpu_cores:
+          type: string
+          example: "200m"
+        memory_usage:
+          type: string
+          example: "256Mi"
+
 
 paths:
   /applications/templates:
@@ -696,13 +860,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Applications created successfully"
-                  application:
-                    $ref: '#/components/schemas/ArgoApplicationCreate'
+                $ref: '#/components/schemas/ArgoApplicationResponse'
         '400':
           description: Invalid request
           content:
@@ -716,57 +874,73 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /deploy/argocdapplications/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Application name
+
     get:
       tags: [ArgoApplication]
-      summary: List ArgoCD applications
-      operationId: listArgoApplications
-      parameters:
-        - name: project
-          in: query
-          schema:
-            type: string
-          description: Filter by project name
-        - name: app
-          in: query
-          schema:
-            type: string
-          description: Filter by application name
+      summary: Get ArgoCD application details
+      description: Get detailed information about an ArgoCD application including template source, H4 configuration and runtime status
+      operationId: describeArgoApplication
       responses:
         '200':
-          description: List of applications
+          description: Application details
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ArgoApplication'
-
-    delete:
-      tags: [ArgoApplication]
-      summary: Delete ArgoCD application
-      operationId: deleteArgoApplication
-      parameters:
-        - name: project
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Project name
-        - name: app
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Application name
-      responses:
-        '204':
-          description: Application deleted successfully
+                $ref: '#/components/schemas/ArgoApplicationDetail'
+        '403':
+          description: Forbidden - user does not have permission to view this application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Application not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [ArgoApplication]
+      summary: Delete ArgoCD application
+      description: Delete an ArgoCD application. If this is the last project using the application, the entire application directory will be removed.
+      operationId: deleteArgoApplication
+      responses:
+        '204':
+          description: Application deleted successfully
+        '403':
+          description: Forbidden - user does not have permission to delete this application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                gitError:
+                  value:
+                    error: "Failed to push changes to git repository"
+                argocdError:
+                  value:
+                    error: "Failed to delete ArgoCD application"
 
   /deploy/argocdapplications/validate:
     post:

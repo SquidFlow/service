@@ -217,9 +217,9 @@ func setupRouter() *gin.Engine {
 		applications.POST("/dryruntemplate", handler.ApplicationTemplateDryRun)
 		applications.POST("/validate", handler.ValidateTemplate)
 
-		app := applications.Group("/:id")
+		app := applications.Group("/:name")
 		{
-			app.GET("", handler.DescribeArgoApplications)
+			app.GET("", handler.DescribeArgoApplication)
 			app.PATCH("", handler.UpdateArgoApplication)
 			app.DELETE("", handler.DeleteArgoApplication)
 		}
