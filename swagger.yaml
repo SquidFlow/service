@@ -268,7 +268,7 @@ components:
           type: string
           example: "demo1-tls"
 
-    Ingress:
+    IngressHost:
       type: object
       properties:
         host:
@@ -276,6 +276,23 @@ components:
           example: "demo1.h4.com"
         tls:
           $ref: '#/components/schemas/TLS'
+
+    Ingress:
+      type: object
+      properties:
+        hosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngressHost'
+          example:
+            - host: "demo1.h4.com"
+              tls:
+                enabled: true
+                secretName: "demo1-tls"
+            - host: "demo2.h4.com"
+              tls:
+                enabled: true
+                secretName: "demo2-tls"
 
     SecretStoreRef:
       type: object

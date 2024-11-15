@@ -23,7 +23,7 @@ Authorization: Bearer username@tenant1
         "targetRevision": "main",
         "path": "/"
     },
-    "application_name": "abc",
+    "application_name": "aaaa",
     "tenant_name": "tenant1",
     "appcode": "edsf",
     "description": "this application description",
@@ -31,13 +31,15 @@ Authorization: Bearer username@tenant1
         "clusters": ["in-cluster"],
         "namespace": "default"
     },
-    "ingress": {
-        "host": "demo1.h4.com",
-        "tls": {
-            "enabled": true,
-            "secretName": "demo1-tls"
-        }
-    },
+    "ingress": [
+        {
+            "host": "demo1.h4.com",
+            "tls": {
+                "enabled": true,
+                "secretName": "demo1-tls"
+            }
+        },
+    ],
     "security": {
         "external_secret": {
             "secret_store_ref": {

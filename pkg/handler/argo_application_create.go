@@ -69,7 +69,7 @@ type (
 		AppCode             string              `json:"appcode"`
 		Description         string              `json:"description"`
 		DestinationClusters DestinationClusters `json:"destination_clusters"`
-		Ingress             *Ingress            `json:"ingress,omitempty"`
+		Ingress             []Ingress           `json:"ingress,omitempty"`
 		Security            *Security           `json:"security,omitempty"`
 		IsDryRun            bool                `json:"is_dryrun"`
 	}
@@ -238,8 +238,10 @@ func validateApplication(app *ApplicationCreate) error {
 	}
 
 	if app.Ingress != nil {
-		if err := validateIngress(app.Ingress); err != nil {
-			return fmt.Errorf("invalid ingress configuration: %w", err)
+		for _, ingress := range app.Ingress {
+			if err := validateIngress(&ingress); err != nil {
+				return fmt.Errorf("invalid ingress configuration: %w", err)
+			}
 		}
 	}
 

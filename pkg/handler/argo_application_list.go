@@ -41,21 +41,6 @@ type (
 		Items   []ArgoApplicationDetail `json:"items"`
 	}
 
-	ArgoApplicationDetail struct {
-		Name                string              `json:"name"`
-		TenantName          string              `json:"tenant_name"`
-		AppCode             string              `json:"appcode"`
-		Description         string              `json:"description"`
-		CreatedBy           string              `json:"created_by"`
-		Template            TemplateInfo        `json:"template"`
-		DestinationClusters DestinationClusters `json:"destination_clusters"`
-		Ingress             *Ingress            `json:"ingress,omitempty"`
-		Security            *Security           `json:"security,omitempty"`
-		Labels              map[string]string   `json:"labels,omitempty"`
-		Annotations         map[string]string   `json:"annotations,omitempty"`
-		RuntimeStatus       RuntimeStatusInfo   `json:"runtime_status"`
-	}
-
 	TemplateInfo struct {
 		Source         ApplicationSource `json:"source"`
 		LastCommitInfo GitInfo           `json:"last_commit_info"`
@@ -184,11 +169,13 @@ func RunAppList(ctx context.Context, opts *AppListOptions) (*ArgoApplicationList
 				Clusters:  []string{"in-cluster"},
 				Namespace: conf.DestNamespace,
 			},
-			Ingress: &Ingress{
-				Host: conf.Annotations["h4-poc.github.io/ingress.host"],
-				TLS: &TLS{
-					Enabled:    conf.Annotations["h4-poc.github.io/ingress.tls.enabled"] == "true",
-					SecretName: conf.Annotations["h4-poc.github.io/ingress.tls.secretName"],
+			Ingress: []Ingress{
+				{
+					Host: conf.Annotations["h4-poc.github.io/ingress.host"],
+					TLS: &TLS{
+						Enabled:    conf.Annotations["h4-poc.github.io/ingress.tls.enabled"] == "true",
+						SecretName: conf.Annotations["h4-poc.github.io/ingress.tls.secretName"],
+					},
 				},
 			},
 			Security: &Security{
