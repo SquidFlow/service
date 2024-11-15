@@ -1,8 +1,26 @@
 import { useState } from "react";
-import { Card, CardContent} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Settings2, ExternalLink, Layout, CheckCircle, LucideIcon, Server, AlertTriangle, XCircle, MoreVertical, Cpu, HelpCircle, MemoryStick, HardDrive, Network, Box } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Settings2,
+  ExternalLink,
+  Layout,
+  CheckCircle,
+  LucideIcon,
+  Server,
+  AlertTriangle,
+  XCircle,
+  MoreVertical,
+  Cpu,
+  HelpCircle,
+  MemoryStick,
+  HardDrive,
+  Network,
+  Box,
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -24,8 +42,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   ClusterInfo,
@@ -35,7 +66,7 @@ import {
   providerColorMap,
   healthStatusMap,
   monitoringTypeStyles,
-  IconType
+  IconType,
 } from "./destinationClusterMock";
 import { useGetClusterList } from "@/app/api";
 
@@ -51,12 +82,12 @@ const icons: Record<IconType, LucideIcon> = {
   MemoryStick,
   HardDrive,
   Network,
-  Box
+  Box,
 } as const;
 
 const TableHeadWithTooltip = ({
   children,
-  tooltip
+  tooltip,
 }: {
   children: React.ReactNode;
   tooltip: string;
@@ -78,28 +109,60 @@ const TableHeadWithTooltip = ({
   </TooltipProvider>
 );
 
-const ResourceQuotaCell = ({ quota, disabled }: { quota: ResourceQuota; disabled?: boolean }) => (
-  <div className={`space-y-2 transition-all duration-200 ${
-    disabled ? 'opacity-75 grayscale' : ''
-  }`}>
+const ResourceQuotaCell = ({
+  quota,
+  disabled,
+}: {
+  quota: ResourceQuota;
+  disabled?: boolean;
+}) => (
+  <div
+    className={`space-y-2 transition-all duration-200 ${
+      disabled ? "opacity-75 grayscale" : ""
+    }`}
+  >
     {Object.entries(resourceDescriptions).map(([key, desc]) => (
       <div key={key} className="flex items-center justify-between text-sm">
         <TooltipProvider>
           <div className="flex items-center space-x-2">
-            {key === 'cpu' && <Cpu className={`h-4 w-4 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />}
-            {key === 'memory' && <MemoryStick className={`h-4 w-4 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />}
-            {key === 'storage' && <HardDrive className={`h-4 w-4 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />}
-            {key === 'pvcs' && <Network className={`h-4 w-4 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />}
-            {key === 'nodeports' && <Box className={`h-4 w-4 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />}
-            <span className={disabled ? 'text-gray-400' : ''}>{desc.label}:</span>
+            {key === "cpu" && (
+              <Cpu
+                className={`h-4 w-4 ${disabled ? "text-gray-400" : "text-gray-500"}`}
+              />
+            )}
+            {key === "memory" && (
+              <MemoryStick
+                className={`h-4 w-4 ${disabled ? "text-gray-400" : "text-gray-500"}`}
+              />
+            )}
+            {key === "storage" && (
+              <HardDrive
+                className={`h-4 w-4 ${disabled ? "text-gray-400" : "text-gray-500"}`}
+              />
+            )}
+            {key === "pvcs" && (
+              <Network
+                className={`h-4 w-4 ${disabled ? "text-gray-400" : "text-gray-500"}`}
+              />
+            )}
+            {key === "nodeports" && (
+              <Box
+                className={`h-4 w-4 ${disabled ? "text-gray-400" : "text-gray-500"}`}
+              />
+            )}
+            <span className={disabled ? "text-gray-400" : ""}>
+              {desc.label}:
+            </span>
           </div>
           <Tooltip>
             <TooltipTrigger>
-              <span className={`inline-flex px-2.5 py-0.5 rounded-md font-mono text-sm font-medium transition-colors duration-200 ${
-                disabled
-                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                  : 'bg-gray-100 dark:bg-gray-800'
-              }`}>
+              <span
+                className={`inline-flex px-2.5 py-0.5 rounded-md font-mono text-sm font-medium transition-colors duration-200 ${
+                  disabled
+                    ? "bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                    : "bg-gray-100 dark:bg-gray-800"
+                }`}
+              >
                 {quota[key as keyof ResourceQuota]}
               </span>
             </TooltipTrigger>
@@ -113,13 +176,15 @@ const ResourceQuotaCell = ({ quota, disabled }: { quota: ResourceQuota; disabled
   </div>
 );
 
-const ProviderBadge = ({ provider }: { provider: ClusterInfo['provider'] }) => (
-  <span className={`px-2 py-1 rounded-full text-xs font-medium ${providerColorMap[provider] || providerColorMap.default}`}>
+const ProviderBadge = ({ provider }: { provider: ClusterInfo["provider"] }) => (
+  <span
+    className={`px-2 py-1 rounded-full text-xs font-medium ${providerColorMap[provider] || providerColorMap.default}`}
+  >
     {provider}
   </span>
 );
 
-const HealthBadge = ({ health }: { health: ClusterInfo['health'] }) => {
+const HealthBadge = ({ health }: { health: ClusterInfo["health"] }) => {
   const style = healthStatusMap[health.status] || healthStatusMap.default;
   const Icon = style.icon ? icons[style.icon] : null;
 
@@ -127,7 +192,9 @@ const HealthBadge = ({ health }: { health: ClusterInfo['health'] }) => {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger>
-          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+          <div
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}
+          >
             {Icon && <Icon className="h-3 w-3 mr-1" />}
             {health.status}
           </div>
@@ -162,7 +229,13 @@ const BuildinBadge = () => (
   </span>
 );
 
-const MonitoringLink = ({ type, url }: { type: keyof typeof monitoringTypeStyles; url?: string }) => {
+const MonitoringLink = ({
+  type,
+  url,
+}: {
+  type: keyof typeof monitoringTypeStyles;
+  url?: string;
+}) => {
   if (!url) return null;
 
   return (
@@ -181,7 +254,7 @@ const StatsCard = ({
   title,
   value,
   icon: Icon,
-  description
+  description,
 }: {
   title: string;
   value: string | number | React.ReactNode;
@@ -195,12 +268,16 @@ const StatsCard = ({
           <Icon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
         </div>
         <div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {title}
+          </p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {value}
           </h3>
           {description && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{description}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {description}
+            </p>
           )}
         </div>
       </div>
@@ -210,35 +287,41 @@ const StatsCard = ({
 
 // 修改 ClusterNameCell 组件，移除节点信息
 const ClusterNameCell = ({ cluster }: { cluster: ClusterInfo }) => (
-  <div className={`flex items-center space-x-3 ${
-    cluster.status === 'disabled' ? 'opacity-80 grayscale' : ''
-  }`}>
+  <div
+    className={`flex items-center space-x-3 ${
+      cluster.status === "disabled" ? "opacity-80 grayscale" : ""
+    }`}
+  >
     {/* 图标部分 */}
-    <div className={`p-2 rounded-lg transition-colors duration-200 ${
-      cluster.status === 'disabled'
-        ? 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-500' :
-      cluster.provider === 'GKE'
-        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' :
-      cluster.provider === 'OCP'
-        ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' :
-      cluster.provider === 'AKS'
-        ? 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' :
-      'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400'
-    }`}>
+    <div
+      className={`p-2 rounded-lg transition-colors duration-200 ${
+        cluster.status === "disabled"
+          ? "bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
+          : cluster.provider === "GKE"
+            ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+            : cluster.provider === "OCP"
+              ? "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+              : cluster.provider === "AKS"
+                ? "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400"
+                : "bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400"
+      }`}
+    >
       <Server className="h-5 w-5" />
     </div>
 
     <div className="space-y-1">
       <div className="flex items-center space-x-2">
-        <span className={`font-mono text-base font-bold tracking-wider px-2 py-0.5 rounded transition-colors duration-200 ${
-          cluster.status === 'disabled'
-            ? 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-            : 'bg-gray-100 dark:bg-gray-800'
-        }`}>
+        <span
+          className={`font-mono text-base font-bold tracking-wider px-2 py-0.5 rounded transition-colors duration-200 ${
+            cluster.status === "disabled"
+              ? "bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+              : "bg-gray-100 dark:bg-gray-800"
+          }`}
+        >
           {cluster.name}
         </span>
         {cluster.builtin && <BuildinBadge />}
-        {cluster.status === 'disabled' && (
+        {cluster.status === "disabled" && (
           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400 animate-pulse">
             Disabled
           </span>
@@ -253,22 +336,23 @@ const ClusterNameCell = ({ cluster }: { cluster: ClusterInfo }) => (
 
 export function DestinationCluster() {
   const { clusterList } = useGetClusterList();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEnvironment, setSelectedEnvironment] = useState<string>('all');
-  const [selectedProvider, setSelectedProvider] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEnvironment, setSelectedEnvironment] = useState<string>("all");
+  const [selectedProvider, setSelectedProvider] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedCluster, setSelectedCluster] = useState<ClusterInfo | null>(null);
+  const [selectedCluster, setSelectedCluster] = useState<ClusterInfo | null>(
+    null
+  );
 
   const filteredClusters = clusterList.filter((cluster: ClusterInfo) => {
     const matchesSearch =
       cluster.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cluster.region.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesEnvironment =
-      selectedEnvironment === 'all' ||
+      selectedEnvironment === "all" ||
       cluster.environment === selectedEnvironment;
     const matchesProvider =
-      selectedProvider === 'all' ||
-      cluster.provider === selectedProvider;
+      selectedProvider === "all" || cluster.provider === selectedProvider;
 
     return matchesSearch && matchesEnvironment && matchesProvider;
   });
@@ -280,10 +364,20 @@ export function DestinationCluster() {
 
   const stats = {
     totalClusters: clusterList.length,
-    activeNodes: clusterList.reduce((acc: number, cluster: ClusterInfo) => acc + cluster.nodes.ready, 0),
-    totalNodes: clusterList.reduce((acc: number, cluster: ClusterInfo) => acc + cluster.nodes.total, 0),
-    healthyClusters: clusterList.filter((c: ClusterInfo) => c.health.status === 'Healthy').length,
+    activeNodes: clusterList.reduce(
+      (acc: number, cluster: ClusterInfo) => acc + cluster.nodes.ready,
+      0
+    ),
+    totalNodes: clusterList.reduce(
+      (acc: number, cluster: ClusterInfo) => acc + cluster.nodes.total,
+      0
+    ),
+    healthyClusters: clusterList.filter(
+      (c: ClusterInfo) => c.health.status === "Healthy"
+    ).length,
   };
+
+  const handleClusterDialog = () => {};
 
   return (
     <div className="space-y-8">
@@ -296,7 +390,10 @@ export function DestinationCluster() {
             Manage and monitor your Kubernetes clusters across environments
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-200">
+        <Button
+          onClick={handleClusterDialog}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Cluster
         </Button>
@@ -314,9 +411,15 @@ export function DestinationCluster() {
           value={
             <div className="flex items-baseline space-x-1">
               <span className="text-2xl font-bold">{stats.activeNodes}</span>
-              <span className="text-base text-gray-500 dark:text-gray-400">/</span>
-              <span className="text-lg text-gray-600 dark:text-gray-400">{stats.totalNodes}</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">nodes</span>
+              <span className="text-base text-gray-500 dark:text-gray-400">
+                /
+              </span>
+              <span className="text-lg text-gray-600 dark:text-gray-400">
+                {stats.totalNodes}
+              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
+                nodes
+              </span>
             </div>
           }
           icon={Cpu}
@@ -330,7 +433,7 @@ export function DestinationCluster() {
         />
         <StatsCard
           title="Environments"
-          value={new Set(clusterList.map(c => c.environment)).size}
+          value={new Set(clusterList.map((c) => c.environment)).size}
           icon={Layout}
           description="Distinct deployment environments"
         />
@@ -350,7 +453,10 @@ export function DestinationCluster() {
                 />
               </div>
             </div>
-            <Select value={selectedEnvironment} onValueChange={setSelectedEnvironment}>
+            <Select
+              value={selectedEnvironment}
+              onValueChange={setSelectedEnvironment}
+            >
               <SelectTrigger className="w-[180px] bg-white dark:bg-gray-900">
                 <SelectValue placeholder="Environment" />
               </SelectTrigger>
@@ -361,7 +467,10 @@ export function DestinationCluster() {
                 <SelectItem value="PRD">PRD</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+            <Select
+              value={selectedProvider}
+              onValueChange={setSelectedProvider}
+            >
               <SelectTrigger className="w-[180px] bg-white dark:bg-gray-900">
                 <SelectValue placeholder="Provider" />
               </SelectTrigger>
@@ -422,9 +531,11 @@ export function DestinationCluster() {
                     key={cluster.name}
                     className={`
                       transition-all duration-200
-                      ${cluster.status === 'disabled'
-                        ? 'bg-gray-50/80 dark:bg-gray-900/40 hover:bg-gray-100/80 dark:hover:bg-gray-900/60 grayscale'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-900/50'}
+                      ${
+                        cluster.status === "disabled"
+                          ? "bg-gray-50/80 dark:bg-gray-900/40 hover:bg-gray-100/80 dark:hover:bg-gray-900/60 grayscale"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-900/50"
+                      }
                     `}
                   >
                     <TableCell>
@@ -439,59 +550,73 @@ export function DestinationCluster() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <div className={`flex items-baseline space-x-1 px-2 py-1 rounded-md ${
-                          cluster.status === 'disabled'
-                            ? 'bg-gray-100 dark:bg-gray-800'
-                            : cluster.nodes.ready === cluster.nodes.total
-                              ? 'bg-green-50 dark:bg-green-900/20'
-                              : cluster.nodes.ready < cluster.nodes.total / 2
-                                ? 'bg-red-50 dark:bg-red-900/20'
-                                : 'bg-yellow-50 dark:bg-yellow-900/20'
-                        }`}>
-                          <span className={`text-sm font-medium ${
-                            cluster.status === 'disabled'
-                              ? 'text-gray-500 dark:text-gray-400'
+                        <div
+                          className={`flex items-baseline space-x-1 px-2 py-1 rounded-md ${
+                            cluster.status === "disabled"
+                              ? "bg-gray-100 dark:bg-gray-800"
                               : cluster.nodes.ready === cluster.nodes.total
-                                ? 'text-green-700 dark:text-green-400'
+                                ? "bg-green-50 dark:bg-green-900/20"
                                 : cluster.nodes.ready < cluster.nodes.total / 2
-                                  ? 'text-red-700 dark:text-red-400'
-                                  : 'text-yellow-700 dark:text-yellow-400'
-                          }`}>
+                                  ? "bg-red-50 dark:bg-red-900/20"
+                                  : "bg-yellow-50 dark:bg-yellow-900/20"
+                          }`}
+                        >
+                          <span
+                            className={`text-sm font-medium ${
+                              cluster.status === "disabled"
+                                ? "text-gray-500 dark:text-gray-400"
+                                : cluster.nodes.ready === cluster.nodes.total
+                                  ? "text-green-700 dark:text-green-400"
+                                  : cluster.nodes.ready <
+                                      cluster.nodes.total / 2
+                                    ? "text-red-700 dark:text-red-400"
+                                    : "text-yellow-700 dark:text-yellow-400"
+                            }`}
+                          >
                             {cluster.nodes.ready}
                           </span>
-                          <span className="text-gray-400 dark:text-gray-500">/</span>
-                          <span className="text-gray-600 dark:text-gray-400">{cluster.nodes.total}</span>
+                          <span className="text-gray-400 dark:text-gray-500">
+                            /
+                          </span>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {cluster.nodes.total}
+                          </span>
                         </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">ready</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          ready
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>{cluster.version.platform}</TableCell>
                     <TableCell>
                       <ResourceQuotaCell
                         quota={cluster.resourceQuota}
-                        disabled={cluster.status === 'disabled'}
+                        disabled={cluster.status === "disabled"}
                       />
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {cluster.monitoring.prometheus && cluster.monitoring.urls?.prometheus && (
-                          <MonitoringLink
-                            type="prometheus"
-                            url={cluster.monitoring.urls.prometheus}
-                          />
-                        )}
-                        {cluster.monitoring.grafana && cluster.monitoring.urls?.grafana && (
-                          <MonitoringLink
-                            type="grafana"
-                            url={cluster.monitoring.urls.grafana}
-                          />
-                        )}
-                        {cluster.monitoring.alertmanager && cluster.monitoring.urls?.alertmanager && (
-                          <MonitoringLink
-                            type="alertmanager"
-                            url={cluster.monitoring.urls.alertmanager}
-                          />
-                        )}
+                        {cluster.monitoring.prometheus &&
+                          cluster.monitoring.urls?.prometheus && (
+                            <MonitoringLink
+                              type="prometheus"
+                              url={cluster.monitoring.urls.prometheus}
+                            />
+                          )}
+                        {cluster.monitoring.grafana &&
+                          cluster.monitoring.urls?.grafana && (
+                            <MonitoringLink
+                              type="grafana"
+                              url={cluster.monitoring.urls.grafana}
+                            />
+                          )}
+                        {cluster.monitoring.alertmanager &&
+                          cluster.monitoring.urls?.alertmanager && (
+                            <MonitoringLink
+                              type="alertmanager"
+                              url={cluster.monitoring.urls.alertmanager}
+                            />
+                          )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -500,7 +625,11 @@ export function DestinationCluster() {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-gray-100 dark:hover:bg-gray-800"
+                          >
                             <MoreVertical className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -508,30 +637,41 @@ export function DestinationCluster() {
                           <DropdownMenuItem
                             onSelect={() => handleUpdateResourceQuota(cluster)}
                             className={`flex items-center space-x-2 text-sm cursor-pointer ${
-                              cluster.status === 'disabled' ? 'opacity-50 cursor-not-allowed' : ''
+                              cluster.status === "disabled"
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
                             }`}
-                            disabled={cluster.status === 'disabled'}
+                            disabled={cluster.status === "disabled"}
                           >
                             <Settings2 className="h-4 w-4 text-gray-500" />
                             <span>Update Resource Quota</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onSelect={() => {
-                              const newStatus = cluster.status === 'active' ? 'disabled' : 'active';
+                              const newStatus =
+                                cluster.status === "active"
+                                  ? "disabled"
+                                  : "active";
                               // 这里添加实际的状态更新逻辑
-                              console.log(`Setting cluster ${cluster.name} status to ${newStatus}`);
+                              console.log(
+                                `Setting cluster ${cluster.name} status to ${newStatus}`
+                              );
                             }}
                             className="flex items-center space-x-2 text-sm cursor-pointer"
                           >
-                            {cluster.status === 'active' ? (
+                            {cluster.status === "active" ? (
                               <>
                                 <XCircle className="h-4 w-4 text-red-500" />
-                                <span className="text-red-600">Disable Cluster</span>
+                                <span className="text-red-600">
+                                  Disable Cluster
+                                </span>
                               </>
                             ) : (
                               <>
                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                                <span className="text-green-600">Enable Cluster</span>
+                                <span className="text-green-600">
+                                  Enable Cluster
+                                </span>
                               </>
                             )}
                           </DropdownMenuItem>
@@ -570,17 +710,24 @@ export function DestinationCluster() {
                 <span>Update Resource Quota</span>
               </DialogTitle>
               <DialogDescription className="text-sm text-gray-500">
-                Update resource quotas for cluster <span className="font-mono font-medium">{selectedCluster.name}</span>
+                Update resource quotas for cluster{" "}
+                <span className="font-mono font-medium">
+                  {selectedCluster.name}
+                </span>
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               {Object.entries(resourceDescriptions).map(([key, desc]) => {
-                const value = selectedCluster.resourceQuota[key as keyof ResourceQuota];
-                const numericValue = value.match(/^\d+/)?.[0] || '';
-                const unit = value.match(/[A-Za-z]+$/)?.[0] || '';
+                const value =
+                  selectedCluster.resourceQuota[key as keyof ResourceQuota];
+                const numericValue = value.match(/^\d+/)?.[0] || "";
+                const unit = value.match(/[A-Za-z]+$/)?.[0] || "";
 
                 return (
-                  <div key={key} className="grid grid-cols-4 items-center gap-4">
+                  <div
+                    key={key}
+                    className="grid grid-cols-4 items-center gap-4"
+                  >
                     <Label className="text-right col-span-1">
                       {desc.label}
                     </Label>
@@ -590,7 +737,9 @@ export function DestinationCluster() {
                         defaultValue={numericValue}
                         className="w-24 font-mono"
                       />
-                      <span className="text-sm text-gray-500 font-mono">{unit}</span>
+                      <span className="text-sm text-gray-500 font-mono">
+                        {unit}
+                      </span>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>
@@ -616,7 +765,7 @@ export function DestinationCluster() {
               </Button>
               <Button
                 onClick={() => {
-                  console.log('Resource Quota Updated');
+                  console.log("Resource Quota Updated");
                   setIsDialogOpen(false);
                 }}
                 className="bg-blue-600 hover:bg-blue-700"

@@ -4,7 +4,7 @@ export const BASE_URL =
 // export const BASE_URL =
 // 	"http://alb-ktxkm8u7il6kab7qrs.cn-hongkong.alb.aliyuncs.com"; // beer
 
-const token = "daniel@tenant1";
+const token = "username@tenant1";
 
 const instance = axios.create({
   baseURL: BASE_URL,
