@@ -1,0 +1,2 @@
+### List all Application Templates
+GET http://{{host}}:{{port}}/api/v1/appcode

@@ -13,17 +13,16 @@ import (
 	clusterclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
 
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/config"
 	"github.com/h4-poc/service/pkg/handler"
 	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/middleware"
 	"github.com/h4-poc/service/pkg/store"
 )
 
@@ -38,10 +37,6 @@ func NewRunCommand() *cobra.Command {
 		Short: "Run the server",
 		Long:  `Run the Application API server`,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Set kubeconfig path to environment variable for kube client
-			if kubeconfigPath != "" {
-				os.Setenv("KUBECONFIG", kubeconfigPath)
-			}
 			runServer(cmd, args)
 		},
 	}
@@ -171,14 +166,16 @@ func setupRouter() *gin.Engine {
 	r := gin.Default()
 
 	r.Use(gin.Recovery())
-	r.Use(corsMiddleware())
-	r.Use(requestIDMiddleware())
-	r.Use(kubeFactoryMiddleware())
+	r.Use(middleware.CorsMiddleware())
+	r.Use(middleware.RequestIDMiddleware())
+	r.Use(middleware.AuthMiddleware())
+	r.Use(middleware.KubeFactoryMiddleware())
 
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/healthz", handler.Healthz)
 	}
+
 	// app code
 	{
 		v1.GET("/appcode", handler.ListAppCode)
@@ -257,67 +254,6 @@ func setupRouter() *gin.Engine {
 	}
 
 	return r
-}
-
-// corsMiddleware to handle CORS
-func corsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Authorization, Content-Type")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
-}
-
-// requestIDMiddleware injects a request ID into the context
-func requestIDMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		requestID := c.GetHeader("X-Request-ID")
-		if requestID == "" {
-			requestID = generateRequestID()
-		}
-		c.Set("RequestID", requestID)
-		c.Header("X-Request-ID", requestID)
-		c.Next()
-	}
-}
-
-// generateRequestID to generate request ID
-func generateRequestID() string {
-	return fmt.Sprintf("%d-%s", time.Now().UnixNano(), uuid.New().String()[:8])
-}
-
-// kubeFactoryMiddleware injects a kube factory into the context
-func kubeFactoryMiddleware() gin.HandlerFunc {
-	// Create factory and clients once when middleware is initialized
-	factory := kube.NewFactory()
-	restConfig, err := factory.ToRESTConfig()
-	if err != nil {
-		log.G().Fatalf("Failed to get REST config: %v", err)
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		log.G().Fatalf("Failed to create dynamic client: %v", err)
-	}
-
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
-	if err != nil {
-		log.G().Fatalf("Failed to create discovery client: %v", err)
-	}
-
-	return func(c *gin.Context) {
-		c.Set("kubeFactory", factory)
-		c.Set("dynamicClient", dynamicClient)
-		c.Set("discoveryClient", discoveryClient)
-		c.Next()
-	}
 }
 
 // listDestinationCluster

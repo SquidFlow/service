@@ -66,7 +66,7 @@ func DryRun(c *gin.Context) {
 	envList := req.Clusters
 	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", app)) {
 		for _, env := range envList {
-			if err := Helm_Templating(app, env); err != nil {
+			if err := HelmTemplating(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}
@@ -126,7 +126,7 @@ func ValidateTemplate(c *gin.Context) {
 	}
 	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", app)) {
 		for _, env := range envList {
-			if err := Helm_Templating(app, env); err != nil {
+			if err := HelmTemplating(app, env); err != nil {
 				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 				return
 			}

@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/h4-poc/service/pkg/util"
 	"github.com/slok/go-helm-template/helm"
-	"os"
 
 	"sigs.k8s.io/kustomize/kustomize/v5/commands/build"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
-func Helm_Templating(app string, env string) error {
+func HelmTemplating(app string, env string) error {
 
 	ctx := context.Background()
 

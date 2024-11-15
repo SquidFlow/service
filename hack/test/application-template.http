@@ -1,3 +1,4 @@
+### Create Application Template
 POST http://{{host}}:{{port}}/api/v1/applications/templates
 
 {

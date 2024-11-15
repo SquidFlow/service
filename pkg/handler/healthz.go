@@ -8,11 +8,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/h4-poc/service/pkg/kube"
+	"github.com/h4-poc/service/pkg/store"
 )
 
 func Healthz(c *gin.Context) {
+	s := store.Get()
 	body := map[string]interface{}{
 		"status": "ok",
+		"version": map[string]string{
+			"version":    s.Version.Version,
+			"buildDate":  s.Version.BuildDate,
+			"gitCommit":  s.Version.GitCommit,
+			"goVersion":  s.Version.GoVersion,
+			"goCompiler": s.Version.GoCompiler,
+			"platform":   s.Version.Platform,
+		},
 	}
 
 	ok, err := checkKubernetesHealth()

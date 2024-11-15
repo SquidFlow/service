@@ -1,17 +1,17 @@
 GO=go
 GOFLAGS=-v
 
-VERSION := $(shell git describe --tags --always)
-BUILD_DATE := $(shell date -u '+%H:%M:%S@%Y-%m-%d')
-GIT_COMMIT := $(shell git rev-parse HEAD)
+VERSION ?= $(shell git describe --tags --always --dirty)
+BUILD_DATE ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+GIT_COMMIT ?= $(shell git rev-parse HEAD)
 INSTALLATION_MANIFESTS_URL := "github.com/h4-poc/service/manifests/base"
 INSTALLATION_MANIFESTS_THIRD_PARTY := "github.com/h4-poc/service/manifests/third-party"
 
-LDFLAGS=-ldflags "-X 'github.com/h4-poc/service/pkg/store.version=${VERSION}' \
-				-X 'github.com/h4-poc/service/pkg/store.buildDate=${BUILD_DATE}' \
-				-X 'github.com/h4-poc/service/pkg/store.gitCommit=${GIT_COMMIT}' \
-				-X 'github.com/h4-poc/service/pkg/store.installationManifestsURL=${INSTALLATION_MANIFESTS_URL}' \
-				-X 'github.com/h4-poc/service/pkg/store.installationManifestsThirdParty=${INSTALLATION_MANIFESTS_THIRD_PARTY}' "
+LDFLAGS := -X 'github.com/h4-poc/service/pkg/store.version=$(VERSION)' \
+           -X 'github.com/h4-poc/service/pkg/store.buildDate=$(BUILD_DATE)' \
+           -X 'github.com/h4-poc/service/pkg/store.gitCommit=$(GIT_COMMIT)' \
+           -X 'github.com/h4-poc/service/pkg/store.installationManifestsURL=github.com/h4-poc/service/manifests/base' \
+           -X 'github.com/h4-poc/service/pkg/store.installationManifestsThirdParty=github.com/h4-poc/service/manifests/third-party'
 
 # Default target
 .DEFAULT_GOAL := build
@@ -21,50 +21,22 @@ LDFLAGS=-ldflags "-X 'github.com/h4-poc/service/pkg/store.version=${VERSION}' \
 build: build-service build-supervisor
 
 build-service:
-	$(GO) build $(GOFLAGS) -o output/service $(LDFLAGS) cmd/service/service.go
+	go build -v -o output/service -ldflags "$(LDFLAGS)" cmd/service/service.go
 
 build-supervisor:
-	$(GO) build $(GOFLAGS) -o output/supervisor $(LDFLAGS) cmd/supervisor/supervisor.go
+	go build -v -o output/supervisor -ldflags "$(LDFLAGS)" cmd/supervisor/supervisor.go
 
-# Run application
-.PHONY: run
-run: build
-	./$(BINARY_NAME) run
-
-# Run tests
 .PHONY: test
 test:
 	$(GO) test ./...
 
-# Clean build artifacts
 .PHONY: clean
 clean:
 	$(GO) clean
 	rm -f $(BINARY_NAME)
 
-# Execute all operations
 .PHONY: all
 all: clean build test
-
-# Generate Swagger documentation (if using swag)
-.PHONY: swagger
-swagger:
-	swag init -g $(MAIN_FILE) -o ./docs/swagger
-
-# Format code
-.PHONY: fmt
-fmt:
-	$(GO) fmt ./...
-
-# Check code style
-.PHONY: lint
-lint:
-	golangci-lint run
-
-# Helm deployment
-.PHONY: deploy
-deploy:
-	helm upgrade --install application-api ./deploy/application-api
 
 .PHONY: codegen
 codegen: $(GOBIN)/mockgen

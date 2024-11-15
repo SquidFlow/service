@@ -3,16 +3,21 @@ package store
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 )
 
-var s Store
+var (
+	s     Store
+	once  sync.Once
+	mutex sync.RWMutex
+)
 
 var (
 	binaryName                      = "supervisor"
-	version                         = "v00.00.99"
-	buildDate                       = ""
-	gitCommit                       = ""
+	version                         = "dev"
+	buildDate                       = "unknown"
+	gitCommit                       = "none"
 	installationManifestsURL        = "github.com/h4-poc/service/manifests/base"
 	installationManifestsThirdParty = "github.com/h4-poc/service/manifests/third-party"
 )
@@ -83,17 +88,19 @@ var Default = struct {
 	WaitInterval:         time.Second * 3,
 }
 
-// Get returns the global store
 func Get() *Store {
+	mutex.RLock()
+	defer mutex.RUnlock()
+
+	once.Do(func() {
+		s.BinaryName = binaryName
+		s.InstallationManifestsURL = installationManifestsURL
+		s.InstallationManifestsThirdParty = installationManifestsThirdParty
+	})
+
+	initVersion()
 
 	return &s
-}
-
-func init() {
-	s.BinaryName = binaryName
-	s.InstallationManifestsURL = installationManifestsURL
-	s.InstallationManifestsThirdParty = installationManifestsThirdParty
-	initVersion()
 }
 
 func initVersion() {
