@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/gin-gonic/gin"
@@ -15,8 +16,10 @@ import (
 
 // CreateClusterRequest represents the request body for cluster creation
 type CreateClusterRequest struct {
-	Env        string `json:"env" binding:"required,oneof=SIT UAT PRD"`
-	KubeConfig string `json:"kubeconfig" binding:"required"` // with base64 encoding
+	Name       string            `json:"name" binding:"required"`
+	Env        string            `json:"env" binding:"required,oneof=DEV SIT UAT PRD"`
+	KubeConfig string            `json:"kubeconfig" binding:"required"` // with base64 encoding
+	Labels     map[string]string `json:"labels,omitempty"`              // custom labels
 }
 
 // CreateDestinationCluster creates a new destination cluster
@@ -28,8 +31,8 @@ func CreateDestinationCluster(c *gin.Context) {
 	}
 
 	log.G().WithFields(log.Fields{
-		"env":        req.Env,
-		"kubeconfig": req.KubeConfig,
+		"name": req.Name,
+		"env":  req.Env,
 	}).Debug("user input create destination cluster")
 
 	// parse the kubeConfig
@@ -40,6 +43,31 @@ func CreateDestinationCluster(c *gin.Context) {
 		return
 	}
 
+	// Parse kubeconfig into config object
+	config, err := clientcmd.Load(kubconfigWithoutBase64)
+	if err != nil {
+		log.G().Errorf("Failed to load kubeconfig: %v", err)
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to load kubeconfig: %v", err)})
+		return
+	}
+
+	// Log important kubeconfig information
+	log.G().WithFields(log.Fields{
+		"current-context": config.CurrentContext,
+		"contexts":        len(config.Contexts),
+		"clusters":        len(config.Clusters),
+		"users":           len(config.AuthInfos),
+	}).Debug("Parsed kubeconfig details")
+
+	// If you want to log specific cluster info
+	if cluster, exists := config.Clusters[config.CurrentContext]; exists {
+		log.G().WithFields(log.Fields{
+			"server":                   cluster.Server,
+			"insecure-skip-tls-verify": cluster.InsecureSkipTLSVerify,
+			"certificate-authority":    len(cluster.CertificateAuthority) > 0,
+		}).Debug("Current cluster details")
+	}
+
 	restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubconfigWithoutBase64)
 	if err != nil {
 		log.G().Errorf("Failed to parse kubeConfig: %v", err)
@@ -47,20 +75,35 @@ func CreateDestinationCluster(c *gin.Context) {
 		return
 	}
 
+	// Merge default labels with custom labels
+	annotations := map[string]string{
+		"h4-poc.github.io/cluster-env":    req.Env,
+		"h4-poc.github.io/cluster-vendor": "aliyun",
+		"h4-poc.github.io/cluster-name":   req.Name,
+	}
+
+	// Add custom labels
+	labels := make(map[string]string)
+	for k, v := range req.Labels {
+		labels[k] = v
+	}
+
 	// detect the vendor
-	createClusterReq := NewCluster(
-		restConfig.Host, []string{},
+	createClusterReq := newArgoCdClusterCreateReq(
+		req.Name,
+		[]string{},
 		true,
 		restConfig,
 		"",
 		nil,
 		nil,
-		map[string]string{"env": req.Env, "vendor": "aliyun"},
-		nil)
+		labels,
+		annotations, // Use merged annotations
+	)
 	log.G().WithFields(log.Fields{
 		"cluster":           createClusterReq.Name,
-		"cluster label":     createClusterReq.Labels,
-		"cluster annotaion": createClusterReq.Annotations,
+		"cluster_labels":    createClusterReq.Labels,
+		"cluster_annotaion": createClusterReq.Annotations,
 	}).Debug("argocd request for create destination cluster")
 
 	// 2. argoCd cluster client
@@ -72,6 +115,10 @@ func CreateDestinationCluster(c *gin.Context) {
 		Cluster: createClusterReq,
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "existing cluster") {
+			c.JSON(400, gin.H{"error": fmt.Sprintf("Cluster %s already exists", req.Name)})
+			return
+		}
 		log.G().Errorf("Failed to create cluster: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create cluster: %v", err)})
 		return
@@ -79,7 +126,7 @@ func CreateDestinationCluster(c *gin.Context) {
 
 	// parse the kubeConfig
 	c.JSON(201, gin.H{
-		"message": fmt.Sprintf("destination cluster: %s created successfully", cls.Name),
+		"message": fmt.Sprintf("destination cluster: %s created successfully", req.Name),
 		"cluster": cls,
 	})
 }

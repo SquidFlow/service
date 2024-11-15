@@ -2,11 +2,10 @@ package handler
 
 import (
 	"context"
-	"fmt"
-	"time"
-
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -202,7 +201,14 @@ func GetDestKubernetesClient(argocdCluster *argoappv1.Cluster) (kubernetes.Inter
 	return kubernetes.NewForConfig(restConfig)
 }
 
-func NewCluster(name string, namespaces []string, clusterResources bool, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig, labels, annotations map[string]string) *argoappv1.Cluster {
+func newArgoCdClusterCreateReq(name string, namespaces []string,
+	clusterResources bool,
+	conf *rest.Config,
+	managerBearerToken string,
+	awsAuthConf *argoappv1.AWSAuthConfig,
+	execProviderConf *argoappv1.ExecProviderConfig,
+	labels, annotations map[string]string,
+) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,

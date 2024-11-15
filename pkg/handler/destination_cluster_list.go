@@ -5,79 +5,22 @@ import (
 	"fmt"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
 	clientCluster "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/h4-poc/service/pkg/argocd"
 	"github.com/h4-poc/service/pkg/log"
 )
 
-type ClusterResponse struct {
-	Name              string            `json:"name"`
-	Environment       string            `json:"environment"`
-	Status            []ComponentStatus `json:"componentStatus"`
-	Provider          string            `json:"provider"`
-	Version           VersionInfo       `json:"version"`
-	NodeCount         int               `json:"nodeCount"`
-	Region            string            `json:"region"`
-	ResourceQuota     ResourceQuota     `json:"resourceQuota"`
-	Health            HealthStatus      `json:"health"`
-	Nodes             NodeStatus        `json:"nodes"`
-	NetworkPolicy     bool              `json:"networkPolicy"`
-	IngressController string            `json:"ingressController"`
-	LastUpdated       string            `json:"lastUpdated"`
-	ConsoleUrl        string            `json:"consoleUrl,omitempty"`
-	Monitoring        MonitoringInfo    `json:"monitoring"`
-	Builtin           bool              `json:"builtin,omitempty"`
-}
-
-type VersionInfo struct {
-	Kubernetes string `json:"kubernetes"`
-	Platform   string `json:"platform"`
-}
-
-type ResourceQuota struct {
-	CPU       string `json:"cpu"`
-	Memory    string `json:"memory"`
-	Storage   string `json:"storage"`
-	PVCs      string `json:"pvcs"`
-	NodePorts string `json:"nodeports"`
-}
-
-type HealthStatus struct {
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
-}
-
-type NodeStatus struct {
-	Ready int `json:"ready"`
-	Total int `json:"total"`
-}
-
-type MonitoringInfo struct {
-	Prometheus   bool            `json:"prometheus"`
-	Grafana      bool            `json:"grafana"`
-	AlertManager bool            `json:"alertmanager"`
-	URLs         *MonitoringURLs `json:"urls,omitempty"`
-}
-
-type MonitoringURLs struct {
-	Prometheus   string `json:"prometheus,omitempty"`
-	Grafana      string `json:"grafana,omitempty"`
-	AlertManager string `json:"alertmanager,omitempty"`
-}
-
-type ComponentStatus struct {
-	Name    string `json:"name"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Error   string `json:"error,omitempty"`
+type ClusterListResponse struct {
+	Total   int               `json:"total"`
+	Message string            `json:"message"`
+	Items   []ClusterResponse `json:"items"`
 }
 
 // ListDestinationCluster handles the GET request for listing clusters
@@ -93,7 +36,11 @@ func ListDestinationCluster(c *gin.Context) {
 		return
 	}
 
-	response := []ClusterResponse{}
+	response := ClusterListResponse{
+		Total:   len(clusterList.Items),
+		Message: "success",
+		Items:   []ClusterResponse{},
+	}
 	log.G().WithFields(log.Fields{
 		"cluster count": len(clusterList.Items),
 	}).Debug("list destination cluster found clusters count")
@@ -116,15 +63,15 @@ func ListDestinationCluster(c *gin.Context) {
 
 		clusterInfo := ClusterResponse{
 			Name:        cluster.Name,
-			Environment: cluster.Labels["environment"],
+			Environment: cluster.Annotations["h4-poc.github.io/cluster-env"],
 			Status:      getClusterStatus(destK8sClient),
-			Provider:    cluster.Labels["vendor"],
+			Provider:    cluster.Annotations["h4-poc.github.io/cluster-vendor"],
 			Version: VersionInfo{
 				Kubernetes: version.GitVersion,
-				Platform:   getPlatformVersion(version, cluster.Labels["vendor"]),
+				Platform:   getPlatformVersion(version, cluster.Annotations["h4-poc.github.io/cluster-vendor"]),
 			},
 			NodeCount:     total,
-			Region:        cluster.Labels["region"],
+			Region:        "hk",
 			ResourceQuota: getResourceQuota(cluster),
 			Health: HealthStatus{
 				Status:  cluster.Info.ConnectionState.Status,
@@ -140,9 +87,10 @@ func ListDestinationCluster(c *gin.Context) {
 			ConsoleUrl:        getConsoleURL(cluster),
 			Monitoring:        getMonitoringInfo(cluster),
 			Builtin:           cluster.Labels["builtin"] == "true",
+			Labels:            cluster.Labels,
 		}
 
-		response = append(response, clusterInfo)
+		response.Items = append(response.Items, clusterInfo)
 	}
 
 	c.JSON(200, response)

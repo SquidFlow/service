@@ -24,6 +24,7 @@ import (
 	"github.com/h4-poc/service/pkg/handler"
 	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/store"
 )
 
 func NewRunCommand() *cobra.Command {
@@ -89,6 +90,16 @@ func runServer(cmd *cobra.Command, args []string) {
 		}
 		log.G().Info("Running in development mode")
 	}
+
+	// Display version information
+	log.G().WithFields(log.Fields{
+		"Version":    store.Get().Version.Version,
+		"GitCommit":  store.Get().Version.GitCommit,
+		"BuildTime":  store.Get().Version.BuildDate,
+		"GoCompiler": store.Get().Version.GoCompiler,
+		"GoVersion":  store.Get().Version.GoVersion,
+		"Platform":   store.Get().Version.Platform,
+	}).Info("Starting service")
 
 	// Create kubernetes clients
 	factory := kube.NewFactory()
@@ -174,10 +185,13 @@ func setupRouter() *gin.Engine {
 	}
 
 	// the target cluster of argo application
+	// cluster name is required, immutable, unique
 	clusters := v1.Group("/destinationCluster")
 	{
-		clusters.GET("", handler.ListDestinationCluster)
 		clusters.POST("", handler.CreateDestinationCluster)
+		clusters.GET("", handler.ListDestinationCluster)
+		clusters.GET("/:name", handler.GetDestinationCluster)
+		clusters.DELETE("/:name", handler.DeleteDestinationCluster)
 		clusters.PATCH("/:name", handler.UpdateDestinationCluster)
 	}
 
