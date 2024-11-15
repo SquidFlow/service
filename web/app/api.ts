@@ -242,7 +242,7 @@ export const useGetClusterList = () => {
 		return response.data;
 	});
 
-	const clusterList: ClusterInfo[] = data || [];
+	const clusterList: ClusterInfo[] = data?.items || [];
 	return {
 		clusterList,
 		error,
