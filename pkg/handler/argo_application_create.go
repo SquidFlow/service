@@ -15,6 +15,7 @@ import (
 	"github.com/h4-poc/service/pkg/git"
 	"github.com/h4-poc/service/pkg/kube"
 	"github.com/h4-poc/service/pkg/log"
+	"github.com/h4-poc/service/pkg/middleware"
 	"github.com/h4-poc/service/pkg/store"
 	"github.com/h4-poc/service/pkg/util"
 )
@@ -32,6 +33,52 @@ type (
 		Annotations     map[string]string
 		Include         string
 		Exclude         string
+	}
+
+	DestinationClusters struct {
+		Clusters  []string `json:"clusters"`
+		Namespace string   `json:"namespace"`
+	}
+
+	TLS struct {
+		Enabled    bool   `json:"enabled"`
+		SecretName string `json:"secretName"`
+	}
+
+	Ingress struct {
+		Host string `json:"host"`
+		TLS  *TLS   `json:"tls,omitempty"`
+	}
+
+	SecretStoreRef struct {
+		ID string `json:"id"`
+	}
+
+	ExternalSecret struct {
+		SecretStoreRef SecretStoreRef `json:"secret_store_ref"`
+	}
+
+	Security struct {
+		ExternalSecret *ExternalSecret `json:"external_secret,omitempty"`
+	}
+
+	ApplicationCreate struct {
+		ApplicationSource   ApplicationSource   `json:"application_source"`
+		ApplicationName     string              `json:"application_name"`
+		TenantName          string              `json:"tenant_name"`
+		AppCode             string              `json:"appcode"`
+		Description         string              `json:"description"`
+		DestinationClusters DestinationClusters `json:"destination_clusters"`
+		Ingress             *Ingress            `json:"ingress,omitempty"`
+		Security            *Security           `json:"security,omitempty"`
+		IsDryRun            bool                `json:"is_dryrun"`
+	}
+
+	ApplicationSource struct {
+		Type           string `json:"type" binding:"required,oneof=git"`
+		URL            string `json:"url" binding:"required"`
+		TargetRevision string `json:"targetRevision" binding:"required"`
+		Path           string `json:"path" binding:"required"`
 	}
 )
 
@@ -72,17 +119,31 @@ var (
 	}
 )
 
-type Application struct {
-	ProjectName string `json:"project-name"`
-	AppName     string `json:"app-name"`
-	App         string `json:"app"`
-	WaitTimeout string `json:"wait-timeout"`
-}
-
 func CreateArgoApplication(c *gin.Context) {
-	var createAppReq Application
-	if err := c.BindJSON(&createAppReq); err != nil {
+	username := c.GetString(middleware.UserNameKey)
+	tenant := c.GetString(middleware.TenantKey)
+	log.G().WithFields(log.Fields{
+		"username": username,
+		"tenant":   tenant,
+	}).Debug("create argo application")
+
+	var createReq ApplicationCreate
+	if err := c.BindJSON(&createReq); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request body: " + err.Error()})
+		return
+	}
+
+	if err := validateApplication(&createReq); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// TODO: dry run
+	if createReq.IsDryRun {
+		c.JSON(200, gin.H{
+			"message":     "Validation passed",
+			"application": createReq,
+		})
 		return
 	}
 
@@ -101,32 +162,144 @@ func CreateArgoApplication(c *gin.Context) {
 			CloneForWrite: false,
 		},
 		createOpts: &application.CreateOptions{
-			AppName:          createAppReq.AppName,
+			AppName:          createReq.ApplicationName,
 			AppType:          application.AppTypeKustomize,
-			AppSpecifier:     createAppReq.App,
+			AppSpecifier:     createReq.ApplicationSource.URL,
 			InstallationMode: application.InstallationModeNormal,
 			DestServer:       "https://kubernetes.default.svc",
-			Labels:           nil,
-			Annotations:      nil,
-			Include:          "",
-			Exclude:          "",
+			Labels: map[string]string{
+				"h4-poc.github.io/created-by": username,
+				"h4-poc.github.io/tenant":     tenant,
+			},
+			Annotations: map[string]string{
+				"h4-poc.github.io/description": createReq.Description,
+				"h4-poc.github.io/appcode":     createReq.AppCode,
+			},
 		},
-		ProjectName: createAppReq.ProjectName,
-		Timeout:     0,
+		ProjectName: createReq.TenantName,
 		KubeFactory: kube.NewFactory(),
 	}
 	opt.CloneOpts.Parse()
 	opt.AppsCloneOpts.Parse()
 
+	if createReq.Ingress != nil {
+		opt.createOpts.Annotations["ingress.host"] = createReq.Ingress.Host
+		if createReq.Ingress.TLS != nil {
+			opt.createOpts.Annotations["ingress.tls.enabled"] = fmt.Sprintf("%v", createReq.Ingress.TLS.Enabled)
+			opt.createOpts.Annotations["ingress.tls.secretName"] = createReq.Ingress.TLS.SecretName
+		}
+	}
+
+	if createReq.Security != nil && createReq.Security.ExternalSecret != nil {
+		opt.createOpts.Annotations["security.external-secret.store-id"] = createReq.Security.ExternalSecret.SecretStoreRef.ID
+	}
+
+	// for _, cluster := range createReq.DestinationClusters.Clusters {
+	// 	// TODO: get dest server from cluster
+	// 	opt.createOpts.DestServer = cluster
+
+	// 	if err := RunAppCreate(context.Background(), &opt); err != nil {
+	// 		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", cluster, err)})
+	// 		return
+	// 	}
+	// }
+
 	if err := RunAppCreate(context.Background(), &opt); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create application: " + err.Error()})
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", opt.createOpts.DestServer, err)})
 		return
 	}
 
 	c.JSON(201, gin.H{
-		"message":     "Application created successfully",
-		"application": createAppReq,
+		"message":     "Applications created successfully",
+		"application": createReq,
 	})
+}
+
+func validateApplication(app *ApplicationCreate) error {
+	if app.ApplicationName == "" {
+		return fmt.Errorf("application_name is required")
+	}
+	if app.TenantName == "" {
+		return fmt.Errorf("tenant_name is required")
+	}
+	if app.Description == "" {
+		return fmt.Errorf("description is required")
+	}
+
+	if err := validateApplicationSource(&app.ApplicationSource); err != nil {
+		return fmt.Errorf("invalid application_source: %w", err)
+	}
+
+	if err := validateDestinationClusters(&app.DestinationClusters); err != nil {
+		return fmt.Errorf("invalid destination_cluster: %w", err)
+	}
+
+	if app.Ingress != nil {
+		if err := validateIngress(app.Ingress); err != nil {
+			return fmt.Errorf("invalid ingress configuration: %w", err)
+		}
+	}
+
+	if app.Security != nil {
+		if err := validateSecurity(app.Security); err != nil {
+			return fmt.Errorf("invalid security configuration: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func validateApplicationSource(source *ApplicationSource) error {
+	if source == nil {
+		return fmt.Errorf("application_source is required")
+	}
+	if source.Type != "git" {
+		return fmt.Errorf("source type must be git")
+	}
+	if source.URL == "" {
+		return fmt.Errorf("source URL is required")
+	}
+	if source.TargetRevision == "" {
+		return fmt.Errorf("source targetRevision is required")
+	}
+	if source.Path == "" {
+		return fmt.Errorf("source path is required")
+	}
+	return nil
+}
+
+func validateDestinationClusters(dest *DestinationClusters) error {
+	if dest == nil {
+		return fmt.Errorf("destination_clusters is required")
+	}
+	if len(dest.Clusters) == 0 {
+		return fmt.Errorf("at least one destination cluster must be specified")
+	}
+	if dest.Namespace == "" {
+		dest.Namespace = "default"
+	}
+	return nil
+}
+
+func validateIngress(ingress *Ingress) error {
+	if ingress.Host == "" {
+		return fmt.Errorf("ingress host is required when ingress is enabled")
+	}
+	if ingress.TLS != nil {
+		if ingress.TLS.Enabled && ingress.TLS.SecretName == "" {
+			return fmt.Errorf("TLS secret name is required when TLS is enabled")
+		}
+	}
+	return nil
+}
+
+func validateSecurity(security *Security) error {
+	if security.ExternalSecret != nil {
+		if security.ExternalSecret.SecretStoreRef.ID == "" {
+			return fmt.Errorf("secret store ID is required when external secret is enabled")
+		}
+	}
+	return nil
 }
 
 func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
@@ -198,25 +371,6 @@ func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
 		return fmt.Errorf("failed to push to gitops repo: %w", err)
 	}
 
-	if opts.Timeout > 0 {
-		namespace, err := getInstallationNamespace(repofs)
-		if err != nil {
-			return fmt.Errorf("failed to get application namespace: %w", err)
-		}
-
-		log.G().WithField("timeout", opts.Timeout).Infof("waiting for '%s' to finish syncing", opts.createOpts.AppName)
-		fullName := fmt.Sprintf("%s-%s", opts.ProjectName, opts.createOpts.AppName)
-
-		// wait for argocd to be ready before applying argocd-apps
-		stop := util.WithSpinner(ctx, fmt.Sprintf("waiting for '%s' to be ready", fullName))
-		if err = waitAppSynced(ctx, opts.KubeFactory, opts.Timeout, fullName, namespace, revision, true); err != nil {
-			stop()
-			return fmt.Errorf("failed waiting for application to sync: %w", err)
-		}
-
-		stop()
-	}
-
-	log.G().Infof("installed application: %s", opts.createOpts.AppName)
+	log.G().Infof("installed application: %s and revision: %s", opts.createOpts.AppName, revision)
 	return nil
 }

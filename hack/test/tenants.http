@@ -1,15 +1,33 @@
 ### create project
 POST http://{{host}}:{{port}}/api/v1/tenants
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 {
-    "project-name": "testing"
+    "project-name": "testing",
+    "labels": {
+        "label1": "value1"
+    },
+    "annotations": {
+        "annotation1": "value1"
+    }
 }
 
-### list project
+### list project === list tenants
 GET http://{{host}}:{{port}}/api/v1/tenants
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
-### delete project (wgh)
-DELETE http://{{host}}:{{port}}/api/v1/tenants?tenantName=wgh
+### delete project
+GET http://{{host}}:{{port}}/api/v1/tenants/tenant3
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 ### delete project(testing)
-DELETE http://{{host}}:{{port}}/api/v1/tenants?tenantName=testing
+DELETE http://{{host}}:{{port}}/api/v1/tenants/tenant3
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1

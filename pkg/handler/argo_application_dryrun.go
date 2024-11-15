@@ -50,7 +50,7 @@ type ValidateTemplateResponse struct {
 	Results []ValidationResult `json:"results"`
 }
 
-func DryRun(c *gin.Context) {
+func ApplicationTemplateDryRun(c *gin.Context) {
 	var req DryRunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})

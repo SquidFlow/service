@@ -103,14 +103,25 @@ components:
 
     ApplicationSource:
       type: object
+      required:
+        - type
+        - url
+        - targetRevision
+        - path
       properties:
         type:
           type: string
           enum: [git]
+          example: "git"
         url:
           type: string
+          example: "git@github.com:h4-poc/platform.git"
         targetRevision:
           type: string
+          example: "main"
+        path:
+          type: string
+          example: "manifest/fluent-operator"
 
     ClusterCreate:
       type: object
@@ -232,22 +243,91 @@ components:
           additionalProperties:
             type: string
 
+    DestinationCluster:
+      type: object
+      required:
+        - clusters
+      properties:
+        clusters:
+          type: array
+          items:
+            type: string
+          example: ["sit1", "sit2"]
+        namespace:
+          type: string
+          default: "default"
+          example: "default"
+
+    TLS:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          example: true
+        secretName:
+          type: string
+          example: "demo1-tls"
+
+    Ingress:
+      type: object
+      properties:
+        host:
+          type: string
+          example: "demo1.h4.com"
+        tls:
+          $ref: '#/components/schemas/TLS'
+
+    SecretStoreRef:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "secret-store"
+
+    ExternalSecret:
+      type: object
+      properties:
+        secret_store_ref:
+          $ref: '#/components/schemas/SecretStoreRef'
+
+    Security:
+      type: object
+      properties:
+        external_secret:
+          $ref: '#/components/schemas/ExternalSecret'
+
     ArgoApplicationCreate:
       type: object
       required:
-        - project-name
-        - app-name
-        - app
+        - application_source
+        - application_name
+        - tenant_name
+        - destination_cluster
       properties:
-        project-name:
+        application_source:
+          $ref: '#/components/schemas/ApplicationSource'
+        application_name:
+          type: string
+          example: "demo1"
+        tenant_name:
           type: string
           example: "testing"
-        app-name:
+        appcode:
           type: string
-          example: "demo"
-        app:
+          example: "edsf"
+        description:
           type: string
-          example: "github.com/h4-poc/demo-app"
+          example: "test description"
+        destination_cluster:
+          $ref: '#/components/schemas/DestinationCluster'
+        ingress:
+          $ref: '#/components/schemas/Ingress'
+        security:
+          $ref: '#/components/schemas/Security'
+        is_dryrun:
+          type: boolean
+          default: false
+          example: false
 
     ArgoApplication:
       type: object
@@ -290,6 +370,65 @@ components:
         details:
           type: object
 
+    ProjectDest:
+      type: object
+      properties:
+        server:
+          type: string
+          example: "https://kubernetes.default.svc"
+        namespace:
+          type: string
+          example: "default"
+
+    ProjectResource:
+      type: object
+      properties:
+        group:
+          type: string
+          example: "apps"
+        kind:
+          type: string
+          example: "Deployment"
+
+    TenantDetailInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "tenant1"
+        namespace:
+          type: string
+          example: "tenant1"
+        description:
+          type: string
+          example: "Tenant description"
+        default_cluster:
+          type: string
+          example: "https://kubernetes.default.svc"
+        source_repos:
+          type: array
+          items:
+            type: string
+          example: ["git@github.com:org/repo.git"]
+        destinations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectDest'
+        cluster_resource_whitelist:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResource'
+        namespace_resource_whitelist:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResource'
+        created_by:
+          type: string
+          example: "admin"
+        created_at:
+          type: string
+          format: date-time
+
     TenantCreate:
       type: object
       required:
@@ -297,29 +436,19 @@ components:
       properties:
         project-name:
           type: string
-          example: "testing"
-
-    TenantInfo:
-      type: object
-      properties:
-        name:
-          type: string
-        status:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    TenantResponse:
-      type: object
-      properties:
-        message:
-          type: string
-        tenant:
-          $ref: '#/components/schemas/TenantInfo'
+          example: "tenant3"
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            label1: "value1"
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            annotation1: "value1"
 
     SecretStoreCreate:
       type: object
@@ -410,6 +539,33 @@ components:
             platform:
               type: string
               example: "linux/amd64"
+
+    TenantListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantInfo'
+        success:
+          type: boolean
+          example: true
+        total:
+          type: integer
+          example: 3
+
+    TenantInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "tenant1"
+        namespace:
+          type: string
+          example: "argocd"
+        default_cluster:
+          type: string
+          example: "https://kubernetes.default.svc"
 
 
 paths:
@@ -526,6 +682,7 @@ paths:
     post:
       tags: [ArgoApplication]
       summary: Create ArgoCD application
+      description: Create a new ArgoCD application with support for multi-cluster deployment
       operationId: createArgoApplication
       requestBody:
         required: true
@@ -539,9 +696,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ArgoApplication'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Applications created successfully"
+                  application:
+                    $ref: '#/components/schemas/ArgoApplicationCreate'
         '400':
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - tenant mismatch
           content:
             application/json:
               schema:
@@ -635,7 +804,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tenant created successfully"
+                  tenant:
+                    $ref: '#/components/schemas/TenantDetailInfo'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
     get:
       tags: [Tenants]
@@ -647,21 +828,45 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TenantInfo'
+                $ref: '#/components/schemas/TenantListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /tenants/{tenantName}:
+  /tenants/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Tenant name
+
+    get:
+      tags: [Tenants]
+      summary: Get tenant details
+      operationId: describeTenant
+      responses:
+        '200':
+          description: Tenant details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantDetailInfo'
+        '404':
+          description: Tenant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     delete:
       tags: [Tenants]
       summary: Delete tenant
       operationId: deleteTenant
-      parameters:
-        - name: tenantName
-          in: path
-          required: true
-          schema:
-            type: string
       responses:
         '204':
           description: Tenant deleted successfully

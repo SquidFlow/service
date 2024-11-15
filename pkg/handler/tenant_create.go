@@ -21,7 +21,7 @@ type ProjectCreateRequest struct {
 	Annotations map[string]string `json:"annotations"`
 }
 
-func CreateProject(c *gin.Context) {
+func CreateTenant(c *gin.Context) {
 	var req ProjectCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})

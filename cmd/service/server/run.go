@@ -213,8 +213,8 @@ func setupRouter() *gin.Engine {
 		applications.POST("", handler.CreateArgoApplication)
 		applications.GET("", handler.ListArgoApplications)
 		applications.POST("/sync", handler.SyncArgoApplication)
-		applications.POST("/dryruntemplate", handler.DryRun)
 		applications.POST("/dryrun", handler.DryRunArgoApplications)
+		applications.POST("/dryruntemplate", handler.ApplicationTemplateDryRun)
 		applications.POST("/validate", handler.ValidateTemplate)
 
 		app := applications.Group("/:id")
@@ -228,12 +228,12 @@ func setupRouter() *gin.Engine {
 	// one tenant : one ArgoCD Project
 	tenants := v1.Group("/tenants")
 	{
-		tenants.POST("", handler.CreateProject)
-		tenants.GET("", handler.ListProjects)
-		tenants.DELETE("", handler.DeleteProject)
-		tenantsOne := tenants.Group("/:tenantName")
+		tenants.POST("", handler.CreateTenant)
+		tenants.GET("", handler.ListTenants)
+		tenantsOne := tenants.Group("/:name")
 		{
-			tenantsOne.GET("", handler.ListProjects)
+			tenantsOne.DELETE("", handler.DeleteTenant)
+			tenantsOne.GET("", handler.DescribeTenant)
 		}
 	}
 

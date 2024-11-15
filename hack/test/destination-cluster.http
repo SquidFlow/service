@@ -1,9 +1,14 @@
 ### List all clusters
 GET http://{{host}}:{{port}}/api/v1/destinationCluster
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 ### Create cluster
 POST http://{{host}}:{{port}}/api/v1/destinationCluster
+Accept: application/json
 Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 {
     "name": "sit",
@@ -17,16 +22,27 @@ Content-Type: application/json
 
 ### List all clusters
 GET http://{{host}}:{{port}}/api/v1/destinationCluster
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 ### Get single cluster
 GET http://{{host}}:{{port}}/api/v1/destinationCluster/sit
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 ### deregister cluster
 DELETE http://{{host}}:{{port}}/api/v1/destinationCluster/sit
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 ### Update cluster (only labels and env)
 PATCH http://{{host}}:{{port}}/api/v1/destinationCluster/sit
+Accept: application/json
 Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 {
     "env": "DEV",

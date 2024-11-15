@@ -6,19 +6,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
 	"github.com/h4-poc/service/pkg/application"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 )
 
 // DeleteProject handles the HTTP request to delete a project
-func DeleteProject(c *gin.Context) {
-	projectName := c.Query("tenantName")
-
+func DeleteTenant(c *gin.Context) {
+	projectName := c.Param("name")
 	if projectName == "" {
 		c.JSON(400, gin.H{"error": "Project name is required"})
 		return
@@ -42,7 +41,7 @@ func DeleteProject(c *gin.Context) {
 
 	err := RunProjectDelete(context.Background(), opts)
 	if err != nil {
-		log.Errorf("Failed to delete project: %v", err)
+		log.G().Errorf("Failed to delete project: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete project: %v", err)})
 		return
 	}
@@ -73,7 +72,7 @@ func RunProjectDelete(ctx context.Context, opts *ProjectDeleteOptions) error {
 		return fmt.Errorf("failed to delete project '%s': %w", opts.ProjectName, err)
 	}
 
-	log.Info("committing changes to gitops repo...")
+	log.G().Info("committing changes to gitops repo...")
 	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", opts.ProjectName)}); err != nil {
 		return fmt.Errorf("failed to push to repo: %w", err)
 	}

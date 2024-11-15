@@ -1,25 +1,67 @@
-### create app
-POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
-
-{
-    "project-name": "testing",
-    "app-name": "demo",
-    "app": "github.com/h4-poc/demo-app"
-}
-
-### get app with project
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing
-
-### argocdapplications?project=testing&app=demo1
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1
-
-### del app
-DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1
-
+### validate application source
 POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
 
 {
     "templateSource":"git@github.com:h4-poc/platform.git",
     "targetRevision":"main",
     "path":"manifest/fluent-operator"
 }
+
+### create app
+POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "application_source": {
+        "type": "git",
+        "url": "github.com/h4-poc/demo-app",
+        "targetRevision": "main",
+        "path": "/"
+    },
+    "application_name": "demo2",
+    "tenant_name": "testing",
+    "appcode": "edsf",
+    "description": "this application description",
+    "destination_clusters": {
+        "clusters": ["in-cluster"],
+        "namespace": "default"
+    },
+    "ingress": {
+        "host": "demo1.h4.com",
+        "tls": {
+            "enabled": true,
+            "secretName": "demo1-tls"
+        }
+    },
+    "security": {
+        "external_secret": {
+            "secret_store_ref": {
+                "id": "secret-store"
+            }
+        }
+    },
+    "is_dryrun": false
+}
+
+### get app with project
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+### argocdapplications?project=testing&app=demo1
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+### del app
+DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications?project=testing&app=demo1
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1

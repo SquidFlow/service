@@ -1,2 +1,5 @@
 ### List all Application Templates
 GET http://{{host}}:{{port}}/api/v1/appcode
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1

@@ -42,12 +42,6 @@ type ApplicationTemplate struct {
 	UpdatedAt    string                  `json:"updatedAt"`
 }
 
-type ApplicationSource struct {
-	Type           string `json:"type"`
-	URL            string `json:"url"`
-	TargetRevision string `json:"targetRevision"`
-}
-
 type ApplicationResources struct {
 	Deployments               int                       `json:"deployments"`
 	Services                  int                       `json:"services"`
@@ -84,7 +78,7 @@ type ApplicationTemplateType string
 var (
 	ApplicationTemplateTypeHelm          ApplicationTemplateType = "helm"
 	ApplicationTemplateTypeKustomize     ApplicationTemplateType = "kustomize"
-	ApplicationTemplateTypeHelmKustomize ApplicationTemplateType = "helm-kustomize"
+	ApplicationTemplateTypeHelmKustomize ApplicationTemplateType = "helm+kustomize"
 )
 
 type (
@@ -117,7 +111,6 @@ func getAppTempType(temp apptempv1alpha1.ApplicationTemplate) ApplicationTemplat
 		enableKustomize = true
 	}
 
-	// only define 2 types: helm and kustomize
 	if enableHelm && enableKustomize {
 		return ApplicationTemplateTypeHelmKustomize
 	}

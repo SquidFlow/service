@@ -4,25 +4,25 @@ import (
 	"context"
 	"fmt"
 
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
 	billyUtils "github.com/go-git/go-billy/v5/util"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/h4-poc/service/pkg/fs"
 	"github.com/h4-poc/service/pkg/git"
+	"github.com/h4-poc/service/pkg/log"
 	"github.com/h4-poc/service/pkg/store"
 )
 
-type ProjectInfo struct {
+type TenantInfo struct {
 	Name           string `json:"name"`
 	Namespace      string `json:"namespace"`
 	DefaultCluster string `json:"default_cluster"`
 }
 
-func ListProjects(c *gin.Context) {
+func ListTenants(c *gin.Context) {
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),
@@ -34,17 +34,21 @@ func ListProjects(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	projects, err := RunProjectList(context.Background(), &ProjectListOptions{CloneOpts: cloneOpts})
+	tenants, err := RunProjectList(context.Background(), &ProjectListOptions{CloneOpts: cloneOpts})
 	if err != nil {
-		log.Errorf("Failed to list projects: %v", err)
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list projects: %v", err)})
+		log.G().Errorf("Failed to list tenants: %v", err)
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list tenants: %v", err)})
 		return
 	}
 
-	c.JSON(200, gin.H{"projects": projects})
+	c.JSON(200, gin.H{
+		"success": true,
+		"total":   len(tenants),
+		"items":   tenants,
+	})
 }
 
-func RunProjectList(ctx context.Context, opts *ProjectListOptions) ([]ProjectInfo, error) {
+func RunProjectList(ctx context.Context, opts *ProjectListOptions) ([]TenantInfo, error) {
 	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
 	if err != nil {
 		return nil, err
@@ -55,7 +59,7 @@ func RunProjectList(ctx context.Context, opts *ProjectListOptions) ([]ProjectInf
 		return nil, err
 	}
 
-	var projects []ProjectInfo
+	var tenants []TenantInfo
 
 	for _, name := range matches {
 		proj, _, err := getProjectInfoFromFile(repofs, name)
@@ -63,15 +67,15 @@ func RunProjectList(ctx context.Context, opts *ProjectListOptions) ([]ProjectInf
 			return nil, err
 		}
 
-		projectInfo := ProjectInfo{
+		tenantInfo := TenantInfo{
 			Name:           proj.Name,
 			Namespace:      proj.Namespace,
 			DefaultCluster: proj.Annotations[store.Default.DestServerAnnotation],
 		}
-		projects = append(projects, projectInfo)
+		tenants = append(tenants, tenantInfo)
 	}
 
-	return projects, nil
+	return tenants, nil
 }
 
 var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {
