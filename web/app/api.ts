@@ -124,7 +124,7 @@ interface ValidatePayload {
 }
 
 export const useGetApplicationList = () => {
-  const { data, error } = useSWR<ApplicationResponse>(
+  const { data, error, mutate } = useSWR<ApplicationResponse>(
     ARGOCDAPPLICATIONS,
     async (url: string) => {
       const response = await requestor.get<ApplicationResponse>(url);
@@ -136,6 +136,7 @@ export const useGetApplicationList = () => {
   return {
     applications,
     error,
+    mutate,
   };
 };
 
@@ -449,5 +450,36 @@ export const usePostCreateTemplate = () => {
     error,
     isLoading,
     triggerPostCreateTemplate,
+  };
+};
+
+// Add new hook for deleting applications
+export const useDeleteApplications = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const deleteApplications = async (appNames: string[]) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const deletePromises = appNames.map(async (appName) => {
+        const response = await requestor.delete(`${ARGOCDAPPLICATIONS}/${appName}`);
+        return response.data;
+      });
+
+      const results = await Promise.all(deletePromises);
+      return results;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unknown error"));
+      throw err; // Re-throw the error so it can be caught by the component
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return {
+    isLoading,
+    error,
+    deleteApplications,
   };
 };

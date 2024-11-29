@@ -11,7 +11,6 @@ import { Security } from './components/security';
 import { Breadcrumb } from "@/app/components/breadcrumb";
 import Header from '@/app/components/header';
 import { DestinationCluster } from './components/destinationCluster';
-import {ApplicationTemplate} from "@/app/dashboard/components/applicationTemplate";
 import {ArgoApplication} from "@/app/dashboard/components/argoApplication";
 import {RenderSettings} from "@/app/dashboard/components/setting";
 
@@ -139,9 +138,6 @@ export default function DashboardPage() {
   const renderContent = () => {
     switch (activeMenu) {
       case 'Deploy':
-        if (activeSubMenu === 'ApplicationTemplate') {
-          return <ApplicationTemplate />;
-        }
         if (activeSubMenu === 'DestinationCluster') {
           return <DestinationCluster />;
         }

@@ -41,12 +41,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { MoreHorizontal } from "lucide-react";
 import {
   ExtendedApplication,
   releaseHistoriesData as releaseHistories,
 } from "./argoApplicationMock";
-import { useGetApplicationDetail, useGetApplicationList } from "@/app/api";
+import { useGetApplicationDetail, useGetApplicationList, useDeleteApplications } from "@/app/api";
+import { useToast } from "@/components/ui/use-toast";
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -98,13 +107,17 @@ interface ArgoApplicationProps {
 }
 
 export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
-  const { applications } = useGetApplicationList();
-  const [selectedApps, setSelectedApps] = useState<number[]>([]);
+  const { applications, mutate: refreshApplications } = useGetApplicationList();
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const { triggerGetApplicationDetail } = useGetApplicationDetail();
   const [selectedAppDetails, setSelectedAppDetails] =
     useState<ExtendedApplication | null>(null);
+  const { toast } = useToast();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
+  const { deleteApplications, isLoading: isDeleting } = useDeleteApplications();
 
   const [currentCommits, setCurrentCommits] = useState<Record<string, string>>({
     SIT: releaseHistories.SIT?.[0]?.commitHash || "",
@@ -118,7 +131,6 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
       [env]: commitHash,
     }));
 
-    // 更新 release histories 中的 isCurrent 标记
     const updatedHistories = { ...releaseHistories };
     updatedHistories[env] = releaseHistories[env].map((release) => ({
       ...release,
@@ -131,7 +143,6 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
   const renderApplicationDetail = (app: ExtendedApplication) => {
     return (
       <div className="container mx-auto px-4 py-8">
-        {/* Header Section - 简化标题，只保留应用名称 */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
             {app.name}
@@ -143,7 +154,6 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* ArgoCD Deployment Status Card - 新增 */}
           <Card className="col-span-3 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-200">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -153,7 +163,6 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Sync Status */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">
                     Sync Status
@@ -629,6 +638,39 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
     } catch (error) {}
   };
 
+  const handleDeleteApplications = async () => {
+    try {
+      if (deleteConfirmationInput !== selectedApps.join(", ")) {
+        toast({
+          title: "Error",
+          description: "Please enter the correct application name(s) to confirm deletion.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await deleteApplications(selectedApps);
+
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${selectedApps.length} application(s)`,
+      });
+
+      // Clear selection and refresh the list
+      setSelectedApps([]);
+      setIsDeleteDialogOpen(false);
+      setDeleteConfirmationInput("");
+      refreshApplications();
+    } catch (error) {
+      console.error('Error deleting applications:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete applications. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isCreating) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -645,6 +687,53 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
 
   const mainListView = (
     <div className="space-y-6">
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Application(s)</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. To confirm deletion, please type the name(s) of the application(s):
+              <span className="font-mono text-sm mt-2 block bg-muted p-2 rounded">
+                {selectedApps.join(", ")}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Enter application name(s) to confirm"
+              value={deleteConfirmationInput}
+              onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setDeleteConfirmationInput("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteApplications}
+              disabled={!deleteConfirmationInput || isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* 顶部操作栏 */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4 flex-1">
@@ -669,10 +758,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
               <Button
                 variant="outline"
                 className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                onClick={() => {
-                  console.log("Deleting apps:", selectedApps);
-                  // Add your delete logic here
-                }}
+                onClick={() => setIsDeleteDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Selected
@@ -710,10 +796,10 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                 <TableHead className="w-12">
                   {filteredApps.length > 0 && (
                     <Checkbox
-                      checked={selectedApps.length === filteredApps.length}
+                      checked={selectedApps.length === filteredApps.length && filteredApps.length > 0}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          setSelectedApps(filteredApps.map((app) => app.id));
+                          setSelectedApps(filteredApps.map((app) => app.name));
                         } else {
                           setSelectedApps([]);
                         }
@@ -750,14 +836,12 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                 >
                   <TableCell className="py-4">
                     <Checkbox
-                      checked={selectedApps.includes(app.id)}
+                      checked={selectedApps.includes(app.name)}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          setSelectedApps([...selectedApps, app.id]);
+                          setSelectedApps((prev) => [...prev, app.name]);
                         } else {
-                          setSelectedApps(
-                            selectedApps.filter((id) => id !== app.id)
-                          );
+                          setSelectedApps((prev) => prev.filter((name) => name !== app.name));
                         }
                       }}
                     />
