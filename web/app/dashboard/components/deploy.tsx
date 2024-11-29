@@ -90,7 +90,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
     { name: "", service: "", port: "" },
   ]);
   const [templateSource, setTemplateSource] = useState<TemplateSource>({
-    type: "builtin",
+    type: "git",
     value: "",
     targetRevision: "",
     instanceName: "",
@@ -663,312 +663,139 @@ export function DeployForm({ onCancel }: DeployFormProps) {
       >
         <div className="flex flex-col space-y-6 w-full max-w-[2400px] mx-auto">
           <Card className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
-            <CardHeader className="border-b border-gray-100 dark:border-gray-700">
+            <CardHeader>
               <CardTitle className="text-xl font-semibold flex items-center space-x-3">
                 <Layout className="h-6 w-6 text-blue-500 dark:text-blue-400" />
                 <span className="bg-gradient-to-r from-gray-800 to-gray-600 dark:from-gray-200 dark:to-gray-400 text-transparent bg-clip-text">
-                  Application Template Selection
+                  New Application
                 </span>
                 {templateSource.value && (
                   <CheckCircle className="h-5 w-5 text-emerald-500" />
                 )}
               </CardTitle>
               <p className="text-sm text-gray-500 dark:text-gray-400 ml-9">
-                Choose a template to define your application deployment
-                configuration
+                Configure your application deployment using Git repository
               </p>
             </CardHeader>
             <CardContent className="p-6">
-              <Tabs
-                defaultValue="builtin"
-                onValueChange={(value) =>
-                  setTemplateSource({
-                    type: value as "builtin" | "external",
-                    value: "",
-                  })
-                }
-              >
-                <TabsList className="grid w-full grid-cols-2 mb-6 p-1 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <TabsTrigger
-                    value="builtin"
-                    className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200"
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="gitRepo">Git Repository URL</Label>
+                  <Input
+                    id="gitRepo"
+                    placeholder="e.g., https://github.com/username/repo"
+                    value={templateSource.value}
+                    onChange={(e) =>
+                      setTemplateSource({
+                        ...templateSource,
+                        value: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="targetRevision">Target Revision</Label>
+                  <Input
+                    id="targetRevision"
+                    placeholder="e.g., main, v1.0.0"
+                    value={templateSource.targetRevision}
+                    onChange={(e) =>
+                      setTemplateSource({
+                        ...templateSource,
+                        targetRevision: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="path">Path</Label>
+                  <Input
+                    id="path"
+                    placeholder="e.g., /manifests"
+                    value={templateSource.path}
+                    onChange={(e) =>
+                      setTemplateSource({
+                        ...templateSource,
+                        path: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <Button
+                    onClick={validateExternalTemplate}
+                    disabled={
+                      !templateSource.value ||
+                      !templateSource.targetRevision ||
+                      isValidating
+                    }
+                    className={`${
+                      templateSource.value && templateSource.targetRevision
+                        ? "bg-green-500 hover:bg-green-600"
+                        : "bg-gray-300"
+                    } text-white transition-colors duration-200`}
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Built-in Templates</span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">
-                              {fieldDescriptions.builtinTemplate.tooltip}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="external"
-                    className="flex items-center space-x-2"
-                  >
-                    <span>External Template</span>
-                    {templateSource.type === "external" &&
-                      templateSource.value && (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      )}
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="builtin" className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base font-medium">
-                        Select Template
-                      </Label>
-                      {templateSource.value && (
-                        <span className="text-sm text-green-500 flex items-center space-x-1">
-                          <CheckCircle className="h-4 w-4" />
-                          <span>Template selected</span>
-                        </span>
-                      )}
-                    </div>
-                    <Select
-                      value={templateSource.value}
-                      onValueChange={(value) =>
-                        setTemplateSource({ ...templateSource, value })
-                      }
-                    >
-                      <SelectTrigger id="builtinTemplate" className="w-full">
-                        <SelectValue placeholder="Choose a built-in template" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {kustomizationsData.map(
-                          (kustomization: Kustomization) => (
-                            <SelectItem
-                              key={kustomization.id}
-                              value={kustomization.name}
-                            >
-                              <div className="space-y-1">
-                                <div className="font-medium">
-                                  {kustomization.name}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Path: {kustomization.path}
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {kustomization.environments?.map(
-                                      (env: any) => (
-                                        <span
-                                          key={env}
-                                          className="px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                                        >
-                                          {env}
-                                        </span>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {templateSource.value && (
-                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <h4 className="font-medium mb-2">Template Details</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        This template provides a standardized configuration for
-                        deploying your application. It includes recommended
-                        settings for resources, scaling, and monitoring.
-                      </p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="external" className="space-y-4">
-                  <div className="space-y-4">
-                    {/* Repository URL Input */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">
-                          External Template URL
-                        </Label>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-4 w-4 text-gray-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="space-y-2 max-w-xs">
-                                <p>Supported URL formats:</p>
-                                <ul className="list-disc pl-4 text-sm">
-                                  <li>
-                                    HTTP(S): http(s)://github.com/user/repo.git
-                                  </li>
-                                  <li>SSH: git@github.com:user/repo.git</li>
-                                </ul>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Input
-                        id="externalTemplate"
-                        placeholder="Enter template URL (e.g., https://github.com/user/repo.git)"
-                        value={templateSource.value}
-                        onChange={(e) =>
-                          setTemplateSource({
-                            ...templateSource,
-                            value: e.target.value,
-                          })
-                        }
-                        className="w-full"
-                      />
-                    </div>
-
-                    {/* Target Revision Input */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">
-                          Target Revision
-                        </Label>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-4 w-4 text-gray-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="space-y-2 max-w-xs">
-                                <p>Supported revision formats:</p>
-                                <ul className="list-disc pl-4 text-sm">
-                                  <li>Branch name (e.g., main, develop)</li>
-                                  <li>Commit hash (e.g., 1a2b3c4)</li>
-                                  <li>Tag (e.g., v1.0.0)</li>
-                                </ul>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-
-                      <Input
-                        id="targetRevision"
-                        placeholder="Enter target revision (branch, commit hash, or tag)"
-                        value={templateSource.targetRevision}
-                        onChange={(e) =>
-                          setTemplateSource({
-                            ...templateSource,
-                            targetRevision: e.target.value,
-                          })
-                        }
-                        className="w-full"
-                      />
-                      {templateSource.targetRevision && (
-                        <p className="text-sm text-gray-500">
-                          Your template will be synced from:{" "}
-                          {templateSource.targetRevision}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">Path</Label>
-                      </div>
-                      <Input
-                        id="path"
-                        placeholder="Enter path"
-                        value={templateSource.path}
-                        onChange={(e) =>
-                          setTemplateSource({
-                            ...templateSource,
-                            path: e.target.value,
-                          })
-                        }
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <Button
-                        onClick={validateExternalTemplate}
-                        disabled={
-                          !templateSource.value ||
-                          !templateSource.targetRevision ||
-                          isValidating
-                        }
-                        className={`${
-                          templateSource.value && templateSource.targetRevision
-                            ? "bg-green-500 hover:bg-green-600"
-                            : "bg-gray-300"
-                        } text-white transition-colors duration-200`}
-                      >
-                        {isValidating ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Validating...
-                          </>
-                        ) : (
-                          <>
-                            <Check className="h-4 w-4 mr-2" />
-                            Validate Template
-                          </>
-                        )}
-                      </Button>
-                      {validationResults.length > 0 && (
-                        <span className="text-sm text-gray-500">
-                          Validation completed for {validationResults.length}{" "}
-                          environments
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 验证结果显示 */}
-                    {validationResults.length > 0 && (
-                      <div className="mt-4 space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">
-                          Validation Results
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {validationResults.map((result) => (
-                            <div
-                              key={result.environment}
-                              className={`p-3 rounded-lg border ${
-                                result.isValid
-                                  ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
-                                  : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">
-                                  {result.environment}
-                                </span>
-                                {result.isValid ? (
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 text-red-500" />
-                                )}
-                              </div>
-                              <p
-                                className={`text-sm mt-1 ${
-                                  result.isValid
-                                    ? "text-green-600"
-                                    : "text-red-600"
-                                }`}
-                              >
-                                {result.message}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    {isValidating ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Validating...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Validate Template
+                      </>
                     )}
+                  </Button>
+                  {validationResults.length > 0 && (
+                    <span className="text-sm text-gray-500">
+                      Validation completed for {validationResults.length} environments
+                    </span>
+                  )}
+                </div>
+
+                {/* Validation Results Display */}
+                {validationResults.length > 0 && (
+                  <div className="mt-4 space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">
+                      Validation Results
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {validationResults.map((result) => (
+                        <div
+                          key={result.environment}
+                          className={`p-3 rounded-lg border ${
+                            result.isValid
+                              ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
+                              : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              {result.environment}
+                            </span>
+                            {result.isValid ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            )}
+                          </div>
+                          <p
+                            className={`text-sm mt-1 ${
+                              result.isValid
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {result.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </TabsContent>
-              </Tabs>
+                )}
+              </div>
             </CardContent>
           </Card>
 

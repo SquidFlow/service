@@ -10,7 +10,7 @@ export interface Repository {
 }
 
 export interface TemplateSource {
-	type: "builtin" | "external";
+	type: "git";
 	value: string;
 	instanceName?: string;
 	targetRevision?: string;
@@ -42,15 +42,10 @@ export const fieldDescriptions = {
 		service: "Target service to route traffic to",
 		port: "Port number of the service",
 	},
-	builtinTemplate: {
-		label: "Built-in Template",
+	gitRepository: {
+		label: "Git Repository",
 		tooltip:
-			"Pre-configured deployment templates maintained by the platform team",
-	},
-	externalTemplate: {
-		label: "External Template",
-		tooltip:
-			"Custom deployment template from an external Git repository or URL",
+			"Git repository containing your application deployment configuration",
 	},
 };
 

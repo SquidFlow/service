@@ -31,11 +31,11 @@ export default function LoginPage() {
           <Card className="w-full max-w-[400px] shadow-lg rounded-lg">
             <CardHeader className="space-y-3">
               <CardTitle className="text-2xl font-bold text-center">
-                Welcome to{' '}
-                <span className="bg-primary text-primary-foreground px-2 py-1 rounded-md mr-1 transition-all duration-300 hover:bg-secondary hover:text-secondary-foreground">
-                  H4
+                login to{' '}
+                <span className="bg-gradient-to-r from-primary via-blue-600 to-purple-600 text-transparent bg-clip-text">
+                  SquidFlow
                 </span>
-                Platform
+                {' '}
               </CardTitle>
               <CardDescription className="text-center text-muted-foreground">
                 Choose your preferred login method

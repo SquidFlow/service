@@ -25,7 +25,7 @@ interface HeaderProps {
 }
 
 export default function Header({ isLoggedIn, username, userRole, onLogout }: HeaderProps) {
-  const githubRepoUrl = "https://github.com/h4-poc/dashboard";
+  const githubRepoUrl = "https://github.com/squidflow/service";
 
   return (
     <header className="bg-background border-b border-border">
@@ -33,7 +33,7 @@ export default function Header({ isLoggedIn, username, userRole, onLogout }: Hea
         <div className="flex items-center">
           <h1 className="text-3xl font-bold text-foreground mr-6">
             <span className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md mr-2 transition-all duration-300 hover:bg-secondary hover:text-secondary-foreground">
-              H4
+              SquidFlow
             </span>
             Platform
           </h1>

@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronUp, ChevronRight, BarChart, Cloud, CreditCard, FileText, Lock, Network, Server, Cpu, Workflow, Settings, ChevronLeft } from "lucide-react"
+import { ChevronUp, ChevronRight, Lock, Settings, ChevronLeft, Workflow } from "lucide-react"
 import { MenuItem } from './interfaces';
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { NetworkMenu } from './components/network';
-import { ResourcePool } from './components/resourcePool';
 import { Security } from './components/security';
 import { Breadcrumb } from "@/app/components/breadcrumb";
 import Header from '@/app/components/header';
@@ -21,27 +19,12 @@ const menuItems: MenuItem[] = [
   {
     title: 'Deploy',
     icon: Workflow,
-    subItems: ['ArgoApplication', 'ApplicationTemplate', 'DestinationCluster']
+    subItems: ['Application', 'DestinationCluster']
   },
   {
     title: 'Security',
     icon: Lock,
     subItems: ['ExternalSecrets']
-  },
-  {
-    title: 'ResourcePool',
-    icon: Cpu,
-    subItems: ['Overview', 'Nodes']
-  },
-  {
-    title: 'Network',
-    icon: Network,
-    subItems: ['VirtualService']
-  },
-  {
-    title: 'Bill',
-    icon: CreditCard,
-    subItems: []
   }
 ]
 
@@ -148,39 +131,6 @@ export default function DashboardPage() {
             }
           }
         ];
-      case 'ResourcePool':
-        return [
-          ...baseBreadcrumbItems,
-          {
-            label: 'ResourcePool',
-            href: '/dashboard',
-            onClick: () => {
-              setActiveMenu('ResourcePool');
-            }
-          }
-        ];
-      case 'Network':
-        return [
-          ...baseBreadcrumbItems,
-          {
-            label: 'Network',
-            href: '/dashboard',
-            onClick: () => {
-              setActiveMenu('Network');
-            }
-          }
-        ];
-      case 'Bill':
-        return [
-          ...baseBreadcrumbItems,
-          {
-            label: 'Bill',
-            href: '/dashboard',
-            onClick: () => {
-              setActiveMenu('Bill');
-            }
-          }
-        ];
       default:
         return baseBreadcrumbItems;
     }
@@ -201,72 +151,11 @@ export default function DashboardPage() {
         return <ArgoApplication onSelectApp={setSelectedAppName} />;
       case 'Security':
         return <Security activeSubMenu={activeSubMenu} />;
-      case 'ResourcePool':
-        return <ResourcePool activeSubMenu={activeSubMenu} />;
-      case 'Network':
-        return <NetworkMenu activeSubMenu={activeSubMenu} />;
-      case 'Bill':
-        return renderBilling();
       case 'Settings':
         return <RenderSettings />;
       default:
         return null;
     }
-  };
-
-  const renderBilling = () => {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Resource Usage Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <Cloud className="mr-2 h-4 w-4"/>
-                <span>Total Usage</span>
-              </div>
-              <span className="font-semibold">$1,234.56</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Detailed Billing</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                {name: 'Compute', icon: Server, amount: 450.00},
-                {name: 'Storage', icon: FileText, amount: 200.00},
-                {name: 'Network', icon: Network, amount: 150.00},
-                {name: 'Security', icon: Lock, amount: 100.00},
-              ].map((resource) => (
-                <div key={resource.name} className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <resource.icon className="mr-2 h-4 w-4"/>
-                    <span>{resource.name}</span>
-                  </div>
-                  <span className="font-semibold">${resource.amount.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Usage Trends</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px] flex items-center justify-center">
-              <BarChart className="h-16 w-16"/>
-              <span className="ml-4">Usage graph placeholder</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
   };
 
   return (

@@ -79,28 +79,28 @@ const sections = [
 
 const faqs = [
   {
-    question: "What is H4 Platform?",
-    answer: "H4 Platform is a modern cloud-native application platform that combines ArgoCD and External Secrets to provide seamless deployment, security, and configuration management capabilities for your applications."
+    question: "What is SquidFlow Platform?",
+    answer: "SquidFlow Platform is a modern cloud-native application platform that combines ArgoCD and External Secrets to provide seamless deployment, security, and configuration management capabilities for your applications."
   },
   {
-    question: "How does GitOps work with H4 Platform?",
-    answer: "H4 Platform follows GitOps principles by using Git as the single source of truth. Changes to your application configurations are made through Git, and ArgoCD automatically syncs these changes to your Kubernetes clusters."
+    question: "How does GitOps work with SquidFlow Platform?",
+    answer: "SquidFlow Platform follows GitOps principles by using Git as the single source of truth. Changes to your application configurations are made through Git, and ArgoCD automatically syncs these changes to your Kubernetes clusters."
   },
   {
-    question: "How does H4 Platform handle secrets?",
-    answer: "H4 Platform integrates with HashiCorp Vault through External Secrets Operator to securely manage and inject secrets into your applications. This ensures that sensitive information is never stored in Git repositories."
+    question: "How does SquidFlow Platform handle secrets?",
+    answer: "SquidFlow Platform integrates with HashiCorp Vault through External Secrets Operator to securely manage and inject secrets into your applications. This ensures that sensitive information is never stored in Git repositories."
   },
   {
     question: "What environments are supported?",
-    answer: "H4 Platform supports multiple environments (SIT, UAT, PRD) with environment-specific configurations and security policies. You can easily manage deployments across all environments from a single interface."
+    answer: "SquidFlow Platform supports multiple environments (SIT, UAT, PRD) with environment-specific configurations and security policies. You can easily manage deployments across all environments from a single interface."
   },
   {
-    question: "Can I integrate H4 Platform with my existing CI/CD pipeline?",
-    answer: "Yes, H4 Platform is designed to work with your existing CI/CD tools. It can be integrated with popular CI platforms like Jenkins, GitHub Actions, and GitLab CI."
+    question: "Can I integrate SquidFlow Platform with my existing CI/CD pipeline?",
+    answer: "Yes, SquidFlow Platform is designed to work with your existing CI/CD tools. It can be integrated with popular CI platforms like Jenkins, GitHub Actions, and GitLab CI."
   },
   {
-    question: "How does H4 Platform ensure security?",
-    answer: "H4 Platform provides multiple security layers including RBAC, audit logging, secret rotation, and integration with enterprise security tools. All operations are logged and traceable."
+    question: "How does SquidFlow Platform ensure security?",
+    answer: "SquidFlow Platform provides multiple security layers including RBAC, audit logging, secret rotation, and integration with enterprise security tools. All operations are logged and traceable."
   }
 ];
 
@@ -123,7 +123,7 @@ export default function Home() {
               <div className="space-y-4">
                 <h1 className="text-5xl md:text-7xl font-bold leading-tight">
                   <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-600 to-purple-600">
-                    Modern Platform
+                    SquidFlow Platform
                   </span>
                   <br />
                   <span className="text-foreground">
@@ -131,7 +131,7 @@ export default function Home() {
                   </span>
                 </h1>
                 <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-2xl">
-                  H4 Platform combines ArgoCD and External Secrets to provide a seamless, secure, and scalable deployment experience.
+                  SquidFlow Platform combines ArgoCD and External Secrets to provide a seamless, secure, and scalable deployment experience.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
@@ -255,7 +255,7 @@ export default function Home() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Frequently Asked Questions</h2>
             <p className="text-xl text-muted-foreground">
-              Everything you need to know about H4 Platform
+              Everything you need to know about SquidFlow Platform
             </p>
           </div>
 

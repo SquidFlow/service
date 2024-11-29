@@ -803,17 +803,6 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                       <code className="px-3 py-1.5 bg-muted rounded text-sm">
                         {app.template?.source?.url}
                       </code>
-                      {/* <a
-                        href={app.template?.source?.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-muted-foreground hover:text-primary"
-                      >
-                        {app.template?.source?.url
-                          .split("/")
-                          .slice(-2)
-                          .join("/")}
-                      </a> */}
                     </div>
                   </TableCell>
                   <TableCell className="py-4">
