@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, MoreHorizontal, Trash2, FileText } from "lucide-react"
-import {  SecretStore } from './securityMock';
+import { SecretStore } from '@/types/security';
 import {
   Dialog,
   DialogContent,
@@ -72,6 +72,38 @@ spec:
           name: "vault-token"
           key: "token"`;
 
+type HealthStatus = 'Healthy' | 'Warning' | 'Error';
+
+const getHealthBadgeColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'healthy':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+    case 'warning':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+    case 'error':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+  }
+};
+
+const getProviderBadgeColor = (provider: string) => {
+  const colors: Record<string, string> = {
+    AWS: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    GCP: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    Azure: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    Vault: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
+    CyberArk: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+  };
+  return colors[provider] || 'bg-gray-100 text-gray-800';
+};
+
+const getTypeBadgeColor = (type: string) => {
+  return type === 'ClusterSecretStore'
+    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+    : 'bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400';
+};
+
 export function Security({ activeSubMenu }: { activeSubMenu: string }) {
   const { secretStoreList } = useGetSecretStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -90,36 +122,6 @@ export function Security({ activeSubMenu }: { activeSubMenu: string }) {
     store.provider.toLowerCase().includes(searchTerm.toLowerCase()) ||
     store.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const getHealthBadgeColor = (status: 'Healthy' | 'Warning' | 'Error') => {
-    switch (status) {
-      case 'Healthy':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'Warning':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'Error':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
-    }
-  };
-
-  const getProviderBadgeColor = (provider: string) => {
-    const colors = {
-      AWS: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-      GCP: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-      Azure: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-      Vault: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
-      CyberArk: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-    };
-    return colors[provider as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getTypeBadgeColor = (type: string) => {
-    return type === 'ClusterSecretStore'
-      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-      : 'bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400';
-  };
 
   const renderSecretStores = () => {
     return (

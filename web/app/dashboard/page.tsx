@@ -11,8 +11,8 @@ import { Security } from './components/security';
 import { Breadcrumb } from "@/app/components/breadcrumb";
 import Header from '@/app/components/header';
 import { DestinationCluster } from './components/destinationCluster';
-import {ArgoApplication} from "@/app/dashboard/components/argoApplication";
-import {RenderSettings} from "@/app/dashboard/components/setting";
+import { Application } from "@/app/dashboard/components/application";
+import { RenderSettings } from "@/app/dashboard/components/setting";
 
 const menuItems: MenuItem[] = [
   {
@@ -142,9 +142,9 @@ export default function DashboardPage() {
           return <DestinationCluster />;
         }
         if (activeSubMenu === 'ArgoApplication') {
-          return <ArgoApplication onSelectApp={setSelectedAppName} />;
+          return <Application onSelectApp={setSelectedAppName} />;
         }
-        return <ArgoApplication onSelectApp={setSelectedAppName} />;
+        return <Application onSelectApp={setSelectedAppName} />;
       case 'Security':
         return <Security activeSubMenu={activeSubMenu} />;
       case 'Settings':

@@ -1,10 +1,20 @@
 import useSWR from "swr";
 import requestor from "@/requestor";
 import { useEffect, useState } from "react";
-import { SecretStore } from "./dashboard/components/securityMock";
-import { ClusterInfo } from "./dashboard/components/destinationClusterMock";
-import { TenantInfo } from "./dashboard/components/mockData";
-import { Kustomization } from "./dashboard/components/applicationTemplateMock";
+import {
+  ApplicationTemplate,
+  ApplicationResponse,
+  ValidatePayload,
+  CreateApplicationPayload,
+  CreateTemplatePayload,
+  Kustomization,
+  ClusterInfo,
+  SecretStore,
+  TenantInfo,
+  TenantResponse,
+  ClusterResponse,
+  SecretStoreResponse,
+} from "@/types";
 
 const ARGOCDAPPLICATIONS = "/api/v1/deploy/argocdapplications";
 const TEMPLATES = "/api/v1/applications/templates";
@@ -12,115 +22,12 @@ const TENANTS = "/api/v1/tenants";
 const CLUSTER = "/api/v1/destinationCluster";
 const SECRETSTORE = "/api/v1/security/externalsecrets/secretstore";
 const APPCODE = "/api/v1/appcode";
-export interface ApplicationTemplate {
-  id: number;
+const RELEASEHISTORIES = "/api/v1/releasehistories";
+
+interface SimpleTenantInfo {
+  id: string;
   name: string;
-  owner: string;
-  description?: string;
-  path: string;
-  environments: string[];
-  destination_clusters: {
-    clusters: string[];
-  };
-  appType: "kustomize" | "helm" | "helm+kustomize";
-  source: {
-    url: string;
-    targetRevision: string;
-  };
-  runtime_status: {
-    health: "Healthy" | "Degraded" | "Progressing" | "Suspended" | "Missing";
-    status:
-      | "Succeeded"
-      | "Synced"
-      | "OutOfSync"
-      | "Unknown"
-      | "Progressing"
-      | "Degraded";
-  };
-  template: {
-    last_commit_info: {
-      LastUpdater: string;
-    };
-    source: {
-      url: string;
-    };
-  };
-  uri: string;
-  lastUpdate: string;
-  creator: string;
-  lastUpdater: string;
-  lastCommitId: string;
-  lastCommitLog: string;
-  podCount: number;
-  cpuCount: string;
-  memoryUsage: string;
-  storageUsage: string;
-  memoryAmount: string;
-  secretCount: number;
-
-  resources: {
-    [cluster: string]: {
-      cpu: string;
-      memory: string;
-      storage: string;
-      pods: number;
-    };
-  };
-  deploymentStats: {
-    deployments: number;
-    services: number;
-    configmaps: number;
-  };
-  worklog: Array<{
-    date: string;
-    action: string;
-    user: string;
-  }>;
-  remoteRepo: {
-    url: string;
-    branch: string;
-    baseCommitUrl: string;
-    latestCommit: {
-      id: string;
-      message: string;
-      author: string;
-      timestamp: string;
-    };
-  };
-  deployed_environments: string[];
-  health: "Healthy" | "Degraded" | "Progressing" | "Suspended" | "Missing";
-  argocdUrl: string;
-  events: Array<{
-    time: string;
-    type: string;
-  }>;
-  metadata: {
-    createdAt: string;
-    updatedAt: string;
-    version: string;
-  };
-}
-
-interface ApplicationParams {
-  id?: number;
-  name?: string;
-  project?: string;
-  appType?: string;
-  owner?: string;
-  validated?: string;
-}
-
-interface ApplicationResponse {
-  success: boolean;
-  total: number;
-  items: ApplicationTemplate[];
-}
-
-// Add new interface for validate payload
-interface ValidatePayload {
-  templateSource: string;
-  targetRevision: string;
-  path: string;
+  secretPath: string;
 }
 
 export const useGetApplicationList = () => {
@@ -170,39 +77,7 @@ export const useGetApplicationDetail = () => {
 };
 
 export const useKustomizationsData = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [kustomizationsData, setKustomizationsData] = useState<Kustomization[]>(
-    []
-  );
-
-  const triggerGetKustomizationsData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await requestor.get(TEMPLATES);
-      // 假设接口返回的数据结构中有个类似items的数组存放Kustomization相关数据，根据实际情况调整
-      const kustomizations = response.data.items || [];
-      setKustomizationsData(kustomizations);
-      return kustomizations;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Unknown error"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 使用useEffect在组件挂载时（依赖项为空数组[]）触发数据获取操作
-  useEffect(() => {
-    triggerGetKustomizationsData();
-  }, []);
-
-  return {
-    kustomizationsData,
-    error,
-    isLoading,
-    triggerGetKustomizationsData,
-  };
+  return { kustomizationsData: [] };
 };
 
 export const usePostValidate = () => {
@@ -263,14 +138,13 @@ export const useGetTemplateDetail = () => {
 };
 
 export const useGetAvailableTenants = () => {
-  const { data, error } = useSWR(TENANTS, async (url: string) => {
+  const { data, error } = useSWR(TENANTS, async (url) => {
     const response = await requestor.get(url);
     return response.data;
   });
 
-  const availableTenants: TenantInfo[] = data?.items || [];
   return {
-    availableTenants,
+    availableTenants: (data?.items || []) as SimpleTenantInfo[],
     error,
   };
 };
@@ -281,9 +155,8 @@ export const useGetClusterList = () => {
     return response.data;
   });
 
-  const clusterList: ClusterInfo[] = data?.items || [];
   return {
-    clusterList,
+    clusterList: (data?.items || []) as ClusterInfo[],
     error,
   };
 };
@@ -294,9 +167,8 @@ export const useGetSecretStore = () => {
     return response.data;
   });
 
-  const secretStoreList: SecretStore[] = data?.items || [];
   return {
-    secretStoreList,
+    secretStoreList: (data?.items || []) as SecretStore[],
     error,
   };
 };
@@ -366,42 +238,15 @@ export const useDeleteTemplate = () => {
 };
 
 export const useGetAppCode = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [appCodeData, setAppCodeData] = useState([]);
-
-  const triggerGetAppCode = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await requestor.get(APPCODE);
-      setAppCodeData(response.data.appCodes);
-      return response.data;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Unknown error"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    triggerGetAppCode();
-  }, []);
-
-  return {
-    appCodeData,
-    error,
-    isLoading,
-    triggerGetAppCode,
-  };
+  return { appCodeData: [] };
 };
 
 export const usePostCreateApplication = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [createdApplicationData, setCreatedApplicationData] = useState(null);
+  const [createdApplicationData, setCreatedApplicationData] = useState<ApplicationTemplate | null>(null);
 
-  const triggerPostCreateApplication = async (applicationData: any) => {
+  const triggerPostCreateApplication = async (applicationData: CreateApplicationPayload) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -429,9 +274,9 @@ export const usePostCreateApplication = () => {
 export const usePostCreateTemplate = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [createdTemplateData, setCreatedTemplateData] = useState(null);
+  const [createdTemplateData, setCreatedTemplateData] = useState<ApplicationTemplate | null>(null);
 
-  const triggerPostCreateTemplate = async (templateData: any) => {
+  const triggerPostCreateTemplate = async (templateData: CreateTemplatePayload) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -481,5 +326,17 @@ export const useDeleteApplications = () => {
     isLoading,
     error,
     deleteApplications,
+  };
+};
+
+export const useGetReleaseHistories = () => {
+  const { data, error } = useSWR(RELEASEHISTORIES, async (url) => {
+    const response = await requestor.get(url);
+    return response.data;
+  });
+
+  return {
+    releaseHistories: data || { SIT: [], UAT: [], PRD: [] },
+    error,
   };
 };

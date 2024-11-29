@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,12 +52,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MoreHorizontal } from "lucide-react";
-import {
-  ExtendedApplication,
-  releaseHistoriesData as releaseHistories,
-} from "./argoApplicationMock";
-import { useGetApplicationDetail, useGetApplicationList, useDeleteApplications } from "@/app/api";
+import { useGetApplicationDetail, useGetApplicationList, useDeleteApplications, useGetReleaseHistories } from "@/app/api";
 import { useToast } from "@/components/ui/use-toast";
+import { ApplicationTemplate } from "@/types";
+import { EnvironmentType, ReleaseHistory } from "@/types/release";
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -103,36 +103,37 @@ const ArgoLink = ({ url }: { url: string }) => (
 );
 
 interface ArgoApplicationProps {
-  onSelectApp: (appName: string) => void;
+  onSelectApp?: (appName: string) => void;
 }
 
-export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
+export function Application({ onSelectApp }: ArgoApplicationProps) {
   const { applications, mutate: refreshApplications } = useGetApplicationList();
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const { triggerGetApplicationDetail } = useGetApplicationDetail();
   const [selectedAppDetails, setSelectedAppDetails] =
-    useState<ExtendedApplication | null>(null);
+    useState<ApplicationTemplate | null>(null);
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
   const { deleteApplications, isLoading: isDeleting } = useDeleteApplications();
+  const { releaseHistories: releaseHistoriesData } = useGetReleaseHistories();
 
-  const [currentCommits, setCurrentCommits] = useState<Record<string, string>>({
-    SIT: releaseHistories.SIT?.[0]?.commitHash || "",
-    UAT: releaseHistories.UAT?.[0]?.commitHash || "",
-    PRD: releaseHistories.PRD?.[0]?.commitHash || "",
+  const [currentCommits, setCurrentCommits] = useState<Record<EnvironmentType, string>>({
+    SIT: releaseHistoriesData.SIT[0]?.commitHash || "",
+    UAT: releaseHistoriesData.UAT[0]?.commitHash || "",
+    PRD: releaseHistoriesData.PRD[0]?.commitHash || "",
   });
 
-  const handleRollback = (env: string, commitHash: string) => {
+  const handleRollback = (env: EnvironmentType, commitHash: string) => {
     setCurrentCommits((prev) => ({
       ...prev,
       [env]: commitHash,
     }));
 
-    const updatedHistories = { ...releaseHistories };
-    updatedHistories[env] = releaseHistories[env].map((release) => ({
+    const updatedHistories = { ...releaseHistoriesData };
+    updatedHistories[env] = releaseHistoriesData[env].map((release: ReleaseHistory) => ({
       ...release,
       isCurrent: release.commitHash === commitHash,
     }));
@@ -140,7 +141,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
     console.log(`Rolling back to ${commitHash} in ${env}`);
   };
 
-  const renderApplicationDetail = (app: ExtendedApplication) => {
+  const renderApplicationDetail = (app: ApplicationTemplate) => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
@@ -433,7 +434,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {releaseHistories.SIT.map((release, index) => (
+                  {releaseHistoriesData.SIT.map((release: ReleaseHistory, index: number) => (
                     <TableRow
                       key={index}
                       className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -442,8 +443,8 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                         <div className="space-y-2">
                           <div className="font-medium">{release.commitLog}</div>
                           <div className="flex gap-2">
-                            {releaseHistories.SIT.find(
-                              (r) => r.commitHash === release.commitHash
+                            {releaseHistoriesData.SIT.find(
+                              (r: ReleaseHistory) => r.commitHash === release.commitHash
                             )?.isCurrent && (
                               <Badge
                                 variant="outline"
@@ -453,8 +454,8 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                               </Badge>
                             )}
                             {/* UAT 环境状态 */}
-                            {releaseHistories.UAT.find(
-                              (r) => r.commitHash === release.commitHash
+                            {releaseHistoriesData.UAT.find(
+                              (r: ReleaseHistory) => r.commitHash === release.commitHash
                             )?.isCurrent && (
                               <Badge
                                 variant="outline"
@@ -464,8 +465,8 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                               </Badge>
                             )}
                             {/* PRD 环境状态 */}
-                            {releaseHistories.PRD.find(
-                              (r) => r.commitHash === release.commitHash
+                            {releaseHistoriesData.PRD.find(
+                              (r: ReleaseHistory) => r.commitHash === release.commitHash
                             )?.isCurrent && (
                               <Badge
                                 variant="outline"
@@ -474,8 +475,8 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                                 @PDC
                               </Badge>
                             )}
-                            {releaseHistories.PRD.find(
-                              (r) => r.commitHash === release.commitHash
+                            {releaseHistoriesData.PRD.find(
+                              (r: ReleaseHistory) => r.commitHash === release.commitHash
                             )?.isCurrent && (
                               <Badge
                                 variant="outline"
@@ -575,7 +576,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                               Redeploy
                             </DropdownMenuItem>
 
-                            {releaseHistories.SIT.includes(release) && (
+                            {releaseHistoriesData.SIT.includes(release) && (
                               <DropdownMenuItem
                                 onClick={() => {
                                   console.log("Promoting to UAT");
@@ -586,7 +587,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                               </DropdownMenuItem>
                             )}
 
-                            {releaseHistories.UAT.includes(release) && (
+                            {releaseHistoriesData.UAT.includes(release) && (
                               <DropdownMenuItem
                                 onClick={() => {
                                   console.log("Promoting to PRD");
@@ -630,11 +631,11 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
       app.owner.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAppClick = async (app: ExtendedApplication) => {
+  const handleSelectApp = async (app: ApplicationTemplate) => {
     try {
       const data = await triggerGetApplicationDetail(app.name);
       setSelectedAppDetails(data);
-      onSelectApp(data.name);
+      onSelectApp?.(data.name);
     } catch (error) {}
   };
 
@@ -850,7 +851,7 @@ export function ArgoApplication({ onSelectApp }: ArgoApplicationProps) {
                     <Button
                       variant="link"
                       className="p-0 h-auto text-sm font-semibold hover:text-blue-600"
-                      onClick={() => handleAppClick(app)}
+                      onClick={() => handleSelectApp(app)}
                     >
                       <span>{app.name}</span>
                     </Button>

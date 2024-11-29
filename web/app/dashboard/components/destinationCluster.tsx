@@ -58,17 +58,115 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  ClusterInfo,
-  clusters,
-  ResourceQuota,
-  resourceDescriptions,
-  providerColorMap,
-  healthStatusMap,
-  monitoringTypeStyles,
-  IconType,
-} from "./destinationClusterMock";
 import { useGetClusterList } from "@/app/api";
+import { ClusterInfo } from "@/types/cluster";
+
+type IconType = 'CheckCircle' | 'AlertTriangle' | 'XCircle' | 'Settings2' | 'ExternalLink' | 'Layout' | 'Server' | 'Cpu' | 'MemoryStick' | 'HardDrive' | 'Network' | 'Box';
+
+interface ResourceQuota {
+  cpu: string;
+  memory: string;
+  storage: string;
+  pvcs: string;
+  nodeports: string;
+}
+
+const providerColorMap: Record<string, string> = {
+  GKE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+  OCP: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
+  AKS: 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
+  EKS: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',
+  default: 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400'
+};
+
+const healthStatusMap: Record<string, { bg: string; text: string; icon?: IconType }> = {
+  Healthy: {
+    bg: 'bg-green-100 dark:bg-green-900/20',
+    text: 'text-green-700 dark:text-green-400',
+    icon: 'CheckCircle'
+  },
+  Degraded: {
+    bg: 'bg-red-100 dark:bg-red-900/20',
+    text: 'text-red-700 dark:text-red-400',
+    icon: 'XCircle'
+  },
+  Warning: {
+    bg: 'bg-yellow-100 dark:bg-yellow-900/20',
+    text: 'text-yellow-700 dark:text-yellow-400',
+    icon: 'AlertTriangle'
+  },
+  default: {
+    bg: 'bg-gray-100 dark:bg-gray-900/20',
+    text: 'text-gray-700 dark:text-gray-400'
+  }
+};
+
+const monitoringTypeStyles: Record<string, string> = {
+  prometheus: 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400',
+  grafana: 'bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400',
+  alertmanager: 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400'
+};
+
+const resourceDescriptions = {
+  cpu: {
+    label: "CPU",
+    tooltip: "Maximum CPU cores allocated in this cluster"
+  },
+  memory: {
+    label: "Memory",
+    tooltip: "Maximum RAM allocated in this cluster"
+  },
+  storage: {
+    label: "Storage",
+    tooltip: "Maximum storage space for persistent volumes"
+  },
+  pvcs: {
+    label: "PVCs",
+    tooltip: "Maximum number of persistent volumes allowed"
+  },
+  nodeports: {
+    label: "NodePorts",
+    tooltip: "Maximum number of NodePort services allowed"
+  }
+};
+
+type Provider = 'GKE' | 'OCP' | 'AKS' | 'EKS';
+
+type HealthStatus = {
+  status: 'Healthy' | 'Degraded' | 'Warning';
+  message?: string;
+};
+
+interface ExtendedClusterInfo extends ClusterInfo {
+  environment: string;
+  provider: Provider;
+  version: {
+    kubernetes: string;
+    platform: string;
+  };
+  nodeCount: number;
+  region: string;
+  resourceQuota: ResourceQuota;
+  health: HealthStatus;
+  nodes: {
+    ready: number;
+    total: number;
+  };
+  networkPolicy: boolean;
+  ingressController: string;
+  lastUpdated: string;
+  consoleUrl?: string;
+  monitoring: {
+    prometheus: boolean;
+    grafana: boolean;
+    alertmanager: boolean;
+    urls?: {
+      prometheus?: string;
+      grafana?: string;
+      alertmanager?: string;
+    };
+  };
+}
 
 const icons: Record<IconType, LucideIcon> = {
   CheckCircle,
@@ -176,7 +274,7 @@ const ResourceQuotaCell = ({
   </div>
 );
 
-const ProviderBadge = ({ provider }: { provider: ClusterInfo["provider"] }) => (
+const ProviderBadge = ({ provider }: { provider: Provider }) => (
   <span
     className={`px-2 py-1 rounded-full text-xs font-medium ${providerColorMap[provider] || providerColorMap.default}`}
   >
@@ -184,7 +282,7 @@ const ProviderBadge = ({ provider }: { provider: ClusterInfo["provider"] }) => (
   </span>
 );
 
-const HealthBadge = ({ health }: { health: ClusterInfo["health"] }) => {
+const HealthBadge = ({ health }: { health: HealthStatus }) => {
   const style = healthStatusMap[health.status] || healthStatusMap.default;
   const Icon = style.icon ? icons[style.icon] : null;
 
@@ -285,8 +383,7 @@ const StatsCard = ({
   </Card>
 );
 
-// 修改 ClusterNameCell 组件，移除节点信息
-const ClusterNameCell = ({ cluster }: { cluster: ClusterInfo }) => (
+const ClusterNameCell = ({ cluster }: { cluster: ExtendedClusterInfo }) => (
   <div
     className={`flex items-center space-x-3 ${
       cluster.status === "disabled" ? "opacity-80 grayscale" : ""
@@ -320,7 +417,7 @@ const ClusterNameCell = ({ cluster }: { cluster: ClusterInfo }) => (
         >
           {cluster.name}
         </span>
-        {cluster.builtin && <BuildinBadge />}
+        {cluster.labels?.builtin === "true" && <BuildinBadge />}
         {cluster.status === "disabled" && (
           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400 animate-pulse">
             Disabled
@@ -340,11 +437,9 @@ export function DestinationCluster() {
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("all");
   const [selectedProvider, setSelectedProvider] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedCluster, setSelectedCluster] = useState<ClusterInfo | null>(
-    null
-  );
+  const [selectedCluster, setSelectedCluster] = useState<ExtendedClusterInfo | null>(null);
 
-  const filteredClusters = clusterList.filter((cluster: ClusterInfo) => {
+  const filteredClusters = (clusterList as ExtendedClusterInfo[]).filter((cluster) => {
     const matchesSearch =
       cluster.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cluster.region.toLowerCase().includes(searchTerm.toLowerCase());
@@ -357,23 +452,23 @@ export function DestinationCluster() {
     return matchesSearch && matchesEnvironment && matchesProvider;
   });
 
-  const handleUpdateResourceQuota = (cluster: ClusterInfo) => {
+  const handleUpdateResourceQuota = (cluster: ExtendedClusterInfo) => {
     setSelectedCluster(cluster);
     setIsDialogOpen(true);
   };
 
   const stats = {
     totalClusters: clusterList.length,
-    activeNodes: clusterList.reduce(
-      (acc: number, cluster: ClusterInfo) => acc + cluster.nodes.ready,
+    activeNodes: (clusterList as ExtendedClusterInfo[]).reduce(
+      (acc: number, cluster) => acc + cluster.nodes.ready,
       0
     ),
-    totalNodes: clusterList.reduce(
-      (acc: number, cluster: ClusterInfo) => acc + cluster.nodes.total,
+    totalNodes: (clusterList as ExtendedClusterInfo[]).reduce(
+      (acc: number, cluster) => acc + cluster.nodes.total,
       0
     ),
-    healthyClusters: clusterList.filter(
-      (c: ClusterInfo) => c.health.status === "Healthy"
+    healthyClusters: (clusterList as ExtendedClusterInfo[]).filter(
+      (c) => c.health.status === "Healthy"
     ).length,
   };
 
@@ -433,7 +528,7 @@ export function DestinationCluster() {
         />
         <StatsCard
           title="Environments"
-          value={new Set(clusterList.map((c) => c.environment)).size}
+          value={new Set((clusterList as ExtendedClusterInfo[]).map((c) => c.environment)).size}
           icon={Layout}
           description="Distinct deployment environments"
         />

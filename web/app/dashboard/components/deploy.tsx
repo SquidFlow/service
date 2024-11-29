@@ -41,40 +41,32 @@ import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import yaml from "react-syntax-highlighter/dist/esm/languages/hljs/yaml";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import {
-  clusterDefaults,
-  // tenants,
-  fieldDescriptions,
-  mockYamlTemplate,
-  // type TenantInfo,
-  type Ingress,
-  type TemplateSource,
-} from "./mockData";
 import { DryRun } from "./dryrun";
+import { ClusterInfo } from "@/types/cluster";
+import { fieldDescriptions, Ingress, TemplateSource, Kustomization, EnvironmentInfo } from "@/types/template";
+import { CreateApplicationPayload } from "@/types";
 import {
-  // clusters,
-  type ClusterInfo,
-} from "@/app/dashboard/components/destinationClusterMock";
-import {} from // getAvailableSecretStores,
-// getSecretStoreDetails,
-"@/app/dashboard/components/security";
-// import type { SecretStore } from '@/app/dashboard/components/securityMock';
-import {
+  usePostValidate,
+  useDryRun,
+  usePostCreateApplication,
   useKustomizationsData,
   useGetAvailableTenants,
   useGetClusterList,
   useGetSecretStore,
-  usePostValidate,
-  useDryRun,
   useGetAppCode,
-  usePostCreateApplication,
 } from "@/app/api";
-import { Environment, Kustomization } from "./applicationTemplateMock";
+import { SecretStore } from "@/types/security";
 
 SyntaxHighlighter.registerLanguage("yaml", yaml);
 
 interface DeployFormProps {
   onCancel: () => void;
+}
+
+interface SimpleTenantInfo {
+  id: string;
+  name: string;
+  secretPath: string;
 }
 
 export function DeployForm({ onCancel }: DeployFormProps) {
@@ -101,18 +93,29 @@ export function DeployForm({ onCancel }: DeployFormProps) {
   const [selectedAppCode, setSelectedAppCode] = useState("");
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const requestData = {
-      application_name: templateSource.instanceName,
+
+    // Validate required fields
+    if (!templateSource.instanceName || !templateSource.value ||
+        !templateSource.targetRevision || !templateSource.path) {
+      // TODO: Show error message to user
+      console.error("Please fill in all required fields");
+      return;
+    }
+
+    const requestData: CreateApplicationPayload = {
+      name: templateSource.instanceName,
+      description: descriptionValue,
+      source: {
+        url: templateSource.value,
+        targetRevision: templateSource.targetRevision,
+        path: templateSource.path,
+        appType: "kustomize",
+      },
+      destination: {
+        clusters: selectedClusters,
+      },
       tenant_name: selectedTenantId,
       appcode: selectedAppCode,
-      description: descriptionValue,
-      //   ingress: {
-      //     host: ingresses[0].name,
-      //     tls: {
-      //       enabled: true,
-      //       secretName: "demo1-tls",
-      //     },
-      //   },
       security: {
         external_secret: {
           secret_store_ref: {
@@ -121,16 +124,6 @@ export function DeployForm({ onCancel }: DeployFormProps) {
         },
       },
       is_dryrun: false,
-      application_source: {
-        type: "git",
-        url: "github.com/h4-poc/demo-app",
-        targetRevision: "main",
-        path: "/",
-      },
-      destination_clusters: {
-        clusters: selectedClusters,
-        namespace: namespaceValue,
-      },
     };
 
     try {
@@ -138,7 +131,10 @@ export function DeployForm({ onCancel }: DeployFormProps) {
       const data = triggerPostCreateApplication(requestData);
       console.log(data);
       onCancel();
-    } catch (error) {}
+    } catch (error) {
+      // TODO: Show error message to user
+      console.error("Failed to create application:", error);
+    }
   };
 
   const addIngress = () => {
@@ -240,7 +236,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
         </span>
       </div>
       <div className="flex flex-wrap gap-2">
-        {clusterList.map((cluster) => (
+        {clusterList.map((cluster: ClusterInfo) => (
           <Button
             key={cluster.name}
             className="flex items-center gap-2 group relative"
@@ -259,20 +255,20 @@ export function DeployForm({ onCancel }: DeployFormProps) {
               <span className="font-mono font-medium">{cluster.name}</span>
               <span
                 className={`text-xs px-2 py-0.5 rounded-full ${
-                  cluster.environment === "SIT"
+                  cluster.env === "SIT"
                     ? "bg-blue-100 text-blue-700"
-                    : cluster.environment === "UAT"
+                    : cluster.env === "UAT"
                       ? "bg-green-100 text-green-700"
                       : "bg-purple-100 text-purple-700"
                 }`}
               >
-                {cluster.environment}
+                {cluster.env}
               </span>
             </div>
             {selectedClusters.includes(cluster.name) && (
               <CheckCircle className="h-4 w-4 ml-1" />
             )}
-            {cluster.builtin && (
+            {cluster.labels?.builtin === "true" && (
               <span className="absolute -top-2 -right-2 px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-800 rounded-full">
                 Builtin
               </span>
@@ -317,7 +313,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
       <div className="grid grid-cols-4 gap-6">
         {selectedClusters.map((clusterName) => {
           const clusterInfo = clusterList.find(
-            (c: ClusterInfo) => c.name === clusterName
+            (c) => c.name === clusterName
           );
           if (!clusterInfo) return null;
 
@@ -331,48 +327,35 @@ export function DeployForm({ onCancel }: DeployFormProps) {
                   {clusterName}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <TooltipProvider>
-                  {Object.entries(resourceDescriptions).map(([key, desc]) => (
-                    <div key={key} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {key === "cpu" && (
-                            <Cpu className="h-4 w-4 text-gray-500" />
-                          )}
-                          {key === "memory" && (
-                            <MemoryStick className="h-4 w-4 text-gray-500" />
-                          )}
-                          {key === "storage" && (
-                            <HardDrive className="h-4 w-4 text-gray-500" />
-                          )}
-                          {key === "pvcs" && (
-                            <Network className="h-4 w-4 text-gray-500" />
-                          )}
-                          {key === "nodeports" && (
-                            <Box className="h-4 w-4 text-gray-500" />
-                          )}
-                          <Label className="font-medium">{desc.label}</Label>
-                        </div>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-500" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">{desc.tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <div className="w-full px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-800 font-mono text-sm">
-                        {
-                          clusterInfo.resourceQuota[
-                            key as keyof typeof clusterInfo.resourceQuota
-                          ]
-                        }
-                      </div>
-                    </div>
-                  ))}
-                </TooltipProvider>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    clusterInfo.env === "SIT"
+                      ? "bg-blue-100 text-blue-700"
+                      : clusterInfo.env === "UAT"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-purple-100 text-purple-700"
+                  }`}>
+                    {clusterInfo.env}
+                  </span>
+                  {clusterInfo.labels?.builtin === "true" && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                      Builtin
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm text-gray-500">
+                  Status: <span className="font-medium">{clusterInfo.status}</span>
+                </div>
+                {clusterInfo.labels && Object.keys(clusterInfo.labels).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(clusterInfo.labels).map(([key, value]) => (
+                      <span key={key} className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
+                        {key}: {value}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
@@ -454,7 +437,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
     setValidationResults([]);
 
     try {
-      const detectedEnvs: Environment[] = await triggerValidate({
+      const detectedEnvs: EnvironmentInfo[] = await triggerValidate({
         templateSource: templateSource.value,
         targetRevision: templateSource.targetRevision,
         path: templateSource.path,
@@ -548,70 +531,42 @@ export function DeployForm({ onCancel }: DeployFormProps) {
   // }, []);
 
   const generateYAML = (namespace: string, cluster: string) => {
-    return mockYamlTemplate(namespace, cluster, clusterDefaults);
+    const yaml = `\n---
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      namespace: ${namespace}
+    spec:
+      refreshInterval: "1h"`
 
-    // 		if (enableExternalSecret && selectedSecretStore) {
-    // 			const secretStore = getSecretStoreDetails(selectedSecretStore);
-    // 			if (secretStore) {
-    // 				yaml += `\n---
-    // apiVersion: external-secrets.io/v1beta1
-    // kind: ExternalSecret
-    // metadata:
-    //   name: ${templateSource.instanceName}-external-secret
-    //   namespace: ${namespace}
-    // spec:
-    //   refreshInterval: "1h"
-    //   secretStoreRef:
-    //     name: ${secretStore.name}
-    //     kind: ${secretStore.type}
-    //   target:
-    //     name: ${templateSource.instanceName}-secret
-    //   data:
-    //   - secretKey: example-key
-    //     remoteRef:
-    //       key: ${secretStore.path}/${templateSource.instanceName}
-    //       property: value`;
-    // 			}
-    // 		}
-    // return yaml;
+    return yaml;
   };
 
   // 更新 ExternalSecret 配置部分
   const renderExternalSecretConfig = () => (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label>External Secrets Integration</Label>
-        </div>
+      <div className="flex items-center space-x-2">
         <Switch
+          id="external-secret"
           checked={enableExternalSecret}
           onCheckedChange={setEnableExternalSecret}
         />
+        <Label htmlFor="external-secret">Enable External Secrets Integration</Label>
       </div>
-
       {enableExternalSecret && (
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Secret Store</Label>
             <Select
-              value={selectedSecretStore}
+              value={selectedSecretStore || undefined}
               onValueChange={setSelectedSecretStore}
             >
               <SelectTrigger>
-                {selectedSecretStore ? (
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-medium">{selectedSecretStore}</span>
-                    {/* <span className="text-xs text-gray-500 font-mono">
-											{getSecretStoreDetails(selectedSecretStore)?.path}
-										</span> */}
-                  </div>
-                ) : (
-                  <SelectValue placeholder="Select a Secret Store" />
-                )}
+                <SelectValue placeholder="Select a Secret Store" />
               </SelectTrigger>
               <SelectContent>
-                {secretStoreList.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
+                {secretStoreList.map((store: SecretStore) => (
+                  <SelectItem key={store.id} value={store.id || 'default'}>
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium">{store.name}</span>
@@ -892,7 +847,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
                           <SelectValue placeholder="Select tenant"></SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {availableTenants.map((tenant) => (
+                          {availableTenants.map((tenant: SimpleTenantInfo) => (
                             <SelectItem key={tenant.name} value={tenant.name}>
                               {tenant.name}
                             </SelectItem>
@@ -1102,7 +1057,7 @@ export function DeployForm({ onCancel }: DeployFormProps) {
 
                 <Separator />
 
-                {/* ExternalSecret Integration Section */}
+                {/* External Secrets Integration */}
                 {renderExternalSecretConfig()}
 
                 <Separator className="my-6" />
