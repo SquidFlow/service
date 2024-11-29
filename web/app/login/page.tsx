@@ -31,11 +31,14 @@ export default function LoginPage() {
           <Card className="w-full max-w-[400px] shadow-lg rounded-lg">
             <CardHeader className="space-y-3">
               <CardTitle className="text-2xl font-bold text-center">
-                login to{' '}
-                <span className="bg-gradient-to-r from-primary via-blue-600 to-purple-600 text-transparent bg-clip-text">
-                  SquidFlow
-                </span>
-                {' '}
+                <div className="inline-flex rounded-md overflow-hidden border border-primary/20">
+                  <span className="bg-primary text-primary-foreground px-3 py-1 font-mono">
+                    SquidFlow
+                  </span>
+                  <span className="bg-background text-primary px-3 py-1 border-l border-primary/20 font-mono">
+                    Platform
+                  </span>
+                </div>
               </CardTitle>
               <CardDescription className="text-center text-muted-foreground">
                 Choose your preferred login method

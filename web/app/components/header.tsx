@@ -31,11 +31,17 @@ export default function Header({ isLoggedIn, username, userRole, onLogout }: Hea
     <header className="bg-background border-b border-border">
       <div className="w-full px-6 py-4 flex justify-between items-center">
         <div className="flex items-center">
-          <h1 className="text-3xl font-bold text-foreground mr-6">
-            <span className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md mr-2 transition-all duration-300 hover:bg-secondary hover:text-secondary-foreground">
-              SquidFlow
-            </span>
-            Platform
+          <h1 className="text-2xl font-semibold mr-6">
+            <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
+              <div className="flex rounded-md overflow-hidden border border-primary/20">
+                <span className="bg-primary text-primary-foreground px-3 py-1 font-mono">
+                  SquidFlow
+                </span>
+                <span className="bg-background text-primary px-3 py-1 border-l border-primary/20 font-mono">
+                  Platform
+                </span>
+              </div>
+            </Link>
           </h1>
         </div>
         <nav className="flex items-center space-x-6">
