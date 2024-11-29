@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/h4-poc/service/pkg/fs/mocks"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/fs/mocks"
+	"github.com/squidflow/service/pkg/util"
 
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5"

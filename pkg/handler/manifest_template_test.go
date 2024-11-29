@@ -3,7 +3,7 @@ package handler
 import (
 	"bytes"
 	"fmt"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/util"
 	"os"
 	"sigs.k8s.io/kustomize/kustomize/v5/commands/build"
 	"sigs.k8s.io/kustomize/kyaml/filesys"

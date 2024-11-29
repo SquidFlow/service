@@ -7,8 +7,8 @@ import (
 	clientCluster "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/gin-gonic/gin"
 
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/log"
 )
 
 type ClusterResponse struct {

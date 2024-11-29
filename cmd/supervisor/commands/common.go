@@ -8,11 +8,11 @@ import (
 	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 )
 
 var (

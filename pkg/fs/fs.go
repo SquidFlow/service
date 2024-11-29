@@ -10,7 +10,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/util"
 )
 
 //go:generate mockgen -destination=./mocks/fs.go -package=mocks -source=./fs.go FS

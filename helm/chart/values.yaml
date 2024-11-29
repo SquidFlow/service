@@ -1,9 +1,9 @@
-nameOverride: "h4"
-fullnameOverride: "h4"
-namespace: "h4"
+nameOverride: "squidflow"
+fullnameOverride: "squidflow"
+namespace: "squidflow"
 
 image:
-  repository: ghcr.io/h4-poc/service
+  repository: ghcr.io/squidflow/service
   tag: "v0.0.1"
   pullPolicy: IfNotPresent
 
@@ -38,7 +38,7 @@ ingress:
   type: nginx
   className: ""
   annotations: {}
-  host: h4-service.local
+  host: squidflow-service.local
 
 argocd:
   serverAddress: "argocd-server.argocd.svc.cluster.local:80"
@@ -46,5 +46,5 @@ argocd:
   password: ""
 
 applicationRepo:
-  remoteUrl: "https://github.com/h4-poc/gitops.git"
+  remoteUrl: "https://github.com/squidflow/gitops.git"
   accessToken: ""

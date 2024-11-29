@@ -12,10 +12,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git/gogit"
-	"github.com/h4-poc/service/pkg/store"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git/gogit"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 
 	billy "github.com/go-git/go-billy/v5"
 	gg "github.com/go-git/go-git/v5"

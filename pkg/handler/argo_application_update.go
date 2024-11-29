@@ -8,11 +8,11 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/middleware"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/middleware"
 )
 
 type ApplicationUpdate struct {
@@ -67,19 +67,19 @@ func UpdateArgoApplication(c *gin.Context) {
 
 	annotations := make(map[string]string)
 	if updateReq.Description != "" {
-		annotations["h4-poc.github.io/description"] = updateReq.Description
+		annotations["squidflow.github.io/description"] = updateReq.Description
 	}
 	if updateReq.Ingress != nil {
-		annotations["h4-poc.github.io/ingress.host"] = updateReq.Ingress.Host
+		annotations["squidflow.github.io/ingress.host"] = updateReq.Ingress.Host
 		if updateReq.Ingress.TLS != nil {
-			annotations["h4-poc.github.io/ingress.tls.enabled"] = fmt.Sprintf("%v", updateReq.Ingress.TLS.Enabled)
-			annotations["h4-poc.github.io/ingress.tls.secretName"] = updateReq.Ingress.TLS.SecretName
+			annotations["squidflow.github.io/ingress.tls.enabled"] = fmt.Sprintf("%v", updateReq.Ingress.TLS.Enabled)
+			annotations["squidflow.github.io/ingress.tls.secretName"] = updateReq.Ingress.TLS.SecretName
 		}
 	}
 	if updateReq.Security != nil && updateReq.Security.ExternalSecret != nil {
-		annotations["h4-poc.github.io/security.external_secret.secret_store_ref.id"] = updateReq.Security.ExternalSecret.SecretStoreRef.ID
+		annotations["squidflow.github.io/security.external_secret.secret_store_ref.id"] = updateReq.Security.ExternalSecret.SecretStoreRef.ID
 	}
-	annotations["h4-poc.github.io/last-modified-by"] = username
+	annotations["squidflow.github.io/last-modified-by"] = username
 
 	updateOpts := &UpdateOptions{
 		CloneOpts:   cloneOpts,

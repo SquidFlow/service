@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/log"
 )
 
 // DeleteDestinationCluster deletes a destination cluster by name

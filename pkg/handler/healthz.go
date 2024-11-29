@@ -7,8 +7,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/store"
 )
 
 func Healthz(c *gin.Context) {

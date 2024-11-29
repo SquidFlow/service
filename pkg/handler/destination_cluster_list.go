@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/log"
 )
 
 type ClusterListResponse struct {
@@ -63,12 +63,12 @@ func ListDestinationCluster(c *gin.Context) {
 
 		clusterInfo := ClusterResponse{
 			Name:        cluster.Name,
-			Environment: cluster.Annotations["h4-poc.github.io/cluster-env"],
+			Environment: cluster.Annotations["squidflow.github.io/cluster-env"],
 			Status:      getClusterStatus(destK8sClient),
-			Provider:    cluster.Annotations["h4-poc.github.io/cluster-vendor"],
+			Provider:    cluster.Annotations["squidflow.github.io/cluster-vendor"],
 			Version: VersionInfo{
 				Kubernetes: version.GitVersion,
-				Platform:   getPlatformVersion(version, cluster.Annotations["h4-poc.github.io/cluster-vendor"]),
+				Platform:   getPlatformVersion(version, cluster.Annotations["squidflow.github.io/cluster-vendor"]),
 			},
 			NodeCount:     total,
 			Region:        "hk",

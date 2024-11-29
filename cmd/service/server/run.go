@@ -17,13 +17,13 @@ import (
 	"github.com/spf13/viper"
 	"k8s.io/client-go/discovery"
 
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/config"
-	"github.com/h4-poc/service/pkg/handler"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/middleware"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/config"
+	"github.com/squidflow/service/pkg/handler"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/middleware"
+	"github.com/squidflow/service/pkg/store"
 )
 
 func NewRunCommand() *cobra.Command {
@@ -190,21 +190,6 @@ func setupRouter() *gin.Engine {
 		clusters.GET("/:name", handler.GetDestinationCluster)
 		clusters.DELETE("/:name", handler.DeleteDestinationCluster)
 		clusters.PATCH("/:name", handler.UpdateDestinationCluster)
-	}
-
-	// save the template resource to improve the user experience
-	// actually. to want handle the manifest repo
-	templates := v1.Group("/applications/templates")
-	{
-		templates.POST("/validate", handler.ValidateApplicationTemplate)
-		templates.POST("", handler.CreateApplicationTemplate)
-		templates.GET("", handler.ListApplicationTemplate)
-		templateInstance := templates.Group("/:template_id")
-		{
-			templateInstance.GET("", handler.DescribeApplicationTemplate)
-			templateInstance.PATCH("", handler.UpdateApplicationTemplate)
-			templateInstance.DELETE("", handler.DeleteApplicationTemplate)
-		}
 	}
 
 	// real api, to manage the lifecycle of ArgoApplication

@@ -11,11 +11,11 @@ import (
 	"github.com/spf13/viper"
 	"sigs.k8s.io/yaml"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 )
 
 type SecretStoreCreateReq struct {
@@ -53,20 +53,20 @@ func CreateSecretStore(c *gin.Context) {
 		return
 	}
 
-	if want.Annotations != nil && want.Annotations["h4-poc.github.io/id"] != "" {
+	if want.Annotations != nil && want.Annotations["squidflow.github.io/id"] != "" {
 		c.JSON(400, gin.H{"error": "id not allow set via client"})
 		return
 	}
 	if want.Annotations == nil {
 		want.Annotations = make(map[string]string)
 	}
-	want.Annotations["h4-poc.github.io/last-synced"] = time.Now().Format(time.RFC3339)
-	want.Annotations["h4-poc.github.io/created-at"] = time.Now().Format(time.RFC3339)
-	want.Annotations["h4-poc.github.io/updated-at"] = time.Now().Format(time.RFC3339)
-	want.Annotations["h4-poc.github.io/id"] = getNewId()
+	want.Annotations["squidflow.github.io/last-synced"] = time.Now().Format(time.RFC3339)
+	want.Annotations["squidflow.github.io/created-at"] = time.Now().Format(time.RFC3339)
+	want.Annotations["squidflow.github.io/updated-at"] = time.Now().Format(time.RFC3339)
+	want.Annotations["squidflow.github.io/id"] = getNewId()
 
 	log.G().WithFields(log.Fields{
-		"id": want.Annotations["h4-poc.github.io/id"],
+		"id": want.Annotations["squidflow.github.io/id"],
 	}).Debug("generated id for secret store")
 
 	log.G().WithFields(log.Fields{
@@ -97,7 +97,7 @@ func CreateSecretStore(c *gin.Context) {
 
 	c.JSON(201, SecretStoreCreateResponse{
 		Name:    want.Name,
-		ID:      want.Annotations["h4-poc.github.io/id"],
+		ID:      want.Annotations["squidflow.github.io/id"],
 		Success: true,
 		Message: "SecretStore created successfully",
 	})
@@ -107,7 +107,7 @@ func CreateSecretStore(c *gin.Context) {
 func writeSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
 	log.G().WithFields(log.Fields{
 		"name":      ss.Name,
-		"id":        ss.Annotations["h4-poc.github.io/id"],
+		"id":        ss.Annotations["squidflow.github.io/id"],
 		"cloneOpts": cloneOpts,
 		"force":     force,
 	}).Debug("clone options")
@@ -129,7 +129,7 @@ func writeSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, clone
 			store.Default.BootsrtrapDir,
 			store.Default.ClusterResourcesDir,
 			store.Default.ClusterContextName,
-			fmt.Sprintf("ss-%s.yaml", ss.Annotations["h4-poc.github.io/id"]),
+			fmt.Sprintf("ss-%s.yaml", ss.Annotations["squidflow.github.io/id"]),
 		),
 	)
 	if ssExists && !force {
@@ -142,7 +142,7 @@ func writeSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, clone
 			store.Default.BootsrtrapDir,
 			store.Default.ClusterResourcesDir,
 			store.Default.ClusterContextName,
-			fmt.Sprintf("ss-%s.yaml", ss.Annotations["h4-poc.github.io/id"]),
+			fmt.Sprintf("ss-%s.yaml", ss.Annotations["squidflow.github.io/id"]),
 		),
 		Data:   util.JoinManifests(ssYaml),
 		ErrMsg: "failed to create secret store file",

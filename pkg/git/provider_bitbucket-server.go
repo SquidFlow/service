@@ -12,7 +12,7 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/util"
 )
 
 //go:generate mockgen -destination=./bitbucket-server/mocks/httpClient.go -package=mocks -source=./provider_bitbucket-server.go HttpClient

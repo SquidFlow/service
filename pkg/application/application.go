@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"

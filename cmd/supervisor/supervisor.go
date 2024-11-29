@@ -9,9 +9,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/h4-poc/service/cmd/supervisor/commands"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/cmd/supervisor/commands"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/util"
 )
 
 func main() {

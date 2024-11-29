@@ -1,8 +1,8 @@
 package application
 
 import (
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/store"
 
 	billyUtils "github.com/go-git/go-billy/v5/util"
 )

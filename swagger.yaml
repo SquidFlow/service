@@ -115,7 +115,7 @@ components:
           example: "git"
         url:
           type: string
-          example: "git@github.com:h4-poc/platform.git"
+          example: "git@github.com:squidflow/platform.git"
         targetRevision:
           type: string
           example: "main"
@@ -352,7 +352,7 @@ components:
       properties:
         templateSource:
           type: string
-          example: "git@github.com:h4-poc/platform.git"
+          example: "git@github.com:squidflow/platform.git"
         targetRevision:
           type: string
           example: "main"
@@ -733,115 +733,6 @@ components:
 
 
 paths:
-  /applications/templates:
-    post:
-      tags: [ApplicationTemplate]
-      summary: Create application template
-      operationId: createApplicationTemplate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApplicationTemplateCreate'
-      responses:
-        '201':
-          description: Template created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApplicationTemplate'
-        '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    get:
-      tags: [ApplicationTemplate]
-      summary: List all application templates
-      operationId: listApplicationTemplates
-      responses:
-        '200':
-          description: List of templates
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ApplicationTemplate'
-
-  /applications/templates/{template_id}:
-    parameters:
-      - name: template_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-
-    get:
-      tags: [ApplicationTemplate]
-      summary: Get application template by ID
-      operationId: getApplicationTemplate
-      responses:
-        '200':
-          description: Template details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApplicationTemplate'
-        '404':
-          description: Template not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    patch:
-      tags: [ApplicationTemplate]
-      summary: Update application template
-      operationId: updateApplicationTemplate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                description:
-                  type: string
-      responses:
-        '200':
-          description: Template updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApplicationTemplate'
-        '404':
-          description: Template not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    delete:
-      tags: [ApplicationTemplate]
-      summary: Delete application template
-      operationId: deleteApplicationTemplate
-      responses:
-        '204':
-          description: Template deleted successfully
-        '404':
-          description: Template not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /deploy/argocdapplications:
     post:
       tags: [ArgoApplication]

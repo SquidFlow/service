@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git/gogit"
-	"github.com/h4-poc/service/pkg/git/gogit/mocks"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git/gogit"
+	"github.com/squidflow/service/pkg/git/gogit/mocks"
 
 	billy "github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"

@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/spf13/viper"
 
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/squidflow/service/pkg/log"
 )
 
 // TODO: in-cluster mode

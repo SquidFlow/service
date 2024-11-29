@@ -10,7 +10,7 @@ import (
 	gh "github.com/google/go-github/v43/github"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/h4-poc/service/pkg/git/github/mocks"
+	"github.com/squidflow/service/pkg/git/github/mocks"
 )
 
 func Test_github_CreateRepository(t *testing.T) {

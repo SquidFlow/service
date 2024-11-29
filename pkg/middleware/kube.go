@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 )

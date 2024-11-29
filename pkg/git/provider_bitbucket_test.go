@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	bbmocks "github.com/h4-poc/service/pkg/git/bitbucket/mocks"
+	bbmocks "github.com/squidflow/service/pkg/git/bitbucket/mocks"
 
 	"github.com/golang/mock/gomock"
 	bb "github.com/ktrysmt/go-bitbucket"

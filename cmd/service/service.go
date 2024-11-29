@@ -8,9 +8,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/h4-poc/service/cmd/service/server"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/cmd/service/server"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
 )
 
 var (

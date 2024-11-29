@@ -22,13 +22,13 @@ import (
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 
-	"github.com/h4-poc/service/pkg/application"
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/application"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 )
 
 const (
@@ -97,7 +97,7 @@ func NewBootstrapCmd() *cobra.Command {
 
 	log.G().Debugf("start clone options %s", applicationRepoRemoteURL)
 
-	cmd.Flags().StringVar(&appSpecifier, "app", "", "The application specifier (e.g. github.com/h4-poc/service/manifests), overrides the default installation argo-cd manifests")
+	cmd.Flags().StringVar(&appSpecifier, "app", "", "The application specifier (e.g. github.com/squidflow/service/manifests), overrides the default installation argo-cd manifests")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "If true, print manifests instead of applying them to the cluster (nothing will be commited to git)")
 	cmd.Flags().BoolVar(&hidePassword, "hide-password", false, "Hide password")
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "Insecure")
@@ -423,7 +423,7 @@ func buildBootstrapManifests(namespace, appSpecifier string, cloneOpts *git.Clon
 	manifests.thirdPartyApp, err = createApp(&createAppOptions{
 		name:        store.Default.ThirdParty,
 		namespace:   namespace,
-		repoURL:     "https://github.com/h4-poc/service.git",
+		repoURL:     "https://github.com/squidflow/service.git",
 		revision:    cloneOpts.Revision(),
 		srcPath:     "manifests/third-party",
 		noFinalizer: true,

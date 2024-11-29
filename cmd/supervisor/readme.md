@@ -7,11 +7,11 @@ Bootstrap is a command-line tool for initializing and managing the H4 Platform e
 ### bootstrap the gitops repo
 
 ```shell
-~/w/g/s/g/h/s/output *main> ./supervisor bootstrap --git-token github_pat_******** --repo https://github.com/h4-poc/gitops2.git --app github.com/h4-poc/service/manifests/base
+~/w/g/s/g/h/s/output *main> ./supervisor bootstrap --git-token github_pat_******** --repo https://github.com/squidflow/gitops2.git --app github.com/squidflow/service/manifests/base
 DEBU[0000] start clone options
-INFO[0000] building bootstrap manifests                  app=github.com/h4-poc/service/manifests/base bootstrapAppsLabels="map[]" labels="map[]" namespace=argocd namespaceLabels="map[]" path= repo="https://github.com/h4-poc/gitops2.git" revision=
-INFO[0010] cloning repo: https://github.com/h4-poc/gitops2.git
-INFO[0014] repository 'https://github.com/h4-poc/gitops2.git' was not found, trying to create it...
+INFO[0000] building bootstrap manifests                  app=github.com/squidflow/service/manifests/base bootstrapAppsLabels="map[]" labels="map[]" namespace=argocd namespaceLabels="map[]" path= repo="https://github.com/squidflow/gitops2.git" revision=
+INFO[0010] cloning repo: https://github.com/squidflow/gitops2.git
+INFO[0014] repository 'https://github.com/squidflow/gitops2.git' was not found, trying to create it...
 INFO[0015] empty repository, initializing a new one with specified remote
 INFO[0015] using revision: "", installation path: ""
 INFO[0015] using context: "minikube", namespace: "argocd"
@@ -114,9 +114,9 @@ kube-system   storage-provisioner                                1/1     Running
 ### create a argocd project
 
 ```shell
-~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_******** --repo https://github.com/h4-poc/gitops2.git create testing
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_******** --repo https://github.com/squidflow/gitops2.git create testing
 DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
+INFO[0000] cloning git repository: https://github.com/squidflow/gitops2.git
 Enumerating objects: 17, done.
 Counting objects: 100% (17/17), done.
 Compressing objects: 100% (12/12), done.
@@ -134,9 +134,9 @@ argocd      testing   32s
 ### list the project
 
 ```shell
-~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_****** --repo https://github.com/h4-poc/gitops2.git  list
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_****** --repo https://github.com/squidflow/gitops2.git  list
 DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
+INFO[0000] cloning git repository: https://github.com/squidflow/gitops2.git
 Enumerating objects: 18, done.
 Counting objects: 100% (18/18), done.
 Compressing objects: 100% (14/14), done.
@@ -149,9 +149,9 @@ testing  argocd     https://kubernetes.default.svc
 ### delete project
 
 ```shell
-~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_****** --repo https://github.com/h4-poc/gitops2.git  delete testing
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token github_pat_****** --repo https://github.com/squidflow/gitops2.git  delete testing
 DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
+INFO[0000] cloning git repository: https://github.com/squidflow/gitops2.git
 Enumerating objects: 18, done.
 Counting objects: 100% (18/18), done.
 Compressing objects: 100% (14/14), done.
@@ -159,9 +159,9 @@ Total 18 (delta 2), reused 17 (delta 1), pack-reused 0 (from 0)
 INFO[0002] using revision: "", installation path: "/"
 INFO[0002] committing changes to gitops repo...
 
-~/w/g/s/g/h/s/output *main> ./supervisor project --git-token ****** --repo https://github.com/h4-poc/gitops2.git  list
+~/w/g/s/g/h/s/output *main> ./supervisor project --git-token ****** --repo https://github.com/squidflow/gitops2.git  list
 DEBU[0000] start clone options
-INFO[0000] cloning git repository: https://github.com/h4-poc/gitops2.git
+INFO[0000] cloning git repository: https://github.com/squidflow/gitops2.git
 Enumerating objects: 17, done.
 Counting objects: 100% (17/17), done.
 Compressing objects: 100% (12/12), done.
@@ -221,10 +221,10 @@ kube-system   kube-proxy-lnrn6                   1/1     Running   0          73
 kube-system   kube-scheduler-minikube            1/1     Running   0          88s
 kube-system   storage-provisioner                1/1     Running   0          87s
 
-~/w/g/s/g/h/s/output main> ./supervisor bootstrap  --git-token ****** --repo https://github.com/h4-poc/gitops2.git --recover
+~/w/g/s/g/h/s/output main> ./supervisor bootstrap  --git-token ****** --repo https://github.com/squidflow/gitops2.git --recover
 DEBU[0000] start clone options
-INFO[0000] starting with options:                        app=github.com/h4-poc/service/manifests/base kube-context=minikube namespace=argocd repo-url="https://github.com/h4-poc/gitops2.git" revision=
-INFO[0027] cloning repo: https://github.com/h4-poc/gitops2.git
+INFO[0000] starting with options:                        app=github.com/squidflow/service/manifests/base kube-context=minikube namespace=argocd repo-url="https://github.com/squidflow/gitops2.git" revision=
+INFO[0027] cloning repo: https://github.com/squidflow/gitops2.git
 Enumerating objects: 17, done.
 Counting objects: 100% (17/17), done.
 Compressing objects: 100% (12/12), done.

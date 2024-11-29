@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/store"
 )
 
 func NewVersionCommand() *cobra.Command {

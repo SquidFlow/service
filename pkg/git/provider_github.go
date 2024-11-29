@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	g "github.com/h4-poc/service/pkg/git/github"
-	"github.com/h4-poc/service/pkg/util"
+	g "github.com/squidflow/service/pkg/git/github"
+	"github.com/squidflow/service/pkg/util"
 
 	gh "github.com/google/go-github/v43/github"
 )

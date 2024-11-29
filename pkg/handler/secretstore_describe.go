@@ -9,10 +9,10 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
 )
 
 type DescribeSecretStoreResponse struct {
@@ -110,16 +110,16 @@ func GetSecretStoreFromRepo(ctx context.Context, opts *SecretStoreGetOptions) (*
 	}
 
 	return &SecretStoreDetail{
-		ID:          secretStore.Annotations["h4-poc.github.io/id"],
+		ID:          secretStore.Annotations["squidflow.github.io/id"],
 		Name:        secretStore.Name,
 		Provider:    "vault",
 		Status:      "Active",
 		Path:        *secretStore.Spec.Provider.Vault.Path,
 		Type:        "SecretStore",
 		Environment: []string{"sit", "uat", "prod"},
-		LastSynced:  secretStore.Annotations["h4-poc.github.io/last-synced"],
-		CreatedAt:   secretStore.Annotations["h4-poc.github.io/created-at"],
-		LastUpdated: secretStore.Annotations["h4-poc.github.io/updated-at"],
+		LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
+		CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
+		LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
 		Health: SecretStoreHealth{
 			Status:  "Healthy", // 可以根据实际状态判断
 			Message: "Secret store is operating normally",

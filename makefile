@@ -4,14 +4,14 @@ GOFLAGS=-v
 VERSION ?= $(shell git describe --tags --always --dirty)
 BUILD_DATE ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
-INSTALLATION_MANIFESTS_URL := "github.com/h4-poc/service/manifests/base"
-INSTALLATION_MANIFESTS_THIRD_PARTY := "github.com/h4-poc/service/manifests/third-party"
+INSTALLATION_MANIFESTS_URL := "github.com/squidflow/service/manifests/base"
+INSTALLATION_MANIFESTS_THIRD_PARTY := "github.com/squidflow/service/manifests/third-party"
 
-LDFLAGS := -X 'github.com/h4-poc/service/pkg/store.version=$(VERSION)' \
-           -X 'github.com/h4-poc/service/pkg/store.buildDate=$(BUILD_DATE)' \
-           -X 'github.com/h4-poc/service/pkg/store.gitCommit=$(GIT_COMMIT)' \
-           -X 'github.com/h4-poc/service/pkg/store.installationManifestsURL=github.com/h4-poc/service/manifests/base' \
-           -X 'github.com/h4-poc/service/pkg/store.installationManifestsThirdParty=github.com/h4-poc/service/manifests/third-party'
+LDFLAGS := -X 'github.com/squidflow/service/pkg/store.version=$(VERSION)' \
+           -X 'github.com/squidflow/service/pkg/store.buildDate=$(BUILD_DATE)' \
+           -X 'github.com/squidflow/service/pkg/store.gitCommit=$(GIT_COMMIT)' \
+           -X 'github.com/squidflow/service/pkg/store.installationManifestsURL=github.com/squidflow/service/manifests/base' \
+           -X 'github.com/squidflow/service/pkg/store.installationManifestsThirdParty=github.com/squidflow/service/manifests/third-party'
 
 # Default target
 .DEFAULT_GOAL := build

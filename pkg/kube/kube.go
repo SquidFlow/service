@@ -18,7 +18,7 @@ import (
 	del "k8s.io/kubectl/pkg/cmd/delete"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/util"
 )
 
 //go:generate mockgen -destination=./mocks/kube.go -package=mocks -source=./kube.go Factory

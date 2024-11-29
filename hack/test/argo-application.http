@@ -5,7 +5,7 @@ Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 {
-    "templateSource":"git@github.com:h4-poc/platform.git",
+    "templateSource":"git@github.com:squidflow/platform.git",
     "targetRevision":"main",
     "path":"manifest/fluent-operator"
 }
@@ -19,7 +19,7 @@ Authorization: Bearer username@tenant1
 {
     "application_source": {
         "type": "git",
-        "url": "github.com/h4-poc/demo-app",
+        "url": "github.com/squidflow/demo-app",
         "targetRevision": "main",
         "path": "/"
     },

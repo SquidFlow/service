@@ -2,7 +2,7 @@
 FROM golang:1.23 AS backend-builder
 
 # Set the working directory
-WORKDIR /go/src/github.com/h4-poc/service
+WORKDIR /go/src/github.com/squidflow/service
 
 # Copy go mod and sum files
 COPY go.mod go.sum ./
@@ -16,15 +16,15 @@ COPY . .
 ARG VERSION
 ARG BUILD_DATE
 ARG GIT_COMMIT
-ARG INSTALLATION_MANIFESTS_URL="github.com/h4-poc/service/manifests/base"
-ARG INSTALLATION_MANIFESTS_THIRD_PARTY="github.com/h4-poc/service/manifests/third-party"
+ARG INSTALLATION_MANIFESTS_URL="github.com/squidflow/service/manifests/base"
+ARG INSTALLATION_MANIFESTS_THIRD_PARTY="github.com/squidflow/service/manifests/third-party"
 
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o service \
-    -ldflags "-X 'github.com/h4-poc/service/pkg/store.version=${VERSION}' \
-    -X 'github.com/h4-poc/service/pkg/store.buildDate=${BUILD_DATE}' \
-    -X 'github.com/h4-poc/service/pkg/store.gitCommit=${GIT_COMMIT}' \
-    -X 'github.com/h4-poc/service/pkg/store.installationManifestsURL=${INSTALLATION_MANIFESTS_URL}' \
-    -X 'github.com/h4-poc/service/pkg/store.installationManifestsThirdParty=${INSTALLATION_MANIFESTS_THIRD_PARTY}'" \
+    -ldflags "-X 'github.com/squidflow/service/pkg/store.version=${VERSION}' \
+    -X 'github.com/squidflow/service/pkg/store.buildDate=${BUILD_DATE}' \
+    -X 'github.com/squidflow/service/pkg/store.gitCommit=${GIT_COMMIT}' \
+    -X 'github.com/squidflow/service/pkg/store.installationManifestsURL=${INSTALLATION_MANIFESTS_URL}' \
+    -X 'github.com/squidflow/service/pkg/store.installationManifestsThirdParty=${INSTALLATION_MANIFESTS_THIRD_PARTY}'" \
     cmd/service/service.go
 
 FROM node:18-alpine AS base
@@ -84,6 +84,6 @@ RUN mkdir -p /tmp/kubeconform
 COPY --from=web-builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=web-builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy the binary from the builder stage
-COPY --from=backend-builder /go/src/github.com/h4-poc/service/service .
+COPY --from=backend-builder /go/src/github.com/squidflow/service/service .
 
 USER nextjs

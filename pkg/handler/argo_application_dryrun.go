@@ -10,9 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	customgogit "github.com/h4-poc/service/pkg/git/custom-gogit"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/util"
+	customgogit "github.com/squidflow/service/pkg/git/custom-gogit"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/util"
 )
 
 // DryRunRequest represents the request structure for dry run

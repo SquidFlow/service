@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	fs "github.com/h4-poc/service/pkg/fs"
+	fs "github.com/squidflow/service/pkg/fs"
 )
 
 // MockApplication is a mock of Application interface.

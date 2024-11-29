@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/h4-poc/service/pkg/fs"
-	fsmocks "github.com/h4-poc/service/pkg/fs/mocks"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/fs"
+	fsmocks "github.com/squidflow/service/pkg/fs/mocks"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/store"
 
 	"github.com/ghodss/yaml"
 	"github.com/go-git/go-billy/v5/memfs"

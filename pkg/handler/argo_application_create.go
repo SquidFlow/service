@@ -10,14 +10,14 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
-	"github.com/h4-poc/service/pkg/application"
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/middleware"
-	"github.com/h4-poc/service/pkg/store"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/application"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/middleware"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 )
 
 type (
@@ -173,10 +173,10 @@ func CreateArgoApplication(c *gin.Context) {
 			InstallationMode: application.InstallationModeNormal,
 			DestServer:       "https://kubernetes.default.svc",
 			Annotations: map[string]string{
-				"h4-poc.github.io/created-by":  username,
-				"h4-poc.github.io/tenant":      tenant,
-				"h4-poc.github.io/description": createReq.Description,
-				"h4-poc.github.io/appcode":     createReq.AppCode,
+				"squidflow.github.io/created-by":  username,
+				"squidflow.github.io/tenant":      tenant,
+				"squidflow.github.io/description": createReq.Description,
+				"squidflow.github.io/appcode":     createReq.AppCode,
 			},
 		},
 		ProjectName: createReq.TenantName,
@@ -186,15 +186,15 @@ func CreateArgoApplication(c *gin.Context) {
 	opt.AppsCloneOpts.Parse()
 
 	if createReq.Ingress != nil {
-		opt.createOpts.Annotations["ingress.host"] = createReq.Ingress.Host
+		opt.createOpts.Annotations["squidflow.github.io/ingress.host"] = createReq.Ingress.Host
 		if createReq.Ingress.TLS != nil {
-			opt.createOpts.Annotations["ingress.tls.enabled"] = fmt.Sprintf("%v", createReq.Ingress.TLS.Enabled)
-			opt.createOpts.Annotations["ingress.tls.secretName"] = createReq.Ingress.TLS.SecretName
+			opt.createOpts.Annotations["squidflow.github.io/ingress.tls.enabled"] = fmt.Sprintf("%v", createReq.Ingress.TLS.Enabled)
+			opt.createOpts.Annotations["squidflow.github.io/ingress.tls.secretName"] = createReq.Ingress.TLS.SecretName
 		}
 	}
 
 	if createReq.Security != nil && createReq.Security.ExternalSecret != nil {
-		opt.createOpts.Annotations["security.external-secret.store-id"] = createReq.Security.ExternalSecret.SecretStoreRef.ID
+		 opt.createOpts.Annotations["squidflow.github.io/security.external_secret.secret_store_ref.id"] = createReq.Security.ExternalSecret.SecretStoreRef.ID
 	}
 
 	// TODO: support multiple clusters

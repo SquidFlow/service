@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/store"
 
 	"errors"
 	"github.com/briandowns/spinner"

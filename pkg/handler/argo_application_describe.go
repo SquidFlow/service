@@ -9,12 +9,12 @@ import (
 	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/middleware"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/middleware"
+	"github.com/squidflow/service/pkg/store"
 )
 
 func DescribeArgoApplication(c *gin.Context) {
@@ -94,9 +94,9 @@ func getApplicationDetail(ctx context.Context, opts *AppListOptions, appName str
 	app := &ArgoApplicationDetail{
 		Name:        conf.UserGivenName,
 		TenantName:  opts.ProjectName,
-		AppCode:     conf.Annotations["h4-poc.github.io/appcode"],
-		Description: conf.Annotations["h4-poc.github.io/description"],
-		CreatedBy:   conf.Annotations["h4-poc.github.io/created-by"],
+		AppCode:     conf.Annotations["squidflow.github.io/appcode"],
+		Description: conf.Annotations["squidflow.github.io/description"],
+		CreatedBy:   conf.Annotations["squidflow.github.io/created-by"],
 		Template: TemplateInfo{
 			Source: ApplicationSource{
 				Type: string(ApplicationTemplateTypeKustomize),
@@ -113,16 +113,16 @@ func getApplicationDetail(ctx context.Context, opts *AppListOptions, appName str
 			Namespace: conf.DestNamespace,
 		},
 		Ingress: &Ingress{
-			Host: conf.Annotations["h4-poc.github.io/ingress.host"],
+			Host: conf.Annotations["squidflow.github.io/ingress.host"],
 			TLS: &TLS{
-				Enabled:    conf.Annotations["h4-poc.github.io/ingress.tls.enabled"] == "true",
-				SecretName: conf.Annotations["h4-poc.github.io/ingress.tls.secretName"],
+				Enabled:    conf.Annotations["squidflow.github.io/ingress.tls.enabled"] == "true",
+				SecretName: conf.Annotations["squidflow.github.io/ingress.tls.secretName"],
 			},
 		},
 		Security: &Security{
 			ExternalSecret: &ExternalSecret{
 				SecretStoreRef: SecretStoreRef{
-					ID: conf.Annotations["h4-poc.github.io/security.external_secret.secret_store_ref.id"],
+					ID: conf.Annotations["squidflow.github.io/security.external_secret.secret_store_ref.id"],
 				},
 			},
 		},

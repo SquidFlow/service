@@ -11,8 +11,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/log"
 )
 
 // UpdateClusterRequest represents the request body for cluster update
@@ -75,19 +75,19 @@ func UpdateDestinationCluster(c *gin.Context) {
 	}
 
 	// Merge default labels with custom labels
-	labels := map[string]string{
-		"h4-poc.github.io/cluster-env":    req.Env,
-		"h4-poc.github.io/cluster-vendor": "aliyun",
-		"h4-poc.github.io/cluster-name":   name,
+	annotations := map[string]string{
+		"squidflow.github.io/cluster-env":    req.Env,
+		"squidflow.github.io/cluster-vendor": "aliyun",
+		"squidflow.github.io/cluster-name":   name,
 	}
 
 	// Add custom labels
 	for k, v := range req.Labels {
-		labels[k] = v
+		annotations[k] = v
 	}
 
 	updatedCluster := existingCluster
-	updatedCluster.Labels = labels
+	updatedCluster.Annotations = annotations
 
 	// Only update server config if kubeconfig was provided
 	if restConfig != nil {

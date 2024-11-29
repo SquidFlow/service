@@ -1,4 +1,4 @@
-module github.com/h4-poc/service
+module github.com/squidflow/service
 
 go 1.23.1
 
@@ -165,7 +165,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.31.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.28.0 // indirect
+	golang.org/x/crypto v0.28.0
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
@@ -194,7 +194,7 @@ require (
 	k8s.io/kubernetes v1.31.0 // indirect
 	k8s.io/utils v0.0.0-20240921022957-49e7df575cb6 // indirect
 	oras.land/oras-go/v2 v2.5.0 // indirect
-	sigs.k8s.io/controller-runtime v0.19.1
+	sigs.k8s.io/controller-runtime v0.19.1 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
@@ -239,7 +239,6 @@ require github.com/onsi/ginkgo/v2 v2.21.0 // indirect
 
 require (
 	github.com/external-secrets/external-secrets v0.10.5
-	github.com/h4-poc/argocd-addon v0.0.0-20241110110635-367fdf3a3766
 	github.com/slok/go-helm-template v0.7.0
 	github.com/yannh/kubeconform v0.6.7
 	sigs.k8s.io/kustomize/kustomize/v5 v5.5.0

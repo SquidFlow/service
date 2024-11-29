@@ -3,9 +3,8 @@ package handler
 import (
 	"github.com/google/uuid"
 
-	apptempv1alpha1 "github.com/h4-poc/argocd-addon/api/v1alpha1"
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/git"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/git"
 )
 
 type ActionType string
@@ -100,25 +99,4 @@ type (
 
 func getNewId() string {
 	return uuid.New().String()
-}
-
-func getAppTempType(temp apptempv1alpha1.ApplicationTemplate) ApplicationTemplateType {
-	var enableHelm, enableKustomize bool
-	if temp.Spec.Helm != nil {
-		enableHelm = true
-	}
-	if temp.Spec.Kustomize != nil {
-		enableKustomize = true
-	}
-
-	if enableHelm && enableKustomize {
-		return ApplicationTemplateTypeHelmKustomize
-	}
-	if enableHelm {
-		return ApplicationTemplateTypeHelm
-	}
-	if enableKustomize {
-		return ApplicationTemplateTypeKustomize
-	}
-	return "unknown"
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/util"
 	"github.com/slok/go-helm-template/helm"
 
 	"sigs.k8s.io/kustomize/kustomize/v5/commands/build"

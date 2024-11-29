@@ -11,15 +11,37 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
 
-	"github.com/h4-poc/service/pkg/application"
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/kube"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
-	"github.com/h4-poc/service/pkg/util"
+	"github.com/squidflow/service/pkg/application"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 )
+
+// ValidationRequest represents the request structure for template validation
+type ValidationRequest struct {
+	Source         ApplicationSource `json:"source" binding:"required"`
+	Path           string            `json:"path" binding:"required"`
+	TargetRevision string            `json:"targetRevision" binding:"required"`
+}
+
+// ValidationResult represents the validation result for each environment
+type ValidationResult struct {
+	Environment string   `json:"environment"` // the repo support multiple environments
+	IsValid     bool     `json:"isValid"`
+	Message     []string `json:"message,omitempty"`
+}
+
+// ValidationResponse represents the response structure for template validation
+type ValidationResponse struct {
+	Success bool               `json:"success"`
+	Error   string             `json:"error,omitempty"`
+	Results []ValidationResult `json:"results"`
+}
+
 
 var setAppOptsDefaults = func(ctx context.Context, repofs fs.FS, opts *AppCreateOptions) error {
 	var err error

@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/h4-poc/service/pkg/argocd"
-	"github.com/h4-poc/service/pkg/log"
+	"github.com/squidflow/service/pkg/argocd"
+	"github.com/squidflow/service/pkg/log"
 )
 
 // CreateClusterRequest represents the request body for cluster creation
@@ -77,9 +77,9 @@ func CreateDestinationCluster(c *gin.Context) {
 
 	// Merge default labels with custom labels
 	annotations := map[string]string{
-		"h4-poc.github.io/cluster-env":    req.Env,
-		"h4-poc.github.io/cluster-vendor": "aliyun",
-		"h4-poc.github.io/cluster-name":   req.Name,
+		"squidflow.github.io/cluster-env":    req.Env,
+		"squidflow.github.io/cluster-vendor": "aliyun",
+		"squidflow.github.io/cluster-name":   req.Name,
 	}
 
 	// Add custom labels

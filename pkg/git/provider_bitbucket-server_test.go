@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/h4-poc/service/pkg/git/bitbucket-server/mocks"
+	"github.com/squidflow/service/pkg/git/bitbucket-server/mocks"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"

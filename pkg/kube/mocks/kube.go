@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	kube "github.com/h4-poc/service/pkg/kube"
+	kube "github.com/squidflow/service/pkg/kube"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
 )

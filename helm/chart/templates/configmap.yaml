@@ -21,5 +21,5 @@ data:
 
     [application_repo]
     provider = ["github"]
-    remote_url = {{ .Values.applicationRepo.remoteUrl | default "https://github.com/h4-poc/gitops.git" | quote }}
+    remote_url = {{ .Values.applicationRepo.remoteUrl | default "https://github.com/squidflow/gitops.git" | quote }}
     access_token = {{ .Values.applicationRepo.accessToken | default "" | quote }}

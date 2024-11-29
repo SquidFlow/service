@@ -10,10 +10,10 @@ import (
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	"github.com/spf13/viper"
 
-	"github.com/h4-poc/service/pkg/fs"
-	"github.com/h4-poc/service/pkg/git"
-	"github.com/h4-poc/service/pkg/log"
-	"github.com/h4-poc/service/pkg/store"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
 )
 
 type ListSecretStoreResponse struct {
@@ -90,21 +90,21 @@ func RunListSecretStore(ctx context.Context, opts *SecretStoreListOptions) ([]Se
 		}
 
 		log.G().WithFields(log.Fields{
-			"id":       secretStore.Annotations["h4-poc.github.io/id"],
+			"id":       secretStore.Annotations["squidflow.github.io/id"],
 			"name":     secretStore.Name,
 			"provider": "vault",
 		}).Debug("Found secret store")
 
 		detail := SecretStoreDetail{
-			ID:          secretStore.Annotations["h4-poc.github.io/id"],
+			ID:          secretStore.Annotations["squidflow.github.io/id"],
 			Name:        secretStore.Name,
 			Provider:    "vault",
 			Type:        "SecretStore",
 			Status:      "Active",
 			Path:        *secretStore.Spec.Provider.Vault.Path,
-			LastSynced:  secretStore.Annotations["h4-poc.github.io/last-synced"],
-			CreatedAt:   secretStore.Annotations["h4-poc.github.io/created-at"],
-			LastUpdated: secretStore.Annotations["h4-poc.github.io/updated-at"],
+			LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
+			CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
+			LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
 			Environment: []string{"sit", "uat", "prod"},
 			Health: SecretStoreHealth{
 				Status:  "Healthy",

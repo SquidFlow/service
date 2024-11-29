@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	git "github.com/h4-poc/service/pkg/git"
+	git "github.com/squidflow/service/pkg/git"
 )
 
 // MockRepository is a mock of Repository interface.

@@ -18,8 +18,8 @@ var (
 	version                         = "dev"
 	buildDate                       = "unknown"
 	gitCommit                       = "none"
-	installationManifestsURL        = "github.com/h4-poc/service/manifests/base"
-	installationManifestsThirdParty = "github.com/h4-poc/service/manifests/third-party"
+	installationManifestsURL        = "github.com/squidflow/service/manifests/base"
+	installationManifestsThirdParty = "github.com/squidflow/service/manifests/third-party"
 )
 
 type Version struct {
