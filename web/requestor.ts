@@ -1,8 +1,5 @@
 import axios from "axios";
-export const BASE_URL =
-  "http://alb-0y0w4z2gd7tcsjgg07.cn-hongkong.alb.aliyuncs.com"; // guohao
-// export const BASE_URL =
-// 	"http://alb-ktxkm8u7il6kab7qrs.cn-hongkong.alb.aliyuncs.com"; // beer
+export const BASE_URL = "http://localhost:38080"; // dev
 
 const token = "username@tenant1";
 

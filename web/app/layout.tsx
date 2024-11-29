@@ -3,8 +3,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: "H4 Platform",
-  description: "H4 Platform Dashboard",
+  title: "SquidFlow Platform",
+  description: "SquidFlow Platform Dashboard",
 };
 
 export default function RootLayout({
