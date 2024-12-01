@@ -1,18 +1,14 @@
-export type EnvironmentType = "SIT" | "UAT" | "PRD";
+export type EnvironmentType = 'SIT' | 'UAT' | 'PRD';
 
 export interface ReleaseHistory {
-  commitLog: string;
   commitHash: string;
+  commitLog: string;
   commitAuthor: string;
   operator: string;
   releaseDate: string;
+  status: 'success' | 'failed';
   isCurrent: boolean;
-  status: "success" | "failed" | "in-progress";
-  deploymentDetails?: {
-    duration: string;
-    podReplicas: string;
-    configChanges: string[];
-  };
+  commitUrl?: string;
 }
 
 export type ReleaseHistories = {

@@ -150,14 +150,18 @@ export const useGetAvailableTenants = () => {
 };
 
 export const useGetClusterList = () => {
-  const { data, error } = useSWR(CLUSTER, async (url) => {
-    const response = await requestor.get(url);
-    return response.data;
-  });
+  const { data, error, mutate } = useSWR<{ items: ClusterInfo[] }>(
+    CLUSTER,
+    async (url: string) => {
+      const response = await requestor.get(url);
+      return response.data;
+    }
+  );
 
   return {
-    clusterList: (data?.items || []) as ClusterInfo[],
+    clusterList: data?.items || [],
     error,
+    mutate,
   };
 };
 

@@ -1,0 +1,1 @@
+import { ApplicationTemplate, ApplicationResponse } from '@/types/application';

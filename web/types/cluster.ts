@@ -1,28 +1,23 @@
 export interface ClusterInfo {
+  id: number;
   name: string;
-  environment: string;
   env: string;
-  status: 'active' | 'disabled';
+  status: 'active' | 'warning' | 'error';
   provider: 'GKE' | 'OCP' | 'AKS' | 'EKS';
   version: {
     kubernetes: string;
     platform: string;
   };
-  nodeCount: number;
-  region: string;
-  resourceQuota: ResourceQuota;
-  health: {
-    status: 'Healthy' | 'Degraded' | 'Warning';
-    message?: string;
-  };
   nodes: {
     ready: number;
     total: number;
   };
-  networkPolicy: boolean;
-  ingressController: string;
-  lastUpdated: string;
-  consoleUrl?: string;
+  resources: {
+    cpu: string;
+    memory: string;
+    storage: string;
+    pods: number;
+  };
   monitoring: {
     prometheus: boolean;
     grafana: boolean;
@@ -33,8 +28,14 @@ export interface ClusterInfo {
       alertmanager?: string;
     };
   };
-  builtin?: boolean;
+  consoleUrl?: string;
   labels?: Record<string, string>;
+  quota?: {
+    cpu: string;
+    memory: string;
+    storage: string;
+    pods: string;
+  };
 }
 
 export interface ResourceQuota {

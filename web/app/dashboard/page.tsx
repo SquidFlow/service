@@ -10,9 +10,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Security } from './components/security';
 import { Breadcrumb } from "@/app/components/breadcrumb";
 import Header from '@/app/components/header';
-import { DestinationCluster } from './components/destinationCluster';
+import { DestinationCluster } from './components/destination';
 import { Application } from "@/app/dashboard/components/application";
 import { RenderSettings } from "@/app/dashboard/components/setting";
+import { DeployForm } from "@/app/dashboard/components/deploy";
 
 const menuItems: MenuItem[] = [
   {
@@ -37,7 +38,7 @@ export default function DashboardPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const router = useRouter();
   const [activeMenu, setActiveMenu] = useState('Deploy')
-  const [activeSubMenu, setActiveSubMenu] = useState('ArgoApplication')
+  const [activeSubMenu, setActiveSubMenu] = useState('Application')
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['Deploy']);
   const [username, setUsername] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -82,7 +83,7 @@ export default function DashboardPage() {
         href: '/dashboard',
         onClick: () => {
           setActiveMenu('Deploy');
-          setActiveSubMenu('ArgoApplication');
+          setActiveSubMenu('Application');
           setSelectedAppName(null);
         }
       },
@@ -96,7 +97,7 @@ export default function DashboardPage() {
             href: '/dashboard',
             onClick: () => {
               setActiveMenu('Deploy');
-              setActiveSubMenu('ArgoApplication');
+              setActiveSubMenu('Application');
               setSelectedAppName(null);
             }
           },
@@ -140,9 +141,6 @@ export default function DashboardPage() {
       case 'Deploy':
         if (activeSubMenu === 'DestinationCluster') {
           return <DestinationCluster />;
-        }
-        if (activeSubMenu === 'ArgoApplication') {
-          return <Application onSelectApp={setSelectedAppName} />;
         }
         return <Application onSelectApp={setSelectedAppName} />;
       case 'Security':

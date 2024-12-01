@@ -1,15 +1,11 @@
 export interface SecretStore {
   id: string;
   name: string;
-  provider: "AWS" | "GCP" | "Azure" | "Vault" | "CyberArk";
-  type: string;
-  status: "Active" | "Inactive" | "Error";
-  path?: string;
-  lastSynced: string;
-  createdAt: string;
-  lastUpdated: string;
+  provider: 'AWS' | 'Vault' | 'GCP';
+  type: 'SecretStore' | 'ClusterSecretStore';
+  path: string;
   health: {
-    status: "Healthy" | "Warning" | "Error";
+    status: 'Healthy' | 'Warning' | 'Error';
     message?: string;
   };
 }

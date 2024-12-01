@@ -4,28 +4,31 @@ export interface ApplicationTemplate {
   owner: string;
   description?: string;
   path: string;
-  environments: string[];
+  deployed_environments?: string[];
   destination_clusters: {
     clusters: string[];
-  };
-  appType: "kustomize" | "helm" | "helm+kustomize";
-  source: {
-    url: string;
-    targetRevision: string;
   };
   runtime_status: {
     health: ApplicationHealth;
     status: ApplicationStatus;
   };
-  template: {
-    last_commit_info: {
-      LastUpdater: string;
-    };
+  template?: {
     source: {
       url: string;
     };
+    last_commit_info?: {
+      LastUpdater: string;
+    };
   };
-  uri: string;
+  argocdUrl: string;
+  resources?: {
+    [cluster: string]: {
+      cpu: string;
+      memory: string;
+      storage: string;
+      pods: number;
+    };
+  };
   lastUpdate: string;
   creator: string;
   lastUpdater: string;
@@ -37,14 +40,6 @@ export interface ApplicationTemplate {
   storageUsage: string;
   memoryAmount: string;
   secretCount: number;
-  resources: {
-    [cluster: string]: {
-      cpu: string;
-      memory: string;
-      storage: string;
-      pods: number;
-    };
-  };
   deploymentStats: {
     deployments: number;
     services: number;
@@ -66,9 +61,6 @@ export interface ApplicationTemplate {
       timestamp: string;
     };
   };
-  deployed_environments: string[];
-  health: ApplicationHealth;
-  argocdUrl: string;
   events: Array<{
     time: string;
     type: string;
@@ -90,15 +82,6 @@ export type ApplicationStatus =
   | "Progressing"
   | "Degraded";
 
-export interface ApplicationParams {
-  id?: number;
-  name?: string;
-  project?: string;
-  appType?: string;
-  owner?: string;
-  validated?: string;
-}
-
 export interface ApplicationResponse {
   success: boolean;
   total: number;
@@ -113,18 +96,18 @@ export interface ValidatePayload {
 
 export interface CreateApplicationPayload {
   name: string;
-  description?: string;
+  description: string;
   source: {
     url: string;
     targetRevision: string;
     path: string;
-    appType: "kustomize" | "helm" | "helm+kustomize";
+    appType: string;
   };
   destination: {
     clusters: string[];
   };
-  tenant_name?: string;
-  appcode?: string;
+  tenant_name: string;
+  appcode: string;
   security?: {
     external_secret?: {
       secret_store_ref: {
@@ -132,5 +115,17 @@ export interface CreateApplicationPayload {
       };
     };
   };
-  is_dryrun?: boolean;
+  is_dryrun: boolean;
 }
+
+export interface CreateTemplatePayload {
+  name: string;
+  description: string;
+  source: {
+    url: string;
+    targetRevision: string;
+    path: string;
+  };
+}
+
+// ... 其他类型定义
