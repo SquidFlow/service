@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git/gogit"
+	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/util"
 
@@ -64,9 +63,10 @@ type (
 		CloneForWrite    bool
 		UpsertBranch     bool
 
-		url      string
-		revision string
-		path     string
+		url        string
+		submodules bool
+		revision   string
+		path       string
 	}
 
 	PushOptions struct {
@@ -116,7 +116,7 @@ var (
 
 			providerType = strings.TrimSuffix(u.Hostname(), ".com")
 
-			log.Warnf("--provider not specified, assuming provider from url: %s", providerType)
+			log.G().Warnf("--provider not specified, assuming provider from url: %s", providerType)
 		}
 
 		return newProvider(&ProviderOptions{
@@ -179,6 +179,8 @@ func AddFlags(cmd *cobra.Command, opts *AddFlagsOptions) *CloneOptions {
 		util.Die(cmd.MarkPersistentFlagRequired(opts.Prefix + "repo"))
 	}
 
+	cmd.PersistentFlags().BoolVar(&co.submodules, opts.Prefix+"submodules", false, "Clone with submodules")
+
 	return co
 }
 
@@ -189,12 +191,32 @@ func (o *CloneOptions) Parse() {
 		suffix  string
 	)
 
-	host, orgRepo, o.path, o.revision, _, suffix, _ = util.ParseGitUrl(o.Repo)
+	host, orgRepo, o.path, o.revision, o.submodules, suffix, _ = util.ParseGitUrl(o.Repo)
 	o.url = host + orgRepo + suffix
 
 	if o.Auth.Username == "" {
 		o.Auth.Username = store.Default.GitHubUsername
 	}
+}
+
+func (o *CloneOptions) Submodules() bool {
+	return o.submodules
+}
+
+func (o *CloneOptions) Revision() string {
+	return o.revision
+}
+
+func (o *CloneOptions) SetRevision(revision string) {
+	o.revision = revision
+}
+
+func (o *CloneOptions) URL() string {
+	return o.url
+}
+
+func (o *CloneOptions) Path() string {
+	return o.path
 }
 
 func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
@@ -219,7 +241,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 				return nil, nil, err
 			}
 
-			log.Infof("repository '%s' was not found, trying to create it...", o.Repo)
+			log.G().Infof("repository '%s' was not found, trying to create it...", o.Repo)
 			defaultBranch, err = createRepo(ctx, o)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to create repository: %w", err)
@@ -227,7 +249,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 
 			fallthrough // a new repo will always start as empty - we need to init it locally
 		case transport.ErrEmptyRemoteRepository:
-			log.Info("empty repository, initializing a new one with specified remote")
+			log.G().Info("empty repository, initializing a new one with specified remote")
 			r, err = initRepo(ctx, o, defaultBranch)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to initialize repository: %w", err)
@@ -239,6 +261,13 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 		err = validateRepoWritePermission(ctx, r)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to validate repository write permission: %w", err)
+		}
+	}
+
+	if o.submodules {
+		err = r.cloneSubmodules(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to clone submodules: %w", err)
 		}
 	}
 
@@ -260,18 +289,6 @@ var validateRepoWritePermission = func(ctx context.Context, r *repo) error {
 	}
 
 	return nil
-}
-
-func (o *CloneOptions) URL() string {
-	return o.url
-}
-
-func (o *CloneOptions) Revision() string {
-	return o.revision
-}
-
-func (o *CloneOptions) Path() string {
-	return o.path
 }
 
 func (r *repo) Persist(ctx context.Context, opts *PushOptions) (string, error) {
@@ -304,7 +321,7 @@ func (r *repo) Persist(ctx context.Context, opts *PushOptions) (string, error) {
 			break
 		}
 
-		log.WithFields(log.Fields{
+		log.G().WithFields(log.Fields{
 			"retry": try,
 			"err":   err.Error(),
 		}).Warn("Failed to push to repository, trying again in 3 seconds...")
@@ -427,14 +444,15 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 	}
 
 	cloneOpts := &gg.CloneOptions{
-		URL:      opts.url,
-		Auth:     getAuth(opts.Auth),
-		Depth:    1,
-		Progress: progress,
-		CABundle: cert,
+		URL:               opts.url,
+		Auth:              getAuth(opts.Auth),
+		Depth:             1,
+		Progress:          progress,
+		CABundle:          cert,
+		RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 	}
 
-	log.WithField("url", opts.url).Debug("cloning git repo")
+	log.G().WithField("url", opts.url).Debug("cloning git repo")
 
 	if opts.CreateIfNotExist {
 		curPushRetries = 1 // no retries
@@ -450,7 +468,7 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 			break
 		}
 
-		log.WithFields(log.Fields{
+		log.G().WithFields(log.Fields{
 			"retry": try,
 			"err":   err.Error(),
 		}).Debug("Failed to clone repository, trying again in 3 seconds...")
@@ -472,7 +490,7 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 
 	if opts.revision != "" {
 		if opts.CloneForWrite {
-			log.WithFields(log.Fields{
+			log.G().WithFields(log.Fields{
 				"branch": opts.revision,
 				"upsert": opts.UpsertBranch,
 			}).Debug("Trying to checkout branch")
@@ -481,7 +499,7 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 				return nil, err
 			}
 		} else {
-			log.WithField("ref", opts.revision).Debug("Trying to checkout ref")
+			log.G().WithField("ref", opts.revision).Debug("Trying to checkout ref")
 
 			if err := checkoutRef(repo, opts.revision); err != nil {
 				return nil, err
@@ -643,7 +661,7 @@ func (r *repo) checkoutRef(ref string) error {
 			return err
 		}
 
-		log.WithField("ref", ref).Debug("failed resolving ref, trying to resolve from remote branch")
+		log.G().WithField("ref", ref).Debug("failed resolving ref, trying to resolve from remote branch")
 		remotes, err := r.Remotes()
 		if err != nil {
 			return err
@@ -665,7 +683,7 @@ func (r *repo) checkoutRef(ref string) error {
 		return err
 	}
 
-	log.WithFields(log.Fields{
+	log.G().WithFields(log.Fields{
 		"ref":  ref,
 		"hash": hash.String(),
 	}).Debug("checking out commit")
@@ -699,7 +717,7 @@ func (r *repo) initBranch(ctx context.Context, branchName string) error {
 		create = true
 	}
 
-	log.WithField("branch", b).Debug("checking out branch")
+	log.G().WithField("branch", b).Debug("checking out branch")
 
 	w, err := worktree(r)
 	if err != nil {
@@ -746,4 +764,31 @@ func fixDefaultBranch(r gogit.Repository, defaultBranch string) error {
 
 	defRef := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.ReferenceName(defaultBranch))
 	return rInstance.Storer.SetReference(defRef)
+}
+
+func (r *repo) cloneSubmodules(ctx context.Context) error {
+	w, err := worktree(r)
+	if err != nil {
+		return fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	log.G().WithField("repo", r.repoURL).Debugf("Cloning submodules of repository")
+
+	subs, err := w.Submodules()
+	if err != nil {
+		return fmt.Errorf("failed to get submodules: %w", err)
+	}
+
+	log.G().Infof("Found %d submodules", len(subs))
+
+	for _, sub := range subs {
+		log.G().Debugf("Updating submodule: %s", sub.Config().Name)
+		_, err := sub.Repository()
+		if err != nil {
+			return fmt.Errorf("failed to get submodule repository: %w", err)
+		}
+		log.G().Infof("Submodule repository: %s", sub.Config().Name)
+	}
+
+	return nil
 }
