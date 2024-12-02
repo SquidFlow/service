@@ -1,18 +1,20 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/yannh/kubeconform/pkg/validator"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	customgogit "github.com/squidflow/service/pkg/git/custom-gogit"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
-	"github.com/squidflow/service/pkg/util"
 )
 
 // DryRunRequest represents the request structure for dry run
@@ -37,12 +39,11 @@ type ClusterYAML struct {
 	Content string `json:"content"`
 }
 
-// ValidateTemplateRequest represents the request structure for template validation
-type ValidateTemplateRequest struct {
-	TemplateSource string                 `json:"templateSource" binding:"required"`
-	TargetRevision string                 `json:"targetRevision" binding:"required"`
-	Path           string                 `json:"path,omitempty"`
-	Parameters     map[string]interface{} `json:"parameters,omitempty"`
+// ValidateAppSourceRequest represents the request structure for template validation
+type ValidateAppSourceRequest struct {
+	SrcRepoURL     string `json:"repo"`                     // repo url include reversions
+	TargetRevision string `json:"target_version,omitempty"` // target revision
+	SrcPath        string `json:"path,omitempty"`           // path to the application source, default is root
 }
 
 // ValidateTemplateResponse represents the response structure for template validation
@@ -50,127 +51,89 @@ type ValidateTemplateResponse struct {
 	Results []ValidationResult `json:"results"`
 }
 
-func ApplicationTemplateDryRun(c *gin.Context) {
-	var req DryRunRequest
+// ValidateAppSource support helm chart, kustomize
+func ValidateAppSource(c *gin.Context) {
+	var req ValidateAppSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 		return
 	}
-	if err := customgogit.CloneSubModule(req.TemplateSource, req.TargetRevision); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-		return
+
+	// Create memory fs for git operations
+	cloneOpts := &git.CloneOptions{
+		Repo:          req.SrcRepoURL,
+		FS:            fs.Create(memfs.New()),
+		CloneForWrite: false,
 	}
-	clusterYaml := []ClusterYAML{}
-	strList := strings.Split(req.Path, "/")
-	app := strList[len(strList)-1]
-	envList := req.Clusters
-	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", app)) {
-		for _, env := range envList {
-			if err := HelmTemplating(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			if err := KustomizeBuildInOverlay(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
+	cloneOpts.Parse() // parse url and set default revision
 
-			data, err := util.ReadFile(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
-			if err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			clusterYaml = append(clusterYaml, ClusterYAML{Cluster: env, Content: string(data)})
-		}
-
-	} else {
-		for _, env := range envList {
-			if err := KustomizeBuildInManifest(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			if err := KustomizeBuildInOverlay(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			data, err := util.ReadFile(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
-			if err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			clusterYaml = append(clusterYaml, ClusterYAML{Cluster: env, Content: string(data)})
-
-		}
+	// reversion is override
+	if req.TargetRevision != "" {
+		log.G().WithFields(log.Fields{
+			"repo":     req.SrcRepoURL,
+			"original": cloneOpts.Revision(),
+			"override": req.TargetRevision,
+		}).Info("Override target revision")
+		cloneOpts.SetRevision(req.TargetRevision)
 	}
-	c.JSON(200, clusterYaml)
 
-}
+	// Clone repository into memory fs
+	log.G().WithFields(log.Fields{
+		"repo":     req.SrcRepoURL,
+		"revision": req.TargetRevision,
+		"path":     req.SrcPath,
+	}).Info("ValidateAppSource")
 
-func ValidateTemplate(c *gin.Context) {
-	var req ValidateTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-		return
-	}
-	if err := customgogit.CloneSubModule(req.TemplateSource, req.TargetRevision); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-		return
-	}
-	VResult := []ValidationResult{}
-	strList := strings.Split(req.Path, "/")
-	app := strList[len(strList)-1]
-	envList, err := util.FetchEnvList(app)
+	_, repofs, err := cloneOpts.GetRepo(context.Background())
 	if err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to clone repository: %v", err)})
 		return
 	}
-	if util.CheckIsHelmChart(fmt.Sprintf("/tmp/platform/manifest/%s/Chart.yaml", app)) {
-		for _, env := range envList {
-			if err := HelmTemplating(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			if err := KustomizeBuildInOverlay(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
-			if err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			if len(errList) == 0 {
-				VResult = append(VResult, ValidationResult{Environment: env, IsValid: true})
-			} else {
-				VResult = append(VResult, ValidationResult{Environment: env, IsValid: false, Message: errList})
-			}
 
-		}
+	if !repofs.ExistsOrDie(req.SrcPath) {
+		err := fmt.Errorf("path %s does not exist in repository %s", req.SrcPath, req.SrcRepoURL)
+		log.G().Error(err)
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
 
+	// Check if path exists
+	if !repofs.ExistsOrDie(req.SrcPath) {
+		err := fmt.Errorf("path %s does not exist in repository %s", req.SrcPath, req.SrcRepoURL)
+		log.G().Error(err)
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check application type (Helm vs Kustomize)
+	chartPath := repofs.Join(req.SrcPath, "Chart.yaml")
+	kustomizationPath := repofs.Join(req.SrcPath, "kustomization.yaml")
+
+	var appType string
+	if repofs.ExistsOrDie(chartPath) {
+		appType = "helm"
+	} else if repofs.ExistsOrDie(kustomizationPath) {
+		appType = "kustomize"
 	} else {
-		for _, env := range envList {
-			if err := KustomizeBuildInManifest(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			if err := KustomizeBuildInOverlay(app, env); err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			errList, err := KubeManifestValidator(fmt.Sprintf("/tmp/platform/overlays/app/%s/%s/generate-manifest.yaml", app, env))
-			if err != nil {
-				c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-				return
-			}
-			if len(errList) == 0 {
-				VResult = append(VResult, ValidationResult{Environment: env, IsValid: true})
-			} else {
-				VResult = append(VResult, ValidationResult{Environment: env, IsValid: false, Message: errList})
-			}
+		c.JSON(400, gin.H{"error": "Neither Chart.yaml nor kustomization.yaml found in specified path"})
+		return
+	}
+
+	// Validate manifest files
+	manifestPath := repofs.Join(req.SrcPath, "templates")
+	if appType == "helm" {
+		if !repofs.ExistsOrDie(manifestPath) {
+			c.JSON(400, gin.H{"error": "Helm chart templates directory not found"})
+			return
 		}
 	}
-	c.JSON(200, VResult)
 
+	// Return validation result
+	c.JSON(200, gin.H{
+		"isValid": true,
+		"type":    appType,
+		"message": fmt.Sprintf("Valid %s application source", appType),
+	})
 }
 
 // DryRunArgoApplications handles the dry run request for Argo applications

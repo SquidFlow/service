@@ -1,13 +1,13 @@
 ### validate application source
-POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 {
-    "templateSource":"git@github.com:squidflow/platform.git",
-    "targetRevision":"main",
-    "path":"manifest/fluent-operator"
+    "repo":"git@github.com:SquidFlow/platform.git",
+    "target_version": "main",
+    "path":"overlays/app/fluent-operator"
 }
 
 ### create app

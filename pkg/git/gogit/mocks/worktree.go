@@ -223,6 +223,20 @@ func (mr *MockWorktreeMockRecorder) Reset(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockWorktree)(nil).Reset), arg0)
 }
 
+// ResetSparsely mocks base method.
+func (m *MockWorktree) ResetSparsely(arg0 *git.ResetOptions, arg1 []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetSparsely", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetSparsely indicates an expected call of ResetSparsely.
+func (mr *MockWorktreeMockRecorder) ResetSparsely(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetSparsely", reflect.TypeOf((*MockWorktree)(nil).ResetSparsely), arg0, arg1)
+}
+
 // Status mocks base method.
 func (m *MockWorktree) Status() (git.Status, error) {
 	m.ctrl.T.Helper()

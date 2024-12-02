@@ -39,13 +39,20 @@ clean:
 all: clean build test
 
 .PHONY: codegen
-codegen: $(GOBIN)/mockgen
-	rm -f docs/commands/*
+codegen: $(GOBIN)/mockgen $(GOBIN)/interfacer
 	go generate ./...
+	interfacer -for github.com/go-git/go-git/v5.Repository -as gogit.Repository -o pkg/git/gogit/repo.go
+	interfacer -for github.com/go-git/go-git/v5.Worktree -as gogit.Worktree -o pkg/git/gogit/worktree.go
+	interfacer -for github.com/google/go-github/v43/github.UsersService -as github.Users -o pkg/git/github/users.go
+	interfacer -for github.com/google/go-github/v43/github.RepositoriesService -as github.Repositories -o pkg/git/github/repos.go
 
 $(GOBIN)/mockgen:
 	@go install github.com/golang/mock/mockgen@v1.6.0
 	@mockgen -version
+
+$(GOBIN)/interfacer:
+	@echo "Installing interfacer..."
+	@go install github.com/rjeczalik/interfaces/cmd/interfacer@latest
 
 $(GOBIN)/golangci-lint:
 	@mkdir dist || true

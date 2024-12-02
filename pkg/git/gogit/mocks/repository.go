@@ -302,6 +302,21 @@ func (mr *MockRepositoryMockRecorder) FetchContext(arg0, arg1 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchContext", reflect.TypeOf((*MockRepository)(nil).FetchContext), arg0, arg1)
 }
 
+// Grep mocks base method.
+func (m *MockRepository) Grep(arg0 *git.GrepOptions) ([]git.GrepResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Grep", arg0)
+	ret0, _ := ret[0].([]git.GrepResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Grep indicates an expected call of Grep.
+func (mr *MockRepositoryMockRecorder) Grep(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Grep", reflect.TypeOf((*MockRepository)(nil).Grep), arg0)
+}
+
 // Head mocks base method.
 func (m *MockRepository) Head() (*plumbing.Reference, error) {
 	m.ctrl.T.Helper()
@@ -330,6 +345,20 @@ func (m *MockRepository) Log(arg0 *git.LogOptions) (object.CommitIter, error) {
 func (mr *MockRepositoryMockRecorder) Log(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Log", reflect.TypeOf((*MockRepository)(nil).Log), arg0)
+}
+
+// Merge mocks base method.
+func (m *MockRepository) Merge(arg0 plumbing.Reference, arg1 git.MergeOptions) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Merge", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Merge indicates an expected call of Merge.
+func (mr *MockRepositoryMockRecorder) Merge(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Merge", reflect.TypeOf((*MockRepository)(nil).Merge), arg0, arg1)
 }
 
 // Notes mocks base method.

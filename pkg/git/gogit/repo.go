@@ -31,8 +31,10 @@ type Repository interface {
 	DeleteTag(string) error
 	Fetch(*git.FetchOptions) error
 	FetchContext(context.Context, *git.FetchOptions) error
+	Grep(*git.GrepOptions) ([]git.GrepResult, error)
 	Head() (*plumbing.Reference, error)
 	Log(*git.LogOptions) (object.CommitIter, error)
+	Merge(plumbing.Reference, git.MergeOptions) error
 	Notes() (storer.ReferenceIter, error)
 	Object(plumbing.ObjectType, plumbing.Hash) (object.Object, error)
 	Objects() (*object.ObjectIter, error)

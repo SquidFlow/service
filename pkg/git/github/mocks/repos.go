@@ -71,6 +71,22 @@ func (mr *MockRepositoriesMockRecorder) AddAppRestrictions(arg0, arg1, arg2, arg
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAppRestrictions", reflect.TypeOf((*MockRepositories)(nil).AddAppRestrictions), arg0, arg1, arg2, arg3, arg4)
 }
 
+// AddAutolink mocks base method.
+func (m *MockRepositories) AddAutolink(arg0 context.Context, arg1, arg2 string, arg3 *github.AutolinkOptions) (*github.Autolink, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddAutolink", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*github.Autolink)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// AddAutolink indicates an expected call of AddAutolink.
+func (mr *MockRepositoriesMockRecorder) AddAutolink(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAutolink", reflect.TypeOf((*MockRepositories)(nil).AddAutolink), arg0, arg1, arg2, arg3)
+}
+
 // AddCollaborator mocks base method.
 func (m *MockRepositories) AddCollaborator(arg0 context.Context, arg1, arg2, arg3 string, arg4 *github.RepositoryAddCollaboratorOptions) (*github.CollaboratorInvitation, *github.Response, error) {
 	m.ctrl.T.Helper()
@@ -340,6 +356,21 @@ func (m *MockRepositories) Delete(arg0 context.Context, arg1, arg2 string) (*git
 func (mr *MockRepositoriesMockRecorder) Delete(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRepositories)(nil).Delete), arg0, arg1, arg2)
+}
+
+// DeleteAutolink mocks base method.
+func (m *MockRepositories) DeleteAutolink(arg0 context.Context, arg1, arg2 string, arg3 int64) (*github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAutolink", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*github.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteAutolink indicates an expected call of DeleteAutolink.
+func (mr *MockRepositoriesMockRecorder) DeleteAutolink(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAutolink", reflect.TypeOf((*MockRepositories)(nil).DeleteAutolink), arg0, arg1, arg2, arg3)
 }
 
 // DeleteComment mocks base method.
@@ -729,6 +760,22 @@ func (mr *MockRepositoriesMockRecorder) EnableVulnerabilityAlerts(arg0, arg1, ar
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnableVulnerabilityAlerts", reflect.TypeOf((*MockRepositories)(nil).EnableVulnerabilityAlerts), arg0, arg1, arg2)
 }
 
+// GenerateReleaseNotes mocks base method.
+func (m *MockRepositories) GenerateReleaseNotes(arg0 context.Context, arg1, arg2 string, arg3 *github.GenerateNotesOptions) (*github.RepositoryReleaseNotes, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GenerateReleaseNotes", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*github.RepositoryReleaseNotes)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GenerateReleaseNotes indicates an expected call of GenerateReleaseNotes.
+func (mr *MockRepositoriesMockRecorder) GenerateReleaseNotes(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateReleaseNotes", reflect.TypeOf((*MockRepositories)(nil).GenerateReleaseNotes), arg0, arg1, arg2, arg3)
+}
+
 // Get mocks base method.
 func (m *MockRepositories) Get(arg0 context.Context, arg1, arg2 string) (*github.Repository, *github.Response, error) {
 	m.ctrl.T.Helper()
@@ -775,6 +822,22 @@ func (m *MockRepositories) GetArchiveLink(arg0 context.Context, arg1, arg2 strin
 func (mr *MockRepositoriesMockRecorder) GetArchiveLink(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetArchiveLink", reflect.TypeOf((*MockRepositories)(nil).GetArchiveLink), arg0, arg1, arg2, arg3, arg4, arg5)
+}
+
+// GetAutolink mocks base method.
+func (m *MockRepositories) GetAutolink(arg0 context.Context, arg1, arg2 string, arg3 int64) (*github.Autolink, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAutolink", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*github.Autolink)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetAutolink indicates an expected call of GetAutolink.
+func (mr *MockRepositoriesMockRecorder) GetAutolink(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAutolink", reflect.TypeOf((*MockRepositories)(nil).GetAutolink), arg0, arg1, arg2, arg3)
 }
 
 // GetBranch mocks base method.
@@ -1016,6 +1079,22 @@ func (m *MockRepositories) GetHook(arg0 context.Context, arg1, arg2 string, arg3
 func (mr *MockRepositoriesMockRecorder) GetHook(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHook", reflect.TypeOf((*MockRepositories)(nil).GetHook), arg0, arg1, arg2, arg3)
+}
+
+// GetHookDelivery mocks base method.
+func (m *MockRepositories) GetHookDelivery(arg0 context.Context, arg1, arg2 string, arg3, arg4 int64) (*github.HookDelivery, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetHookDelivery", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*github.HookDelivery)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetHookDelivery indicates an expected call of GetHookDelivery.
+func (mr *MockRepositoriesMockRecorder) GetHookDelivery(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHookDelivery", reflect.TypeOf((*MockRepositories)(nil).GetHookDelivery), arg0, arg1, arg2, arg3, arg4)
 }
 
 // GetKey mocks base method.
@@ -1354,6 +1433,22 @@ func (mr *MockRepositoriesMockRecorder) ListApps(arg0, arg1, arg2, arg3 interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListApps", reflect.TypeOf((*MockRepositories)(nil).ListApps), arg0, arg1, arg2, arg3)
 }
 
+// ListAutolinks mocks base method.
+func (m *MockRepositories) ListAutolinks(arg0 context.Context, arg1, arg2 string, arg3 *github.ListOptions) ([]*github.Autolink, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAutolinks", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].([]*github.Autolink)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListAutolinks indicates an expected call of ListAutolinks.
+func (mr *MockRepositoriesMockRecorder) ListAutolinks(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAutolinks", reflect.TypeOf((*MockRepositories)(nil).ListAutolinks), arg0, arg1, arg2, arg3)
+}
+
 // ListBranches mocks base method.
 func (m *MockRepositories) ListBranches(arg0 context.Context, arg1, arg2 string, arg3 *github.BranchListOptions) ([]*github.Branch, *github.Response, error) {
 	m.ctrl.T.Helper()
@@ -1592,6 +1687,22 @@ func (m *MockRepositories) ListForks(arg0 context.Context, arg1, arg2 string, ar
 func (mr *MockRepositoriesMockRecorder) ListForks(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListForks", reflect.TypeOf((*MockRepositories)(nil).ListForks), arg0, arg1, arg2, arg3)
+}
+
+// ListHookDeliveries mocks base method.
+func (m *MockRepositories) ListHookDeliveries(arg0 context.Context, arg1, arg2 string, arg3 int64, arg4 *github.ListCursorOptions) ([]*github.HookDelivery, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListHookDeliveries", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].([]*github.HookDelivery)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListHookDeliveries indicates an expected call of ListHookDeliveries.
+func (mr *MockRepositoriesMockRecorder) ListHookDeliveries(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListHookDeliveries", reflect.TypeOf((*MockRepositories)(nil).ListHookDeliveries), arg0, arg1, arg2, arg3, arg4)
 }
 
 // ListHooks mocks base method.
@@ -2033,6 +2144,22 @@ func (m *MockRepositories) RemoveRequiredStatusChecks(arg0 context.Context, arg1
 func (mr *MockRepositoriesMockRecorder) RemoveRequiredStatusChecks(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveRequiredStatusChecks", reflect.TypeOf((*MockRepositories)(nil).RemoveRequiredStatusChecks), arg0, arg1, arg2, arg3)
+}
+
+// RenameBranch mocks base method.
+func (m *MockRepositories) RenameBranch(arg0 context.Context, arg1, arg2, arg3, arg4 string) (*github.Branch, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RenameBranch", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*github.Branch)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// RenameBranch indicates an expected call of RenameBranch.
+func (mr *MockRepositoriesMockRecorder) RenameBranch(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenameBranch", reflect.TypeOf((*MockRepositories)(nil).RenameBranch), arg0, arg1, arg2, arg3, arg4)
 }
 
 // ReplaceAllTopics mocks base method.

@@ -189,6 +189,21 @@ func (mr *MockUsersMockRecorder) DeleteKey(arg0, arg1 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteKey", reflect.TypeOf((*MockUsers)(nil).DeleteKey), arg0, arg1)
 }
 
+// DeletePackage mocks base method.
+func (m *MockUsers) DeletePackage(arg0 context.Context, arg1, arg2, arg3 string) (*github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeletePackage", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*github.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeletePackage indicates an expected call of DeletePackage.
+func (mr *MockUsersMockRecorder) DeletePackage(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePackage", reflect.TypeOf((*MockUsers)(nil).DeletePackage), arg0, arg1, arg2, arg3)
+}
+
 // DemoteSiteAdmin mocks base method.
 func (m *MockUsers) DemoteSiteAdmin(arg0 context.Context, arg1 string) (*github.Response, error) {
 	m.ctrl.T.Helper()
@@ -313,6 +328,22 @@ func (m *MockUsers) GetKey(arg0 context.Context, arg1 int64) (*github.Key, *gith
 func (mr *MockUsersMockRecorder) GetKey(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKey", reflect.TypeOf((*MockUsers)(nil).GetKey), arg0, arg1)
+}
+
+// GetPackage mocks base method.
+func (m *MockUsers) GetPackage(arg0 context.Context, arg1, arg2, arg3 string) (*github.Package, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPackage", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*github.Package)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetPackage indicates an expected call of GetPackage.
+func (mr *MockUsersMockRecorder) GetPackage(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPackage", reflect.TypeOf((*MockUsers)(nil).GetPackage), arg0, arg1, arg2, arg3)
 }
 
 // IsBlocked mocks base method.
@@ -475,6 +506,22 @@ func (mr *MockUsersMockRecorder) ListKeys(arg0, arg1, arg2 interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListKeys", reflect.TypeOf((*MockUsers)(nil).ListKeys), arg0, arg1, arg2)
 }
 
+// ListPackages mocks base method.
+func (m *MockUsers) ListPackages(arg0 context.Context, arg1 string, arg2 *github.PackageListOptions) ([]*github.Package, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListPackages", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]*github.Package)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListPackages indicates an expected call of ListPackages.
+func (mr *MockUsersMockRecorder) ListPackages(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPackages", reflect.TypeOf((*MockUsers)(nil).ListPackages), arg0, arg1, arg2)
+}
+
 // ListProjects mocks base method.
 func (m *MockUsers) ListProjects(arg0 context.Context, arg1 string, arg2 *github.ProjectListOptions) ([]*github.Project, *github.Response, error) {
 	m.ctrl.T.Helper()
@@ -491,6 +538,68 @@ func (mr *MockUsersMockRecorder) ListProjects(arg0, arg1, arg2 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListProjects", reflect.TypeOf((*MockUsers)(nil).ListProjects), arg0, arg1, arg2)
 }
 
+// PackageDeleteVersion mocks base method.
+func (m *MockUsers) PackageDeleteVersion(arg0 context.Context, arg1, arg2, arg3 string, arg4 int64) (*github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PackageDeleteVersion", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*github.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PackageDeleteVersion indicates an expected call of PackageDeleteVersion.
+func (mr *MockUsersMockRecorder) PackageDeleteVersion(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PackageDeleteVersion", reflect.TypeOf((*MockUsers)(nil).PackageDeleteVersion), arg0, arg1, arg2, arg3, arg4)
+}
+
+// PackageGetAllVersions mocks base method.
+func (m *MockUsers) PackageGetAllVersions(arg0 context.Context, arg1, arg2, arg3 string, arg4 *github.PackageListOptions) ([]*github.PackageVersion, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PackageGetAllVersions", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].([]*github.PackageVersion)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// PackageGetAllVersions indicates an expected call of PackageGetAllVersions.
+func (mr *MockUsersMockRecorder) PackageGetAllVersions(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PackageGetAllVersions", reflect.TypeOf((*MockUsers)(nil).PackageGetAllVersions), arg0, arg1, arg2, arg3, arg4)
+}
+
+// PackageGetVersion mocks base method.
+func (m *MockUsers) PackageGetVersion(arg0 context.Context, arg1, arg2, arg3 string, arg4 int64) (*github.PackageVersion, *github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PackageGetVersion", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*github.PackageVersion)
+	ret1, _ := ret[1].(*github.Response)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// PackageGetVersion indicates an expected call of PackageGetVersion.
+func (mr *MockUsersMockRecorder) PackageGetVersion(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PackageGetVersion", reflect.TypeOf((*MockUsers)(nil).PackageGetVersion), arg0, arg1, arg2, arg3, arg4)
+}
+
+// PackageRestoreVersion mocks base method.
+func (m *MockUsers) PackageRestoreVersion(arg0 context.Context, arg1, arg2, arg3 string, arg4 int64) (*github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PackageRestoreVersion", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*github.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PackageRestoreVersion indicates an expected call of PackageRestoreVersion.
+func (mr *MockUsersMockRecorder) PackageRestoreVersion(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PackageRestoreVersion", reflect.TypeOf((*MockUsers)(nil).PackageRestoreVersion), arg0, arg1, arg2, arg3, arg4)
+}
+
 // PromoteSiteAdmin mocks base method.
 func (m *MockUsers) PromoteSiteAdmin(arg0 context.Context, arg1 string) (*github.Response, error) {
 	m.ctrl.T.Helper()
@@ -504,6 +613,21 @@ func (m *MockUsers) PromoteSiteAdmin(arg0 context.Context, arg1 string) (*github
 func (mr *MockUsersMockRecorder) PromoteSiteAdmin(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PromoteSiteAdmin", reflect.TypeOf((*MockUsers)(nil).PromoteSiteAdmin), arg0, arg1)
+}
+
+// RestorePackage mocks base method.
+func (m *MockUsers) RestorePackage(arg0 context.Context, arg1, arg2, arg3 string) (*github.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RestorePackage", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*github.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RestorePackage indicates an expected call of RestorePackage.
+func (mr *MockUsersMockRecorder) RestorePackage(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestorePackage", reflect.TypeOf((*MockUsers)(nil).RestorePackage), arg0, arg1, arg2, arg3)
 }
 
 // Suspend mocks base method.

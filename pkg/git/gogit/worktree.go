@@ -23,6 +23,7 @@ type Worktree interface {
 	Remove(string) (plumbing.Hash, error)
 	RemoveGlob(string) error
 	Reset(*git.ResetOptions) error
+	ResetSparsely(*git.ResetOptions, []string) error
 	Status() (git.Status, error)
 	Submodule(string) (*git.Submodule, error)
 	Submodules() (git.Submodules, error)
