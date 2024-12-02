@@ -1,74 +1,77 @@
-import { useEffect } from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
-import { BarChart } from "lucide-react";
-import type { ClusterInfo } from '@/types';
-import { useClusterStore } from '@/store';
+import { Gauge } from "lucide-react";
+import { ClusterInfo } from '@/types/cluster';
 
-export function ResourceQuotaSection() {
-  const { data: clusters, getClusterList } = useClusterStore();
+interface ResourceQuotaSectionProps {
+  clusters: ClusterInfo[];
+}
 
-  useEffect(() => {
-    getClusterList();
-  }, [getClusterList]);
+export function ResourceQuotaSection({ clusters }: ResourceQuotaSectionProps) {
+  const parseResourceValue = (value: string) => {
+    const match = value.match(/^(\d+(?:\.\d+)?)(Mi|Gi|m|cores)?$/);
+    return match ? parseFloat(match[1]) : 0;
+  };
 
-  const getTotalResources = () => {
+  const getTotalResources = (clusters: ClusterInfo[]) => {
     return clusters.reduce(
       (acc, cluster) => {
-        const resources = cluster.resources;
+        const quota = cluster.resourceQuota;
         return {
-          cpu: acc.cpu + parseFloat(resources.cpu || '0'),
-          memory: acc.memory + parseFloat(resources.memory || '0'),
-          storage: acc.storage + parseFloat(resources.storage || '0'),
-          pods: acc.pods + (resources.pods || 0),
+          cpu: acc.cpu + parseResourceValue(quota.cpu),
+          memory: acc.memory + parseResourceValue(quota.memory),
+          storage: acc.storage + parseResourceValue(quota.storage),
+          pvcs: acc.pvcs + (typeof quota.pvcs === 'number' ? quota.pvcs : parseFloat(quota.pvcs || '0')),
+          nodeports: acc.nodeports + (typeof quota.nodeports === 'number' ? quota.nodeports : parseFloat(quota.nodeports || '0'))
         };
       },
-      { cpu: 0, memory: 0, storage: 0, pods: 0 }
+      { cpu: 0, memory: 0, storage: 0, pvcs: 0, nodeports: 0 }
     );
   };
 
-  const totalResources = getTotalResources();
+  const formatResourceValue = (value: number, type: string) => {
+    switch (type) {
+      case 'cpu':
+        return `${value} cores`;
+      case 'memory':
+        return `${value}Gi`;
+      case 'storage':
+        return `${value}Gi`;
+      default:
+        return value.toString();
+    }
+  };
+
+  const totalResources = getTotalResources(clusters);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-3">
-          <BarChart className="h-6 w-6 text-blue-500" />
-          <span>Resource Quota Overview</span>
+          <Gauge className="h-6 w-6 text-blue-500" />
+          <span>Resource Quota</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Total CPU Cores
-            </h3>
-            <p className="mt-2 text-3xl font-bold">
-              {totalResources.cpu.toFixed(1)}
-            </p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">CPU</p>
+            <p className="text-2xl font-bold">{formatResourceValue(totalResources.cpu, 'cpu')}</p>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Total Memory (GiB)
-            </h3>
-            <p className="mt-2 text-3xl font-bold">
-              {totalResources.memory.toFixed(1)}
-            </p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Memory</p>
+            <p className="text-2xl font-bold">{formatResourceValue(totalResources.memory, 'memory')}</p>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Total Storage (GiB)
-            </h3>
-            <p className="mt-2 text-3xl font-bold">
-              {totalResources.storage.toFixed(1)}
-            </p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Storage</p>
+            <p className="text-2xl font-bold">{formatResourceValue(totalResources.storage, 'storage')}</p>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Total Pods
-            </h3>
-            <p className="mt-2 text-3xl font-bold">
-              {totalResources.pods}
-            </p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">PVCs</p>
+            <p className="text-2xl font-bold">{totalResources.pvcs}</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">NodePorts</p>
+            <p className="text-2xl font-bold">{totalResources.nodeports}</p>
           </div>
         </div>
       </CardContent>

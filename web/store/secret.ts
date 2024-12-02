@@ -1,23 +1,29 @@
 import { create } from 'zustand';
-import type { SecretStore } from '@/types/security';
-import type { SecretStoreResponse } from '@/types/api';
+import type { SecretStore, SecretStoreResponse } from '@/types';
 import requestor from '@/requestor';
 import type { BaseState, BaseActions } from '@/types/store';
+import { load as yamlLoad } from 'js-yaml';
 
 interface SecretState extends BaseState<SecretStore> {
-  selectedStore?: SecretStore;
+  selectedStore: SecretStore | null;
 }
 
-interface SecretActions extends BaseActions<SecretStore> {
-  setSelectedStore: (store: SecretStore | undefined) => void;
-  updateSecretStore: (id: string, store: Partial<SecretStore>) => Promise<void>;
+interface SecretActions {
+  setSelectedStore: (store: SecretStore | null) => void;
+  fetch: () => Promise<void>;
+  create: (yaml: string) => Promise<void>;
+  update: (name: string, yaml: string) => Promise<void>;
+  remove: (name: string) => Promise<void>;
+  reset: () => void;
 }
 
 export const useSecretStore = create<SecretState & SecretActions>((set, get) => ({
   data: [],
   isLoading: false,
   error: null,
-  selectedStore: undefined,
+  selectedStore: null,
+
+  setSelectedStore: (store) => set({ selectedStore: store }),
 
   fetch: async () => {
     set({ isLoading: true, error: null });
@@ -31,13 +37,26 @@ export const useSecretStore = create<SecretState & SecretActions>((set, get) => 
     }
   },
 
-  setSelectedStore: (store) => set({ selectedStore: store }),
-
-  updateSecretStore: async (id, store) => {
+  create: async (yaml: string) => {
     set({ isLoading: true, error: null });
     try {
-      await requestor.put(`/api/v1/security/externalsecrets/secretstore/${id}`, store);
-      await get().fetch(); // 刷新列表
+      const data = yamlLoad(yaml);
+      await requestor.post('/api/v1/security/externalsecrets/secretstore', data);
+      await get().fetch();
+    } catch (error) {
+      set({ error: error instanceof Error ? error : new Error('Failed to create secret store') });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  update: async (name: string, yaml: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = yamlLoad(yaml);
+      await requestor.put(`/api/v1/security/externalsecrets/secretstore/${name}`, data);
+      await get().fetch();
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to update secret store') });
       throw error;
@@ -46,5 +65,23 @@ export const useSecretStore = create<SecretState & SecretActions>((set, get) => 
     }
   },
 
-  reset: () => set({ data: [], isLoading: false, error: null, selectedStore: undefined }),
+  remove: async (name: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await requestor.delete(`/api/v1/security/externalsecrets/secretstore/${name}`);
+      await get().fetch();
+    } catch (error) {
+      set({ error: error instanceof Error ? error : new Error('Failed to delete secret store') });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  reset: () => set({
+    data: [],
+    isLoading: false,
+    error: null,
+    selectedStore: null
+  }),
 }));

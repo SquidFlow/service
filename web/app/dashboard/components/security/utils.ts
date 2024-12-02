@@ -1,31 +1,55 @@
-import { SecretStore } from '@/types/security';
+import type { SecretStore } from '@/types';
 
 export const getSecretStoreYAML = (store: SecretStore) => {
-  const isCluster = store.type === 'ClusterSecretStore';
+  const getProviderConfig = () => {
+    switch (store.provider) {
+      case 'aws':
+        return `
+      aws:
+        region: ap-southeast-1
+        auth:
+          secretRef:
+            accessKeyIDSecretRef:
+              name: aws-secret
+              key: access-key
+            secretAccessKeySecretRef:
+              name: aws-secret
+              key: secret-key`;
+      case 'vault':
+        return `
+      vault:
+        server: "https://vault.example.com"
+        path: ${store.path}
+        version: "v2"
+        auth:
+          tokenSecretRef:
+            name: vault-token
+            key: token`;
+      case 'azure':
+        return `
+      azurekv:
+        authType: WorkloadIdentity
+        vaultUrl: "https://${store.path}.vault.azure.net"
+        serviceAccountRef:
+          name: workload-identity-sa`;
+      default:
+        return '';
+    }
+  };
+
   return `apiVersion: external-secrets.io/v1beta1
 kind: ${store.type}
 metadata:
   name: ${store.name}
-${!isCluster ? '  namespace: default\n' : ''}spec:
-  provider:
-    ${store.provider.toLowerCase()}:
-      server: "https://vault.your-domain.com"
-      path: ${store.path}
-      version: v2
-      auth:
-        tokenSecretRef:
-          name: "${store.provider.toLowerCase()}-token${isCluster ? '-global' : ''}"
-          key: "token"
-          ${isCluster ? 'namespace: external-secrets' : ''}`;
+spec:
+  provider:${getProviderConfig()}`;
 };
 
 export const getProviderBadgeColor = (provider: string) => {
   const colors: Record<string, string> = {
-    AWS: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    GCP: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    Azure: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-    Vault: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
-    CyberArk: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+    aws: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    vault: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    azure: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
   };
   return colors[provider] || 'bg-gray-100 text-gray-800';
 };

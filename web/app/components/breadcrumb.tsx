@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   href: string;
   onClick?: () => void;
@@ -12,7 +12,7 @@ interface BreadcrumbItem {
 
 interface BreadcrumbProps {
   items: BreadcrumbItem[];
-  onNavigate?: (item: BreadcrumbItem) => void;
+  onNavigate: (item: BreadcrumbItem) => void;
 }
 
 export function Breadcrumb({ items, onNavigate }: BreadcrumbProps) {

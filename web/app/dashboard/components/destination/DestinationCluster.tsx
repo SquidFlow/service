@@ -39,14 +39,6 @@ export function DestinationCluster() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Target Clusters</h1>
-        <Button className="flex items-center space-x-2" variant="default">
-          <Plus className="h-4 w-4" />
-          <span>Add Cluster</span>
-        </Button>
-      </div>
-
       <p className="text-muted-foreground">
         Manage and monitor your Kubernetes clusters across environments
       </p>

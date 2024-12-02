@@ -19,7 +19,10 @@ export type {
 } from './cluster';
 
 export type {
-  SecretStore
+  SecretStore,
+  SecretStoreType,
+  SecretStoreProvider,
+  SecretStoreStatus
 } from './security';
 
 export type {

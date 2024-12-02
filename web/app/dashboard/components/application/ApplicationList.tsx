@@ -1,10 +1,20 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, RefreshCw, Search, ExternalLink, GitBranch, CircleCheckBig } from "lucide-react";
+import {
+  Plus,
+  RefreshCw,
+  Search,
+  ExternalLink,
+  Trash2,
+  RotateCw,
+  CheckCircle2
+} from "lucide-react";
 import { DeleteDialog } from './DeleteDialog';
 import { useApplicationStore } from '@/store';
 import type { ApplicationTemplate } from '@/types';
@@ -26,7 +36,7 @@ const formatDate = (dateString?: string) => {
 };
 
 export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListProps) {
-  const { data: applications, fetch: fetchApplications } = useApplicationStore();
+  const { data: applications, fetch: fetchApplications, deleteApplications } = useApplicationStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -52,48 +62,45 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Applications</h1>
-        <Button onClick={onCreateNew} variant="default">
+    <div className="space-y-4">
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search applications..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-[300px] pl-9 bg-background"
+          />
+        </div>
+        <Button variant="outline" size="icon" onClick={handleRefresh}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        {selectedApps.length > 0 && (
+          <>
+            <Button
+              variant="outline"
+              className="text-red-600"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Selected
+            </Button>
+            <Button variant="outline">
+              <RotateCw className="h-4 w-4 mr-2" />
+              Sync Selected
+            </Button>
+          </>
+        )}
+        <Button onClick={onCreateNew} className="ml-auto">
           <Plus className="h-4 w-4 mr-2" />
           New Application
         </Button>
       </div>
 
-      <p className="text-muted-foreground">
-        Manage and monitor your ArgoCD applications across environments
-      </p>
-
-      <div className="flex items-center justify-between p-4 border-b bg-muted/50 rounded-lg">
-        <div className="flex items-center space-x-4 flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search applications..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-[300px] pl-9 bg-background"
-            />
-          </div>
-          <Button variant="outline" size="icon" onClick={handleRefresh}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-        {selectedApps.length > 0 && (
-          <Button
-            variant="outline"
-            className="text-red-600"
-            onClick={() => setIsDeleteDialogOpen(true)}
-          >
-            Delete Selected
-          </Button>
-        )}
-      </div>
-
       <Table>
         <TableHeader>
-          <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted bg-muted/50">
+          <TableRow className="bg-muted/50">
             <TableHead className="w-12">
               {filteredApps.length > 0 && (
                 <Checkbox
@@ -108,13 +115,13 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                 />
               )}
             </TableHead>
-            <TableHead className="text-base font-semibold">Name</TableHead>
-            <TableHead className="text-base font-semibold">Status</TableHead>
-            <TableHead className="text-base font-semibold">Health</TableHead>
-            <TableHead className="text-base font-semibold">Repository</TableHead>
-            <TableHead className="text-base font-semibold">Environments</TableHead>
-            <TableHead className="text-base font-semibold">Last Updated</TableHead>
-            <TableHead className="text-base font-semibold text-right">ArgoCD</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Health</TableHead>
+            <TableHead>Repository</TableHead>
+            <TableHead>Environments</TableHead>
+            <TableHead>Last Updated</TableHead>
+            <TableHead className="text-right">ArgoCD</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -155,7 +162,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   className="inline-flex items-center rounded-md border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80 text-sm px-3 py-1"
                 >
                   <div className="flex items-center space-x-2">
-                    <CircleCheckBig className="h-4 w-4 mr-1 text-green-500" />
+                    <CheckCircle2 className="h-4 w-4 mr-1 text-green-500" />
                     <span>{app.runtime_status.health}</span>
                   </div>
                 </Badge>
@@ -217,10 +224,10 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         selectedApps={selectedApps}
-        onDelete={() => {
+        onDelete={async () => {
+          await deleteApplications(selectedApps);
           setSelectedApps([]);
           setIsDeleteDialogOpen(false);
-          fetchApplications();
         }}
       />
     </div>

@@ -48,13 +48,13 @@ export function EnvironmentSection() {
               >
                 <span className="font-mono font-medium">{cluster.name}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  cluster.env === "SIT"
+                  cluster.environment === "SIT"
                     ? "bg-blue-100 text-blue-700"
-                    : cluster.env === "UAT"
+                    : cluster.environment === "UAT"
                       ? "bg-green-100 text-green-700"
                       : "bg-purple-100 text-purple-700"
                 }`}>
-                  {cluster.env}
+                  {cluster.environment}
                 </span>
               </Button>
             ))}

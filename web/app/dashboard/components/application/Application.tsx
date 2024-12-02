@@ -1,62 +1,48 @@
+"use client";
+
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from 'next/navigation';
 import { ApplicationList } from './ApplicationList';
 import { ApplicationDetail } from './ApplicationDetail';
 import { DeployForm } from "../deploy";
 import { useApplicationStore } from '@/store';
-import { ApplicationTemplate } from '@/types/application';
+import type { ApplicationTemplate } from '@/types';
 
-interface ApplicationProps {
-  onSelectApp?: (appName: string) => void;
-}
-
-export function Application({ onSelectApp }: ApplicationProps) {
+export function Application() {
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedAppDetails, setSelectedAppDetails] = useState<ApplicationTemplate | null>(null);
-  const {
-    data: applications,
-    isLoading,
-    error,
-    fetch: fetchApplications,
-    getApplicationDetail
-  } = useApplicationStore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { fetch: fetchApplications } = useApplicationStore();
+
+  // 从 URL 中提取应用名称
+  const appName = pathname.startsWith('/dashboard/deploy/application/')
+    ? pathname.split('/').pop()
+    : null;
 
   useEffect(() => {
     fetchApplications();
   }, [fetchApplications]);
 
-  const handleSelectApp = async (app: ApplicationTemplate) => {
-    try {
-      if (!app?.name) {
-        console.error('Application name is missing');
-        return;
-      }
-
-      const data = await getApplicationDetail(app.name);
-      if (!data) {
-        console.error('Failed to get application details: No data returned');
-        return;
-      }
-
-      setSelectedAppDetails(data);
-      onSelectApp?.(app.name);
-    } catch (error) {
-      console.error('Failed to get application details:', error);
-    }
-  };
-
   if (isCreating) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <div className="w-full max-w-4xl p-6 space-y-4">
-          <DeployForm onCancel={() => setIsCreating(false)} />
-        </div>
+      <div className="w-full max-w-4xl mx-auto space-y-4">
+        <DeployForm onCancel={() => setIsCreating(false)} />
       </div>
     );
   }
 
-  if (selectedAppDetails) {
-    return <ApplicationDetail app={selectedAppDetails} onBack={() => setSelectedAppDetails(null)} />;
+  // 如果 URL 包含应用名称，显示详情页
+  if (appName && appName !== 'application') {
+    return <ApplicationDetail name={appName} />;
   }
 
-  return <ApplicationList onSelectApp={handleSelectApp} onCreateNew={() => setIsCreating(true)} />;
+  // 否则显示列表页
+  return (
+    <ApplicationList
+      onSelectApp={(app: ApplicationTemplate) => {
+        router.push(`/dashboard/deploy/application/${app.name}`);
+      }}
+      onCreateNew={() => setIsCreating(true)}
+    />
+  );
 }

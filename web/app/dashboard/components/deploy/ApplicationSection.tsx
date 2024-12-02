@@ -254,11 +254,11 @@ export function ApplicationSection() {
                         <span className="font-medium">{store.name}</span>
                         <div className="flex items-center space-x-2">
                           <span className={`px-2 py-0.5 text-xs rounded-md ${
-                            store.provider === 'AWS' ? 'bg-yellow-100 text-yellow-800' :
-                            store.provider === 'Vault' ? 'bg-blue-100 text-blue-800' :
+                            store.provider === 'aws' ? 'bg-yellow-100 text-yellow-800' :
+                            store.provider === 'vault' ? 'bg-blue-100 text-blue-800' :
                             'bg-purple-100 text-purple-800'
                           }`}>
-                            {store.provider}
+                            {store.provider.toUpperCase()}
                           </span>
                           <span className="px-2 py-0.5 text-xs rounded-md bg-gray-100 text-gray-800">
                             {store.type}

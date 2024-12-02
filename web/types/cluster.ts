@@ -1,40 +1,48 @@
 export interface ClusterInfo {
-  id: number;
   name: string;
-  env: string;
-  status: 'active' | 'warning' | 'error';
+  environment: string;
   provider: string;
   version: {
     kubernetes: string;
     platform: string;
   };
+  region: string;
+  builtin?: boolean;
   nodes: {
     ready: number;
     total: number;
   };
-  resources: {
+  resourceQuota: {
     cpu: string;
     memory: string;
     storage: string;
-    pods: number;
+    pvcs: string | number;
+    nodeports: string | number;
   };
-  monitoring?: {
-    prometheus: boolean;
-    grafana: boolean;
-    alertmanager: boolean;
-    urls?: {
-      prometheus?: string;
-      grafana?: string;
-      alertmanager?: string;
-    };
-  };
-  consoleUrl?: string;
   quota?: {
     cpu: string;
     memory: string;
     storage: string;
     pods: string;
   };
+  health: {
+    status: string;
+    message?: string;
+  };
+  monitoring?: {
+    prometheus?: boolean;
+    grafana?: boolean;
+    alertmanager?: boolean;
+    urls?: {
+      prometheus?: string;
+      grafana?: string;
+      alertmanager?: string;
+    };
+  };
+  consoleUrl: string;
+  networkPolicy: boolean;
+  ingressController: string;
+  lastUpdated: string;
 }
 
 export interface ResourceQuota {

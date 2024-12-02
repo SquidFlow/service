@@ -1,36 +1,39 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Editor } from '@monaco-editor/react';
 import { load as yamlLoad } from 'js-yaml';
 
-interface CreateDialogProps {
+interface YamlDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  defaultValue?: string;
+  onSave: (yaml: string) => void;
 }
 
-const defaultYAML = `apiVersion: external-secrets.io/v1beta1
-kind: SecretStore
-metadata:
-  name: my-secret-store
-  namespace: default
-spec:
-  provider:
-    vault:
-      server: "https://vault.your-domain.com"
-      path: "path/to/secrets"
-      version: v2
-      auth:
-        tokenSecretRef:
-          name: "vault-token"
-          key: "token"`;
-
-export function CreateDialog({ isOpen, onOpenChange }: CreateDialogProps) {
-  const [createYAML, setCreateYAML] = useState(defaultYAML);
+export function YamlDialog({
+  isOpen,
+  onOpenChange,
+  title,
+  description,
+  defaultValue,
+  onSave
+}: YamlDialogProps) {
+  const [yamlContent, setYamlContent] = useState(defaultValue || '');
   const [yamlValidation, setYamlValidation] = useState<{
     isValid: boolean;
     error?: string;
   }>({ isValid: true });
+
+  useEffect(() => {
+    if (defaultValue) {
+      setYamlContent(defaultValue);
+    }
+  }, [defaultValue]);
 
   const validateYAML = (yamlString: string) => {
     try {
@@ -45,24 +48,22 @@ export function CreateDialog({ isOpen, onOpenChange }: CreateDialogProps) {
   };
 
   useEffect(() => {
-    validateYAML(createYAML);
-  }, [createYAML]);
+    validateYAML(yamlContent);
+  }, [yamlContent]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] h-[600px]">
         <DialogHeader>
-          <DialogTitle>Create SecretStore</DialogTitle>
-          <DialogDescription>
-            Create a new SecretStore by providing the YAML configuration.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="flex-1 min-h-[400px]">
           <Editor
             height="400px"
             defaultLanguage="yaml"
-            value={createYAML}
-            onChange={(value) => setCreateYAML(value || '')}
+            value={yamlContent}
+            onChange={(value) => setYamlContent(value || '')}
             theme="vs-dark"
             options={{
               minimap: { enabled: false },
@@ -120,12 +121,12 @@ export function CreateDialog({ isOpen, onOpenChange }: CreateDialogProps) {
           </Button>
           <Button
             onClick={() => {
-              console.log('Creating SecretStore:', createYAML);
+              onSave(yamlContent);
               onOpenChange(false);
             }}
             disabled={!yamlValidation.isValid}
           >
-            Create
+            {defaultValue ? 'Apply' : 'Create'}
           </Button>
         </DialogFooter>
       </DialogContent>

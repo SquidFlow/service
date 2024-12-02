@@ -6,23 +6,12 @@ interface StatCardsProps {
 }
 
 export function StatCards({ clusters }: StatCardsProps) {
-  const safeGetNodeCount = (cluster: ClusterInfo | null | undefined, type: 'total' | 'ready'): number => {
-    try {
-      if (!cluster || !cluster.nodes) return 0;
-      const value = type === 'total' ? cluster.nodes.total : cluster.nodes.ready;
-      return typeof value === 'number' && !isNaN(value) ? value : 0;
-    } catch (error) {
-      console.error('Error getting node count:', error);
-      return 0;
-    }
-  };
-
   const nodeStats = clusters.reduce((acc, cluster) => ({
-    total: acc.total + safeGetNodeCount(cluster, 'total'),
-    ready: acc.ready + safeGetNodeCount(cluster, 'ready')
+    total: acc.total + cluster.nodes.total,
+    ready: acc.ready + cluster.nodes.ready,
   }), { total: 0, ready: 0 });
 
-  const healthyClusters = clusters.filter(cluster => cluster.status === 'active').length;
+  const healthyClusters = clusters.filter(cluster => cluster.health.status === 'Healthy').length;
   const totalClusters = clusters.length;
 
   const stats = [
