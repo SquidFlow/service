@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, RefreshCw, Search, ExternalLink, GitBranch, CircleCheckBig } from "lucide-react";
 import { DeleteDialog } from './DeleteDialog';
-import { useGetApplicationList } from '@/app/api';
-import { ApplicationTemplate } from '@/types/application';
+import { useApplicationStore } from '@/store';
+import type { ApplicationTemplate } from '@/types';
 import { getStatusIcon } from './utils';
 
 interface ApplicationListProps {
@@ -15,20 +15,37 @@ interface ApplicationListProps {
   onCreateNew: () => void;
 }
 
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'N/A';
+  try {
+    return new Date(dateString).toLocaleString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
+
 export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListProps) {
-  const { applications, mutate: refreshApplications } = useGetApplicationList();
+  const { data: applications, fetch: fetchApplications } = useApplicationStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const filteredApps = applications.filter((app: ApplicationTemplate) =>
-    app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    app.owner.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
+
+  const filteredApps = applications.filter((app: ApplicationTemplate) => {
+    const appName = (app.name || '').toLowerCase();
+    const appOwner = (app.created_by || '').toLowerCase();
+    const searchLower = searchTerm.toLowerCase();
+
+    return appName.includes(searchLower) || appOwner.includes(searchLower);
+  });
 
   const handleRefresh = async () => {
     try {
-      await refreshApplications();
+      await fetchApplications();
     } catch (error) {
       console.error('Failed to refresh applications:', error);
     }
@@ -102,8 +119,11 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
         </TableHeader>
         <TableBody>
           {filteredApps.map((app: ApplicationTemplate) => (
-            <TableRow key={app.id} className="border-b data-[state=selected]:bg-muted hover:bg-muted/50 transition-colors duration-200">
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] py-4">
+            <TableRow
+              key={`${app.id || ''}-${app.name}`}
+              className="border-b data-[state=selected]:bg-muted hover:bg-muted/50 transition-colors duration-200"
+            >
+              <TableCell>
                 <Checkbox
                   checked={selectedApps.includes(app.name)}
                   onCheckedChange={(checked) => {
@@ -115,7 +135,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   }}
                 />
               </TableCell>
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] py-4">
+              <TableCell>
                 <Button
                   variant="link"
                   onClick={() => onSelectApp(app)}
@@ -124,13 +144,13 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   {app.name}
                 </Button>
               </TableCell>
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] py-4">
+              <TableCell>
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(app.runtime_status.status)}
                   <span className="text-sm">{app.runtime_status.status}</span>
                 </div>
               </TableCell>
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] py-4">
+              <TableCell>
                 <Badge
                   className="inline-flex items-center rounded-md border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80 text-sm px-3 py-1"
                 >
@@ -140,7 +160,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   </div>
                 </Badge>
               </TableCell>
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] py-4">
+              <TableCell>
                 <div className="flex items-center space-x-2">
                   <code className="px-3 py-1.5 bg-muted rounded text-sm">main</code>
                   <a
@@ -153,21 +173,25 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   </a>
                 </div>
               </TableCell>
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] py-4">
+              <TableCell>
                 <div className="flex flex-wrap gap-1.5">
                   {app.deployed_environments?.map((env: string) => (
-                    <Badge key={env} variant="outline" className="text-sm px-3 py-1">
+                    <Badge
+                      key={`${app.id || app.name}-${env}`}
+                      variant="outline"
+                      className="text-sm px-3 py-1"
+                    >
                       {env}
                     </Badge>
                   ))}
                 </div>
               </TableCell>
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] py-4">
+              <TableCell>
                 <time className="text-sm text-muted-foreground">
-                  {new Date(app.lastUpdate).toLocaleString()}
+                  {formatDate(app.runtime_status.last_update)}
                 </time>
               </TableCell>
-              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right py-4">
+              <TableCell>
                 <Button
                   variant="link"
                   size="sm"
@@ -175,7 +199,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   className="inline-flex items-center px-3 py-2 rounded-md text-base font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors duration-200 group"
                 >
                   <a
-                    href={app.argocdUrl}
+                    href={app.argocd_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -196,7 +220,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
         onDelete={() => {
           setSelectedApps([]);
           setIsDeleteDialogOpen(false);
-          refreshApplications();
+          fetchApplications();
         }}
       />
     </div>

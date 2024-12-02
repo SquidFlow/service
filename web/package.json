@@ -33,6 +33,7 @@
     "@react-three/drei": "^9.115.0",
     "@react-three/fiber": "^8.17.7",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "autoprefixer": "^10.4.20",
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -47,7 +48,8 @@
     "swr": "^2.2.5",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
-    "three": "^0.168.0"
+    "three": "^0.168.0",
+    "zustand": "^5.0.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

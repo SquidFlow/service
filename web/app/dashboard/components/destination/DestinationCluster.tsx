@@ -1,26 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { StatCards } from './StatCards';
 import { ClusterList } from './ClusterList';
-import { ResourceQuotaDialog, ResourceQuota } from './ResourceQuotaDialog';
-import { useGetClusterList } from '@/app/api';
+import { ResourceQuotaDialog } from './ResourceQuotaDialog';
 import { ClusterInfo } from '@/types/cluster';
+import { UIResourceQuota, toClusterQuota } from '@/types/quota';
+import { useClusterStore } from '@/store';
 
 export function DestinationCluster() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedCluster, setSelectedCluster] = useState<ClusterInfo | undefined>();
-  const { clusterList, error, mutate } = useGetClusterList();
+  const {
+    data: clusters,
+    selectedCluster,
+    setSelectedCluster,
+    fetch: fetchClusters,
+    updateClusterQuota
+  } = useClusterStore();
+
+  useEffect(() => {
+    fetchClusters();
+  }, [fetchClusters]);
 
   const handleResourceQuota = (cluster: ClusterInfo) => {
     setSelectedCluster(cluster);
     setIsDialogOpen(true);
   };
 
-  const handleSaveQuota = async (quotas: ResourceQuota) => {
+  const handleSaveQuota = async (quotas: UIResourceQuota) => {
+    if (!selectedCluster) return;
     try {
-      // await updateClusterQuota(selectedCluster?.name, quotas);
-      await mutate();
+      const clusterQuota = toClusterQuota(quotas);
+      await updateClusterQuota(selectedCluster.name, clusterQuota);
     } catch (error) {
       console.error('Failed to update resource quota:', error);
     }
@@ -40,12 +51,9 @@ export function DestinationCluster() {
         Manage and monitor your Kubernetes clusters across environments
       </p>
 
-      <StatCards clusters={clusterList} />
+      <StatCards clusters={clusters} />
 
-      <ClusterList
-        clusters={clusterList}
-        onResourceQuota={handleResourceQuota}
-      />
+      <ClusterList onResourceQuota={handleResourceQuota} />
 
       <ResourceQuotaDialog
         isOpen={isDialogOpen}

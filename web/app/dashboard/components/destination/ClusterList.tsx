@@ -3,36 +3,25 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { ClusterTable } from './ClusterTable';
 import { ClusterInfo } from '@/types/cluster';
-import { useState, useCallback } from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { useClusterStore } from '@/store/cluster';
 
 interface ClusterListProps {
-  clusters: ClusterInfo[];
   onResourceQuota: (cluster: ClusterInfo) => void;
 }
 
-export function ClusterList({ clusters = [], onResourceQuota }: ClusterListProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedEnvironment, setSelectedEnvironment] = useState<string>("All Environments");
-  const [selectedProvider, setSelectedProvider] = useState<string>("All Providers");
+export function ClusterList({ onResourceQuota }: ClusterListProps) {
+  const {
+    searchTerm,
+    selectedEnvironment,
+    selectedProvider,
+    setSearchTerm,
+    setSelectedEnvironment,
+    setSelectedProvider,
+    getFilteredClusters
+  } = useClusterStore();
 
-  const safeArray = Array.isArray(clusters) ? clusters : [];
-
-  const filterCluster = useCallback((cluster: ClusterInfo): boolean => {
-    if (!cluster || typeof cluster !== 'object') return false;
-
-    const searchLower = searchTerm.toLowerCase();
-    const name = (cluster.name || '').toLowerCase();
-    const env = (cluster.env || '').toLowerCase();
-
-    const matchesSearch = name.includes(searchLower) || env.includes(searchLower);
-    const matchesEnv = selectedEnvironment === "All Environments" || cluster.env === selectedEnvironment;
-    const matchesProvider = selectedProvider === "All Providers" || cluster.provider === selectedProvider;
-
-    return matchesSearch && matchesEnv && matchesProvider;
-  }, [searchTerm, selectedEnvironment, selectedProvider]);
-
-  const filteredClusters = safeArray.filter(filterCluster);
+  const filteredClusters = getFilteredClusters();
 
   return (
     <Card>

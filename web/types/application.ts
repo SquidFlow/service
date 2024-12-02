@@ -1,77 +1,3 @@
-export interface ApplicationTemplate {
-  id: number;
-  name: string;
-  owner: string;
-  description?: string;
-  path: string;
-  deployed_environments?: string[];
-  destination_clusters: {
-    clusters: string[];
-  };
-  runtime_status: {
-    health: ApplicationHealth;
-    status: ApplicationStatus;
-  };
-  template?: {
-    source: {
-      url: string;
-    };
-    last_commit_info?: {
-      LastUpdater: string;
-    };
-  };
-  argocdUrl: string;
-  resources?: {
-    [cluster: string]: {
-      cpu: string;
-      memory: string;
-      storage: string;
-      pods: number;
-    };
-  };
-  lastUpdate: string;
-  creator: string;
-  lastUpdater: string;
-  lastCommitId: string;
-  lastCommitLog: string;
-  podCount: number;
-  cpuCount: string;
-  memoryUsage: string;
-  storageUsage: string;
-  memoryAmount: string;
-  secretCount: number;
-  deploymentStats: {
-    deployments: number;
-    services: number;
-    configmaps: number;
-  };
-  worklog: Array<{
-    date: string;
-    action: string;
-    user: string;
-  }>;
-  remoteRepo: {
-    url: string;
-    branch: string;
-    baseCommitUrl: string;
-    latestCommit: {
-      id: string;
-      message: string;
-      author: string;
-      timestamp: string;
-    };
-  };
-  events: Array<{
-    time: string;
-    type: string;
-  }>;
-  metadata: {
-    createdAt: string;
-    updatedAt: string;
-    version: string;
-  };
-}
-
 export type ApplicationHealth = "Healthy" | "Degraded" | "Progressing" | "Suspended" | "Missing";
 
 export type ApplicationStatus =
@@ -82,10 +8,54 @@ export type ApplicationStatus =
   | "Progressing"
   | "Degraded";
 
-export interface ApplicationResponse {
+export interface ApplicationTemplate {
+  id?: string;
+  name: string;
+  tenant_name: string;
+  appcode: string;
+  description: string;
+  created_by: string;
+  template: {
+    source: {
+      type: string;
+      url: string;
+      targetRevision: string;
+      path: string;
+    };
+    last_commit_info: {
+      Creator: string;
+      LastUpdater: string;
+      LastCommitID: string;
+      LastCommitMessage: string;
+    };
+  };
+  destination_clusters: {
+    clusters: string[];
+    namespace: string;
+  };
+  runtime_status: {
+    status: ApplicationStatus;
+    health: ApplicationHealth;
+    sync_status: string;
+    deployed_clusters: string[] | null;
+    resource_metrics: {
+      cpu_cores: string;
+      memory_usage: string;
+    };
+    last_update?: string;
+  };
+  deployed_environments?: string[];
+  argocd_url?: string;
+}
+
+export interface DryRunResult {
+  [clusterName: string]: string;
+}
+
+export interface ValidateResult {
   success: boolean;
-  total: number;
-  items: ApplicationTemplate[];
+  message?: string;
+  details?: Record<string, any>;
 }
 
 export interface ValidatePayload {
@@ -95,19 +65,27 @@ export interface ValidatePayload {
 }
 
 export interface CreateApplicationPayload {
-  name: string;
-  description: string;
-  source: {
+  application_source: {
+    type: string;
     url: string;
     targetRevision: string;
     path: string;
-    appType: string;
   };
-  destination: {
-    clusters: string[];
-  };
+  application_name: string;
   tenant_name: string;
   appcode: string;
+  description: string;
+  destination_clusters: {
+    clusters: string[];
+    namespace: string;
+  };
+  ingress?: {
+    host: string;
+    tls?: {
+      enabled: boolean;
+      secretName: string;
+    };
+  };
   security?: {
     external_secret?: {
       secret_store_ref: {

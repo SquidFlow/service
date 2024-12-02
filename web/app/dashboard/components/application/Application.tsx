@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ApplicationList } from './ApplicationList';
 import { ApplicationDetail } from './ApplicationDetail';
 import { DeployForm } from "../deploy";
-import { useGetApplicationDetail } from '@/app/api';
+import { useApplicationStore } from '@/store';
 import { ApplicationTemplate } from '@/types/application';
 
 interface ApplicationProps {
@@ -12,14 +12,36 @@ interface ApplicationProps {
 export function Application({ onSelectApp }: ApplicationProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedAppDetails, setSelectedAppDetails] = useState<ApplicationTemplate | null>(null);
-  const { triggerGetApplicationDetail } = useGetApplicationDetail();
+  const {
+    data: applications,
+    isLoading,
+    error,
+    fetch: fetchApplications,
+    getApplicationDetail
+  } = useApplicationStore();
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
 
   const handleSelectApp = async (app: ApplicationTemplate) => {
     try {
-      const data = await triggerGetApplicationDetail(app.name);
+      if (!app?.name) {
+        console.error('Application name is missing');
+        return;
+      }
+
+      const data = await getApplicationDetail(app.name);
+      if (!data) {
+        console.error('Failed to get application details: No data returned');
+        return;
+      }
+
       setSelectedAppDetails(data);
-      onSelectApp?.(data.name);
-    } catch (error) {}
+      onSelectApp?.(app.name);
+    } catch (error) {
+      console.error('Failed to get application details:', error);
+    }
   };
 
   if (isCreating) {

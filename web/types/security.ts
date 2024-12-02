@@ -1,8 +1,8 @@
 export interface SecretStore {
   id: string;
   name: string;
-  provider: 'AWS' | 'Vault' | 'GCP';
-  type: 'SecretStore' | 'ClusterSecretStore';
+  provider: string;
+  type: string;
   path: string;
   health: {
     status: 'Healthy' | 'Warning' | 'Error';

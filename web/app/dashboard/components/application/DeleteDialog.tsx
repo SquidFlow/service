@@ -1,9 +1,16 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { useDeleteApplications } from "@/app/api";
 import { useToast } from "@/components/ui/use-toast";
+import { useApplicationStore } from '@/store';
 
 interface DeleteDialogProps {
   isOpen: boolean;
@@ -14,15 +21,15 @@ interface DeleteDialogProps {
 
 export function DeleteDialog({ isOpen, onOpenChange, selectedApps, onDelete }: DeleteDialogProps) {
   const [confirmationInput, setConfirmationInput] = useState("");
-  const { deleteApplications, isLoading } = useDeleteApplications();
+  const { deleteApplications, isLoading } = useApplicationStore();
   const { toast } = useToast();
 
   const handleDelete = async () => {
-    if (confirmationInput !== selectedApps.join(", ")) {
+    if (confirmationInput !== "delete") {
       toast({
-        title: "Error",
-        description: "Please enter the correct application name(s) to confirm deletion.",
         variant: "destructive",
+        title: "Invalid confirmation",
+        description: "Please type 'delete' to confirm",
       });
       return;
     }
@@ -31,14 +38,14 @@ export function DeleteDialog({ isOpen, onOpenChange, selectedApps, onDelete }: D
       await deleteApplications(selectedApps);
       toast({
         title: "Success",
-        description: `Successfully deleted ${selectedApps.length} application(s)`,
+        description: "Applications deleted successfully",
       });
       onDelete();
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to delete applications. Please try again.",
         variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete applications",
       });
     }
   };
@@ -47,23 +54,31 @@ export function DeleteDialog({ isOpen, onOpenChange, selectedApps, onDelete }: D
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Application(s)</DialogTitle>
+          <DialogTitle>Delete Applications</DialogTitle>
           <DialogDescription>
-            This action cannot be undone. Please type the application name(s) to confirm:
-            <code className="mt-2 block bg-muted p-2 rounded">{selectedApps.join(", ")}</code>
+            Are you sure you want to delete {selectedApps.length} application(s)? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <Input
-          value={confirmationInput}
-          onChange={(e) => setConfirmationInput(e.target.value)}
-          placeholder="Enter application name(s)"
-        />
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Type <span className="font-mono text-destructive">delete</span> to confirm
+          </p>
+          <Input
+            value={confirmationInput}
+            onChange={(e) => setConfirmationInput(e.target.value)}
+            placeholder="Type 'delete' to confirm"
+          />
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleDelete} disabled={isLoading}>
-            Delete
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={confirmationInput !== "delete" || isLoading}
+          >
+            {isLoading ? "Deleting..." : "Delete"}
           </Button>
         </DialogFooter>
       </DialogContent>

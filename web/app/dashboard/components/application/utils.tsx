@@ -1,9 +1,15 @@
 import React, { ReactNode } from 'react';
 import { AlertCircle, Clock, CheckCircle, XCircle } from "lucide-react";
-import { ApplicationTemplate } from '@/types/application';
+import type { ApplicationTemplate } from '@/types';
 
 export const renderResourceValue = (app: ApplicationTemplate, env: string, field: 'cpu' | 'memory' | 'storage' | 'pods') => {
-  return app.resources?.[env]?.[field] || '0';
+  if (field === 'cpu') {
+    return app.runtime_status.resource_metrics.cpu_cores || '0';
+  }
+  if (field === 'memory') {
+    return app.runtime_status.resource_metrics.memory_usage || '0';
+  }
+  return '0';
 };
 
 export const getStatusIcon = (status: string): ReactNode => {

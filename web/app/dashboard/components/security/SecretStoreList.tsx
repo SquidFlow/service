@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { SecretStore } from '@/types/security';
-import { useGetSecretStore } from '@/app/api';
+import { useSecretStore } from '@/store';
 import { SecretStoreTable } from './SecretStoreTable';
 
 interface SecretStoreListProps {
@@ -13,8 +13,13 @@ interface SecretStoreListProps {
 }
 
 export function SecretStoreList({ onYAMLClick, onCreateNew }: SecretStoreListProps) {
-  const { secretStoreList } = useGetSecretStore();
+  const { data: secretStoreList, fetch: fetchSecretStores } = useSecretStore();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // 在组件挂载时获取数据
+  useEffect(() => {
+    fetchSecretStores();
+  }, [fetchSecretStores]);
 
   const filteredSecretStores = secretStoreList.filter(store =>
     store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

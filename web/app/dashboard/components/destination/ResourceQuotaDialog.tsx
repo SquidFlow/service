@@ -5,47 +5,14 @@ import { HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
 import { ClusterInfo } from '@/types/cluster';
-
-export interface ResourceQuota {
-  cpu: string;
-  memory: string;
-  storage: string;
-  pods: string;
-}
+import { UIResourceQuota, quotaFields, QuotaField } from '@/types/quota';
 
 interface ResourceQuotaDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   selectedCluster?: ClusterInfo;
-  onSave?: (quotas: ResourceQuota) => void;
+  onSave?: (quotas: UIResourceQuota) => void;
 }
-
-const quotaFields = [
-  {
-    name: "cpu",
-    label: "CPU Limit",
-    unit: "cores",
-    tooltip: "Maximum CPU cores that can be allocated",
-  },
-  {
-    name: "memory",
-    label: "Memory Limit",
-    unit: "GiB",
-    tooltip: "Maximum memory that can be allocated",
-  },
-  {
-    name: "storage",
-    label: "Storage Limit",
-    unit: "GiB",
-    tooltip: "Maximum storage that can be allocated",
-  },
-  {
-    name: "pods",
-    label: "Pod Limit",
-    unit: "pods",
-    tooltip: "Maximum number of pods that can be created",
-  },
-];
 
 export function ResourceQuotaDialog({
   isOpen,
@@ -53,7 +20,7 @@ export function ResourceQuotaDialog({
   selectedCluster,
   onSave
 }: ResourceQuotaDialogProps) {
-  const [quotas, setQuotas] = useState<ResourceQuota>({
+  const [quotas, setQuotas] = useState<UIResourceQuota>({
     cpu: selectedCluster?.quota?.cpu || "0",
     memory: selectedCluster?.quota?.memory || "0",
     storage: selectedCluster?.quota?.storage || "0",
@@ -79,7 +46,7 @@ export function ResourceQuotaDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-6">
-          {quotaFields.map((desc) => (
+          {quotaFields.map((desc: QuotaField) => (
             <div key={desc.name} className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-medium">{desc.label}</span>
@@ -97,7 +64,7 @@ export function ResourceQuotaDialog({
               <div className="flex items-center space-x-2">
                 <Input
                   type="number"
-                  value={quotas[desc.name as keyof ResourceQuota]}
+                  value={quotas[desc.name]}
                   onChange={(e) => setQuotas(prev => ({
                     ...prev,
                     [desc.name]: e.target.value

@@ -1,11 +1,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ApplicationTemplate } from '@/types/application';
+import type { ApplicationTemplate } from '@/types';
 
 interface GeneralInfoProps {
   app: ApplicationTemplate;
 }
+
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'N/A';
+  try {
+    return new Date(dateString).toLocaleString();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
 
 export function GeneralInfo({ app }: GeneralInfoProps) {
   return (
@@ -26,10 +36,10 @@ export function GeneralInfo({ app }: GeneralInfoProps) {
               <div className="flex items-center space-x-2 mt-1">
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="bg-blue-100 text-blue-600">
-                    {app.owner?.split(" ").map((n: string) => n[0]).join("") || app.owner?.[0] || 'U'}
+                    {app.created_by?.split(" ").map((n: string) => n[0]).join("") || app.created_by?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="font-medium">{app.owner}</span>
+                <span className="font-medium">{app.created_by}</span>
               </div>
             </div>
             <div>
@@ -37,7 +47,7 @@ export function GeneralInfo({ app }: GeneralInfoProps) {
                 Last Update
               </p>
               <p className="mt-1">
-                {new Date(app.lastUpdate).toLocaleString()}
+                {formatDate(app.runtime_status.last_update)}
               </p>
             </div>
           </div>

@@ -5,9 +5,7 @@ interface StatCardsProps {
   clusters: ClusterInfo[];
 }
 
-export function StatCards({ clusters = [] }: StatCardsProps) {
-  const safeClusters = Array.isArray(clusters) ? clusters : [];
-
+export function StatCards({ clusters }: StatCardsProps) {
   const safeGetNodeCount = (cluster: ClusterInfo | null | undefined, type: 'total' | 'ready'): number => {
     try {
       if (!cluster || !cluster.nodes) return 0;
@@ -19,30 +17,13 @@ export function StatCards({ clusters = [] }: StatCardsProps) {
     }
   };
 
-  const nodeStats = (() => {
-    try {
-      return safeClusters.reduce((acc, cluster) => ({
-        total: acc.total + safeGetNodeCount(cluster, 'total'),
-        ready: acc.ready + safeGetNodeCount(cluster, 'ready')
-      }), { total: 0, ready: 0 });
-    } catch (error) {
-      console.error('Error calculating node stats:', error);
-      return { total: 0, ready: 0 };
-    }
-  })();
+  const nodeStats = clusters.reduce((acc, cluster) => ({
+    total: acc.total + safeGetNodeCount(cluster, 'total'),
+    ready: acc.ready + safeGetNodeCount(cluster, 'ready')
+  }), { total: 0, ready: 0 });
 
-  const healthyClusters = (() => {
-    try {
-      return safeClusters.filter(cluster =>
-        cluster && cluster.status === 'active'
-      ).length;
-    } catch (error) {
-      console.error('Error calculating healthy clusters:', error);
-      return 0;
-    }
-  })();
-
-  const totalClusters = safeClusters.length;
+  const healthyClusters = clusters.filter(cluster => cluster.status === 'active').length;
+  const totalClusters = clusters.length;
 
   const stats = [
     {

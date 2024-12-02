@@ -5,11 +5,11 @@ import { DryRun } from "./DryRun";
 import { SourceSection } from "./SourceSection";
 import { ApplicationSection } from "./ApplicationSection";
 import { EnvironmentSection } from "./EnvironmentSection";
-import { usePostCreateApplication } from '@/app/api';
 import { CreateApplicationPayload } from '@/types/application';
 import { DeployFormProvider, useDeployForm } from './DeployFormContext';
 import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle } from "lucide-react";
+import { useApplicationStore } from '@/store';
 
 interface DeployFormProps {
   onCancel: () => void;
@@ -17,11 +17,17 @@ interface DeployFormProps {
 
 function DeployFormContent({ onCancel }: DeployFormProps) {
   const { source, selectedClusters } = useDeployForm();
-  const { triggerPostCreateApplication } = usePostCreateApplication();
   const [isDryRunOpen, setIsDryRunOpen] = useState(false);
   const [dryRunYaml, setDryRunYaml] = useState<{ cluster: string; content: string }[]>([]);
   const formRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const {
+    dryRun,
+    isLoading,
+    createApplication,
+    deploymentStatus
+  } = useApplicationStore();
 
   const handleSubmit = async () => {
     if (!source.url || !source.path || !source.targetRevision || !source.name || selectedClusters.length === 0) {
@@ -35,24 +41,39 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
     }
 
     const data: CreateApplicationPayload = {
-      name: source.name,
-      description: source.description || '',
+      application_source: {
+        type: "git",
+        url: source.url,
+        targetRevision: source.targetRevision,
+        path: source.path
+      },
+      application_name: source.name,
       tenant_name: source.tenant || '',
       appcode: source.appCode || '',
-      source: {
-        url: source.url,
-        path: source.path,
-        targetRevision: source.targetRevision,
-        appType: "kustomize",
-      },
-      destination: {
+      description: source.description || '',
+      destination_clusters: {
         clusters: selectedClusters,
+        namespace: source.namespace || 'default'
       },
-      is_dryrun: false,
+      ingress: source.ingress?.[0] ? {
+        host: source.ingress[0].name,
+        tls: {
+          enabled: true,
+          secretName: `${source.ingress[0].name}-tls`
+        }
+      } : undefined,
+      security: source.externalSecrets?.enabled ? {
+        external_secret: {
+          secret_store_ref: {
+            id: source.externalSecrets.secretStore || ''
+          }
+        }
+      } : undefined,
+      is_dryrun: false
     };
 
     try {
-      await triggerPostCreateApplication(data);
+      await createApplication(data);
       onCancel();
     } catch (error) {
       toast({
@@ -77,27 +98,42 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
     }
 
     const data: CreateApplicationPayload = {
-      name: source.name,
-      description: source.description || '',
+      application_source: {
+        type: "git",
+        url: source.url,
+        targetRevision: source.targetRevision,
+        path: source.path
+      },
+      application_name: source.name,
       tenant_name: source.tenant || '',
       appcode: source.appCode || '',
-      source: {
-        url: source.url,
-        path: source.path,
-        targetRevision: source.targetRevision,
-        appType: "kustomize",
-      },
-      destination: {
+      description: source.description || '',
+      destination_clusters: {
         clusters: selectedClusters,
+        namespace: source.namespace || 'default'
       },
-      is_dryrun: true,
+      ingress: source.ingress?.[0] ? {
+        host: source.ingress[0].name,
+        tls: {
+          enabled: true,
+          secretName: `${source.ingress[0].name}-tls`
+        }
+      } : undefined,
+      security: source.externalSecrets?.enabled ? {
+        external_secret: {
+          secret_store_ref: {
+            id: source.externalSecrets.secretStore || ''
+          }
+        }
+      } : undefined,
+      is_dryrun: true
     };
 
     try {
-      const dryRunResult = await triggerPostCreateApplication(data);
+      const result = await dryRun(data);
       setDryRunYaml(selectedClusters.map(cluster => ({
         cluster,
-        content: dryRunResult[cluster] || ''
+        content: result[cluster] || ''
       })));
       setIsDryRunOpen(true);
     } catch (error) {
@@ -108,7 +144,6 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
         duration: 5000,
         action: <AlertCircle className="h-4 w-4" />,
       });
-      console.error("Failed to perform dry run:", error);
     }
   };
 

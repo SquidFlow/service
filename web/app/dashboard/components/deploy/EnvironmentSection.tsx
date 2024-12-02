@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Server } from "lucide-react";
-import { useGetClusterList } from '@/app/api';
+import { useClusterStore } from '@/store';
 import { ClusterInfo } from '@/types/cluster';
 import { useDeployForm } from './DeployFormContext';
 
 export function EnvironmentSection() {
-  const { clusterList } = useGetClusterList();
+  const { data: clusterList, getClusterList } = useClusterStore();
   const { selectedClusters, setSelectedClusters } = useDeployForm();
+
+  useEffect(() => {
+    getClusterList();
+  }, [getClusterList]);
 
   return (
     <Card>

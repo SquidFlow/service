@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Layout, HelpCircle, Plus, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { useGetAvailableTenants, useGetAppCode, useGetSecretStore } from '@/app/api';
 import { useDeployForm } from './DeployFormContext';
 import { Switch } from "@/components/ui/switch";
+import { useTenantStore, useSecretStore } from '@/store';
 
 interface IngressRule {
   name: string;
@@ -17,10 +18,25 @@ interface IngressRule {
 }
 
 export function ApplicationSection() {
-  const { availableTenants } = useGetAvailableTenants();
-  const { appCodeData } = useGetAppCode();
-  const { secretStoreList } = useGetSecretStore();
+  const {
+    data: tenants,
+    appCodes,
+    fetch: fetchTenants,
+    fetchAppCodes,
+    isLoading,
+    error
+  } = useTenantStore();
+  const { data: secretStoreList } = useSecretStore();
   const { source, setSource } = useDeployForm();
+
+  useEffect(() => {
+    fetchTenants();
+    fetchAppCodes();
+  }, [fetchTenants, fetchAppCodes]);
+
+  useEffect(() => {
+    console.log('Current app codes:', appCodes);
+  }, [appCodes]);
 
   const addIngressRule = () => {
     setSource(prev => ({
@@ -104,7 +120,7 @@ export function ApplicationSection() {
                 <SelectValue placeholder="Select tenant" />
               </SelectTrigger>
               <SelectContent>
-                {availableTenants.map((tenant) => (
+                {tenants.map((tenant) => (
                   <SelectItem key={tenant.name} value={tenant.name}>
                     {tenant.name}
                   </SelectItem>
@@ -129,13 +145,16 @@ export function ApplicationSection() {
             </div>
             <Select
               value={source.appCode || ''}
-              onValueChange={(value) => setSource(prev => ({ ...prev, appCode: value }))}
+              onValueChange={(value) => {
+                console.log('Selected app code:', value);
+                setSource(prev => ({ ...prev, appCode: value }));
+              }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select app code" />
               </SelectTrigger>
               <SelectContent>
-                {appCodeData.map((code) => (
+                {appCodes.map((code) => (
                   <SelectItem key={code} value={code}>
                     {code}
                   </SelectItem>
