@@ -64,7 +64,7 @@ func ParseGitUrl(n string) (
 }
 
 // Clone git submodules by default.
-const defaultSubmodules = true
+const defaultSubmodules = false
 
 // Arbitrary, but non-infinite, timeout for running commands.
 const defaultTimeout = 27 * time.Second

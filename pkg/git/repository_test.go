@@ -401,10 +401,11 @@ func Test_clone(t *testing.T) {
 				Repo: "https://github.com/owner/name",
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:      "https://github.com/owner/name.git",
-				Auth:     nil,
-				Depth:    1,
-				Progress: os.Stderr,
+				URL:               "https://github.com/owner/name.git",
+				Auth:              nil,
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			assertFn: func(t *testing.T, r *repo, _ int) {
 				assert.NotNil(t, r)
@@ -424,8 +425,9 @@ func Test_clone(t *testing.T) {
 					Username: "asd",
 					Password: "123",
 				},
-				Depth:    1,
-				Progress: os.Stderr,
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			assertFn: func(t *testing.T, r *repo, _ int) {
 				assert.NotNil(t, r)
@@ -436,9 +438,10 @@ func Test_clone(t *testing.T) {
 				Repo: "https://github.com/owner/name",
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:      "https://github.com/owner/name.git",
-				Depth:    1,
-				Progress: os.Stderr,
+				URL:               "https://github.com/owner/name.git",
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			retErr:  fmt.Errorf("error"),
 			wantErr: true,
@@ -451,9 +454,10 @@ func Test_clone(t *testing.T) {
 				Repo: "https://github.com/owner/name?ref=test",
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:      "https://github.com/owner/name.git",
-				Depth:    1,
-				Progress: os.Stderr,
+				URL:               "https://github.com/owner/name.git",
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			checkoutRef: func(t *testing.T, _ *repo, ref string) error {
 				assert.Equal(t, "test", ref)
@@ -468,9 +472,10 @@ func Test_clone(t *testing.T) {
 				Repo: "https://github.com/owner/name?ref=test",
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:      "https://github.com/owner/name.git",
-				Depth:    1,
-				Progress: os.Stderr,
+				URL:               "https://github.com/owner/name.git",
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			wantErr: true,
 			checkoutRef: func(t *testing.T, _ *repo, ref string) error {
@@ -488,9 +493,10 @@ func Test_clone(t *testing.T) {
 				CloneForWrite: true,
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:      "https://github.com/owner/name.git",
-				Depth:    1,
-				Progress: os.Stderr,
+				URL:               "https://github.com/owner/name.git",
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			checkoutRef: func(t *testing.T, _ *repo, _ string) error {
 				// should not call this function
@@ -511,10 +517,11 @@ func Test_clone(t *testing.T) {
 				Repo: "https://github.com/owner/name",
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:      "https://github.com/owner/name.git",
-				Auth:     nil,
-				Depth:    1,
-				Progress: os.Stderr,
+				URL:               "https://github.com/owner/name.git",
+				Auth:              nil,
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			assertFn: func(t *testing.T, r *repo, cloneCalls int) {
 				assert.Nil(t, r)
@@ -529,10 +536,11 @@ func Test_clone(t *testing.T) {
 				CreateIfNotExist: true,
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:      "https://github.com/owner/name.git",
-				Auth:     nil,
-				Depth:    1,
-				Progress: os.Stderr,
+				URL:               "https://github.com/owner/name.git",
+				Auth:              nil,
+				Depth:             1,
+				Progress:          os.Stderr,
+				RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
 			},
 			assertFn: func(t *testing.T, r *repo, cloneCalls int) {
 				assert.Nil(t, r)

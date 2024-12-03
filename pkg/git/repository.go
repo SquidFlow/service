@@ -64,8 +64,8 @@ type (
 		UpsertBranch     bool
 
 		url        string
-		submodules bool
 		revision   string
+		submodules bool
 		path       string
 	}
 
@@ -199,10 +199,6 @@ func (o *CloneOptions) Parse() {
 	}
 }
 
-func (o *CloneOptions) Submodules() bool {
-	return o.submodules
-}
-
 func (o *CloneOptions) Revision() string {
 	return o.revision
 }
@@ -265,6 +261,10 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 	}
 
 	if o.submodules {
+		if r == nil {
+			return nil, nil, fmt.Errorf("submodules requested but repository is nil")
+		}
+
 		err = r.cloneSubmodules(ctx)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to clone submodules: %w", err)
