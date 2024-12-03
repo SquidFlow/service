@@ -216,11 +216,6 @@ func (o *CloneOptions) Path() string {
 }
 
 func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
-	var (
-		err           error
-		defaultBranch string
-	)
-
 	if o == nil {
 		return nil, nil, ErrNilOpts
 	}
@@ -229,7 +224,41 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 		return nil, nil, ErrNoParse
 	}
 
-	r, err := clone(ctx, o)
+	// Add debug logging to check cache key
+	log.G().WithFields(log.Fields{
+		"url":          o.url,
+		"repo":         o.Repo,
+		"path":         o.path,
+		"write_mode":   o.CloneForWrite,
+	}).Debug("Trying to get repo from cache")
+
+	// Try to get from cache first
+	cachedRepo, filesystem, exists := getRepositoryCache().get(o.url, o.CloneForWrite)
+	if exists {
+		log.G().WithField("url", o.url).Debug("Cache hit")
+		// Create a new repo instance with the cached repository
+		wrappedRepo := &repo{
+			Repository:   cachedRepo,
+			auth:        o.Auth,
+			progress:    o.Progress,
+			repoURL:     o.Repo,
+			providerType: o.Provider,
+		}
+
+		// For write operations, validate permissions
+		if o.CloneForWrite {
+			if err := validateRepoWritePermission(ctx, wrappedRepo); err != nil {
+				return nil, nil, fmt.Errorf("failed to validate write permission: %w", err)
+			}
+		}
+
+		return wrappedRepo, filesystem, nil
+	}
+
+	log.G().WithField("url", o.url).Debug("Cache miss")
+
+	// Cache miss, perform clone
+	newRepo, err := clone(ctx, o)
 	if err != nil {
 		switch err {
 		case transport.ErrRepositoryNotFound:
@@ -238,45 +267,48 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 			}
 
 			log.G().Infof("repository '%s' was not found, trying to create it...", o.Repo)
-			defaultBranch, err = createRepo(ctx, o)
+			defaultBranch, err := createRepo(ctx, o)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to create repository: %w", err)
 			}
 
-			fallthrough // a new repo will always start as empty - we need to init it locally
-		case transport.ErrEmptyRemoteRepository:
-			log.G().Info("empty repository, initializing a new one with specified remote")
-			r, err = initRepo(ctx, o, defaultBranch)
+			newRepo, err = initRepo(ctx, o, defaultBranch)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to initialize repository: %w", err)
 			}
+
+		case transport.ErrEmptyRemoteRepository:
+			log.G().Info("empty repository, initializing a new one with specified remote")
+			newRepo, err = initRepo(ctx, o, "")
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to initialize repository: %w", err)
+			}
+
 		default:
 			return nil, nil, err
 		}
-	} else if o.CloneForWrite {
-		err = validateRepoWritePermission(ctx, r)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to validate repository write permission: %w", err)
-		}
 	}
 
-	if o.submodules {
-		if r == nil {
-			return nil, nil, fmt.Errorf("submodules requested but repository is nil")
-		}
-
-		err = r.cloneSubmodules(ctx)
-		if err != nil {
+	// Handle submodules if needed
+	if o.submodules && newRepo != nil {
+		if err := newRepo.cloneSubmodules(ctx); err != nil {
 			return nil, nil, fmt.Errorf("failed to clone submodules: %w", err)
 		}
 	}
 
+	// Create filesystem
 	bootstrapFS, err := o.FS.Chroot(o.path)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return r, fs.Create(bootstrapFS), nil
+	// Store in cache with original filesystem
+	getRepositoryCache().set(o.url, newRepo, bootstrapFS)
+
+	// Create fs.FS wrapper for return
+	filesystem = fs.Create(bootstrapFS)
+
+	return newRepo, filesystem, nil
 }
 
 var validateRepoWritePermission = func(ctx context.Context, r *repo) error {

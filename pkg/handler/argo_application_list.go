@@ -259,22 +259,40 @@ func getResourceMetrics(ctx context.Context, kubeClient kubernetes.Interface, na
 	}, nil
 }
 
+// getAppStatus returns the status of the ArgoCD application
 func getAppStatus(app *argocdv1alpha1.Application) string {
 	if app == nil {
 		return "Unknown"
 	}
-	log.G().Debugf("get app OperationState: %v", app.Status.OperationState)
-	return string(app.Status.OperationState.Phase)
+
+	// Check if OperationState exists and has Phase
+	if app.Status.OperationState != nil && app.Status.OperationState.Phase != "" {
+		return string(app.Status.OperationState.Phase)
+	}
+
+	// If no OperationState, try to get status from Sync
+	if app.Status.Sync.Status != "" {
+		return string(app.Status.Sync.Status)
+	}
+
+	// Default status if nothing else is available
+	return "Unknown"
 }
 
+// getAppHealth returns the health status of the ArgoCD application
 func getAppHealth(app *argocdv1alpha1.Application) string {
 	if app == nil {
 		return "Unknown"
 	}
-	log.G().Debugf("get app Health: %v", app.Status.Health.Status)
+
+	// HealthStatus is a struct, we should check if it's empty instead
+	if app.Status.Health.Status == "" {
+		return "Unknown"
+	}
 	return string(app.Status.Health.Status)
 }
 
+// getAppSyncStatus returns the sync status of the ArgoCD application
 func getAppSyncStatus(app *argocdv1alpha1.Application) string {
 	if app == nil {
 		return "Unknown"

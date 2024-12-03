@@ -13,11 +13,6 @@ import (
 
 type mockGitRepo struct {
 	*mocks.MockRepository
-	worktree *mocks.MockWorktree
-}
-
-func (m *mockGitRepo) Worktree() (mocks.MockWorktree, error) {
-	return *m.worktree, nil
 }
 
 func (m *mockGitRepo) CurrentBranch() (string, error) {
@@ -41,10 +36,10 @@ func TestRepositoryCache_Interface(t *testing.T) {
 
 		// create mock objects
 		mockRepo := mocks.NewMockRepository(ctrl)
-		mockWt := mocks.NewMockWorktree(ctrl)
+		mockRepo.EXPECT().Worktree().Return(nil, nil).AnyTimes()
+
 		gitRepo := &mockGitRepo{
 			MockRepository: mockRepo,
-			worktree:       mockWt,
 		}
 
 		// test set
@@ -53,7 +48,7 @@ func TestRepositoryCache_Interface(t *testing.T) {
 		cache.set(testURL, gitRepo, fs)
 
 		// test get
-		repo, filesystem, exists := cache.get(testURL)
+		repo, filesystem, exists := cache.get(testURL, false)
 		assert.True(t, exists)
 		assert.NotNil(t, repo)
 		assert.NotNil(t, filesystem)
@@ -69,31 +64,40 @@ func TestRepositoryCache_Interface(t *testing.T) {
 			capacity: 1,
 		}
 
+		// Create mock objects
 		mockRepo := mocks.NewMockRepository(ctrl)
-		mockWt := mocks.NewMockWorktree(ctrl)
+		mockRepo.EXPECT().Worktree().Return(nil, nil).AnyTimes()
+
 		gitRepo := &mockGitRepo{
 			MockRepository: mockRepo,
-			worktree:       mockWt,
 		}
 
 		fs := memfs.New()
 
-		// add first repo
+		// Add first repo
 		url1 := "https://github.com/test/repo1.git"
 		cache.set(url1, gitRepo, fs)
 		assert.Equal(t, 1, len(cache.cache))
 
-		// add second repo
+		// Add second repo, should evict first one due to capacity limit
 		url2 := "https://github.com/test/repo2.git"
 		cache.set(url2, gitRepo, fs)
 		assert.Equal(t, 1, len(cache.cache))
 
-		// verify first repo is removed
-		_, _, exists := cache.get(url1)
-		assert.False(t, exists)
+		// Verify first repo was evicted
+		_, _, exists := cache.get(url1, false)
+		assert.False(t, exists, "First repo should have been evicted")
 
-		// verify second repo exists
-		_, _, exists = cache.get(url2)
-		assert.True(t, exists)
+		// Verify second repo exists
+		repo, filesystem, exists := cache.get(url2, false)
+		assert.True(t, exists, "Second repo should exist")
+		assert.NotNil(t, repo)
+		assert.NotNil(t, filesystem)
+
+		// Test cache entry expiration
+		time.Sleep(time.Millisecond * 100)
+		cache.maxAge = time.Millisecond * 50
+		_, _, exists = cache.get(url2, false)
+		assert.False(t, exists, "Entry should have expired")
 	})
 }
