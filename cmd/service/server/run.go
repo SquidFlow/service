@@ -195,17 +195,16 @@ func setupRouter() *gin.Engine {
 	// real api, to manage the lifecycle of ArgoApplication
 	applications := v1.Group("/deploy/argocdapplications")
 	{
-		applications.POST("", handler.CreateArgoApplication)
-		applications.GET("", handler.ListArgoApplications)
-		applications.POST("/sync", handler.SyncArgoApplication)
-		applications.POST("/dryrun", handler.DryRunArgoApplications)
-		applications.PUT("/validate", handler.ValidateAppSource)
+		applications.POST("", handler.CreateApplicationHandler)
+		applications.GET("", handler.ListApplicationsHandler)
+		applications.POST("/sync", handler.SyncApplicationHandler)
+		applications.PUT("/validate", handler.ValidateApplicationSourceHandler)
 
 		app := applications.Group("/:name")
 		{
-			app.GET("", handler.DescribeArgoApplication)
-			app.PATCH("", handler.UpdateArgoApplication)
-			app.DELETE("", handler.DeleteArgoApplication)
+			app.GET("", handler.DescribeApplicationHandler)
+			app.PATCH("", handler.UpdateApplicationHandler)
+			app.DELETE("", handler.DeleteApplicationHandler)
 		}
 	}
 

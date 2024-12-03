@@ -12,33 +12,9 @@ import (
 	"github.com/squidflow/service/pkg/kube"
 )
 
-type SyncOptions struct {
-	Prune        bool `json:"prune"`
-	ValidateOnly bool `json:"validateOnly"`
-}
-
-// SyncRequest represents the request structure for syncing applications
-type SyncRequest struct {
-	Applications []string    `json:"applications" binding:"required,min=1"`
-	Options      SyncOptions `json:"options"`
-}
-
-// SyncResponse represents the response structure for sync operation
-type SyncResponse struct {
-	Results []ApplicationSyncResult `json:"results"`
-}
-
-// ApplicationSyncResult represents the sync result for a single application
-type ApplicationSyncResult struct {
-	Name    string `json:"name"`
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
-}
-
-// TODO: fix this function
-// SyncArgoApplication handles the synchronization of one or more Argo CD applications
-func SyncArgoApplication(c *gin.Context) {
-	var req SyncRequest
+// SyncApplicationHandler handles the synchronization of one or more Argo CD applications
+func SyncApplicationHandler(c *gin.Context) {
+	var req SyncApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request format: %v", err)})
 		return
@@ -51,13 +27,13 @@ func SyncArgoApplication(c *gin.Context) {
 		return
 	}
 
-	response := SyncResponse{
-		Results: make([]ApplicationSyncResult, 0, len(req.Applications)),
+	response := SyncApplicationResponse{
+		Results: make([]SyncApplicationResult, 0, len(req.Applications)),
 	}
 
 	// Process each application
 	for _, appName := range req.Applications {
-		result := ApplicationSyncResult{
+		result := SyncApplicationResult{
 			Name: appName,
 		}
 
@@ -72,8 +48,7 @@ func SyncArgoApplication(c *gin.Context) {
 
 		// Prepare sync operation
 		syncOp := argocdv1alpha1.SyncOperation{
-			Prune:  req.Options.Prune,
-			DryRun: req.Options.ValidateOnly,
+			Prune: false,
 		}
 
 		// Update application with sync operation
@@ -99,12 +74,4 @@ func SyncArgoApplication(c *gin.Context) {
 	}
 
 	c.JSON(200, response)
-}
-
-// validateSyncRequest validates the sync request
-func validateSyncRequest(req *SyncRequest) error {
-	if len(req.Applications) == 0 {
-		return fmt.Errorf("at least one application must be specified")
-	}
-	return nil
 }

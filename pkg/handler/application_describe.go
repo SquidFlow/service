@@ -17,7 +17,7 @@ import (
 	"github.com/squidflow/service/pkg/store"
 )
 
-func DescribeArgoApplication(c *gin.Context) {
+func DescribeApplicationHandler(c *gin.Context) {
 	tenant := c.GetString(middleware.TenantKey)
 	username := c.GetString(middleware.UserNameKey)
 	appName := c.Param("name")
@@ -55,7 +55,7 @@ func DescribeArgoApplication(c *gin.Context) {
 	c.JSON(200, app)
 }
 
-func getApplicationDetail(ctx context.Context, opts *AppListOptions, appName string) (*ArgoApplicationDetail, error) {
+func getApplicationDetail(ctx context.Context, opts *AppListOptions, appName string) (*Application, error) {
 	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
 	if err != nil {
 		return nil, err
@@ -91,60 +91,38 @@ func getApplicationDetail(ctx context.Context, opts *AppListOptions, appName str
 		log.G().Warnf("failed to get resource metrics for %s: %v", conf.DestNamespace, err)
 	}
 
-	app := &ArgoApplicationDetail{
-		Name:        conf.UserGivenName,
-		TenantName:  opts.ProjectName,
-		AppCode:     conf.Annotations["squidflow.github.io/appcode"],
-		Description: conf.Annotations["squidflow.github.io/description"],
-		CreatedBy:   conf.Annotations["squidflow.github.io/created-by"],
-		Template: TemplateInfo{
-			Source: ApplicationSource{
-				Type: string(ApplicationTemplateTypeKustomize),
-				Path: conf.SrcPath,
-				URL:  conf.SrcRepoURL,
-			},
-			LastCommitInfo: GitInfo{
-				LastCommitID:      gitInfo.LastCommitID,
-				LastCommitMessage: gitInfo.LastCommitMessage,
+	app := &Application{
+		ApplicationSource: ApplicationSource{
+			Repo:           conf.SrcRepoURL,
+			Path:           conf.SrcPath,
+			TargetRevision: conf.SrcTargetRevision,
+		},
+		ApplicationInstantiation: ApplicationInstantiation{
+			ApplicationName: conf.AppName,
+			TenantName:      opts.ProjectName,
+			AppCode:         conf.Annotations["squidflow.github.io/appcode"],
+			Description:     conf.Annotations["squidflow.github.io/description"],
+		},
+		ApplicationTarget: []ApplicationTarget{
+			{
+				Cluster:   "default",
+				Namespace: conf.DestNamespace,
 			},
 		},
-		DestinationClusters: DestinationClusters{
-			Clusters:  []string{"in-cluster"},
-			Namespace: conf.DestNamespace,
-		},
-		Ingress: &Ingress{
-			Host: conf.Annotations["squidflow.github.io/ingress.host"],
-			TLS: &TLS{
-				Enabled:    conf.Annotations["squidflow.github.io/ingress.tls.enabled"] == "true",
-				SecretName: conf.Annotations["squidflow.github.io/ingress.tls.secretName"],
-			},
-		},
-		Security: &Security{
-			ExternalSecret: &ExternalSecret{
-				SecretStoreRef: SecretStoreRef{
-					ID: conf.Annotations["squidflow.github.io/security.external_secret.secret_store_ref.id"],
-				},
-			},
-		},
-		RuntimeStatus: RuntimeStatusInfo{
-			ResourceMetrics: ResourceMetrics{
-				CPUCores:    resourceMetrics.CPU,
-				MemoryUsage: resourceMetrics.Memory,
-			},
+		ApplicationRuntime: ApplicationRuntime{
+			GitInfo:         []GitInfo{*gitInfo},
+			ResourceMetrics: *resourceMetrics,
 		},
 	}
 
 	argoApp, err := opts.ArgoCDClient.Applications(applicationNs).Get(ctx, applicationName, metav1.GetOptions{})
 	if err != nil {
 		log.G().Warnf("failed to get ArgoCD app info for %s: %v", conf.UserGivenName, err)
-		app.RuntimeStatus.Status = "Unknown"
-		app.RuntimeStatus.Health = "Unknown"
-		app.RuntimeStatus.SyncStatus = "Unknown"
-	} else {
-		app.RuntimeStatus.Status = getAppStatus(argoApp)
-		app.RuntimeStatus.Health = getAppHealth(argoApp)
-		app.RuntimeStatus.SyncStatus = getAppSyncStatus(argoApp)
 	}
+
+	app.ApplicationRuntime.Status = getAppStatus(argoApp)
+	app.ApplicationRuntime.Health = getAppHealth(argoApp)
+	app.ApplicationRuntime.SyncStatus = getAppSyncStatus(argoApp)
 
 	return app, nil
 }

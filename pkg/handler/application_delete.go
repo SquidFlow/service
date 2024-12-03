@@ -25,7 +25,7 @@ type AppDeleteOptions struct {
 	Global      bool
 }
 
-func DeleteArgoApplication(c *gin.Context) {
+func DeleteApplicationHandler(c *gin.Context) {
 	username := c.GetString(middleware.UserNameKey)
 	tenant := c.GetString(middleware.TenantKey)
 	appName := c.Param("name")

@@ -17,71 +17,31 @@ import (
 	"github.com/squidflow/service/pkg/log"
 )
 
-// DryRunRequest represents the request structure for dry run
-type DryRunRequest struct {
-	Clusters       []string               `json:"clusters" binding:"required"`
-	Namespace      string                 `json:"namespace" binding:"required"`
-	Path           string                 `json:"path" binding:"required"`
-	TemplateSource string                 `json:"templateSource" binding:"required"`
-	TargetRevision string                 `json:"targetRevision" binding:"required"`
-	Template       map[string]interface{} `json:"template,omitempty"`
-	Parameters     map[string]interface{} `json:"parameters,omitempty"`
-}
-
-// DryRunResponse represents the response structure for dry run
-type DryRunResponse struct {
-	Yamls []ClusterYAML `json:"yamls"`
-}
-
-// ClusterYAML represents the generated YAML for each cluster
-type ClusterYAML struct {
-	Cluster string `json:"cluster"`
-	Content string `json:"content"`
-}
-
-// ValidateAppSourceRequest represents the request structure for template validation
-type ValidateAppSourceRequest struct {
-	SrcRepoURL     string `json:"repo"`                     // repo url include reversions
-	TargetRevision string `json:"target_version,omitempty"` // target revision
-	SrcPath        string `json:"path,omitempty"`           // path to the application source, default is root
-}
-
-// ValidateTemplateResponse represents the response structure for template validation
-type ValidateTemplateResponse struct {
-	Results []ValidationResult `json:"results"`
-}
-
 // ValidateAppSource support helm chart, kustomize
-func ValidateAppSource(c *gin.Context) {
+func ValidateApplicationSourceHandler(c *gin.Context) {
 	var req ValidateAppSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Create memory fs for git operations
+	// Create clone options
 	cloneOpts := &git.CloneOptions{
-		Repo:          req.SrcRepoURL,
+		Repo:          req.Repo,
 		FS:            fs.Create(memfs.New()),
 		CloneForWrite: false,
 	}
-	cloneOpts.Parse() // parse url and set default revision
+	cloneOpts.Parse()
 
-	// reversion is override
-	if req.TargetRevision != "" {
-		log.G().WithFields(log.Fields{
-			"repo":     req.SrcRepoURL,
-			"original": cloneOpts.Revision(),
-			"override": req.TargetRevision,
-		}).Info("Override target revision")
-		cloneOpts.SetRevision(req.TargetRevision)
+	if req.TargetVersion != "" {
+		cloneOpts.SetRevision(req.TargetVersion)
 	}
 
 	// Clone repository into memory fs
 	log.G().WithFields(log.Fields{
-		"repo":     req.SrcRepoURL,
-		"revision": req.TargetRevision,
-		"path":     req.SrcPath,
+		"repo":     req.Repo,
+		"revision": req.TargetVersion,
+		"path":     req.Path,
 	}).Info("ValidateAppSource")
 
 	_, repofs, err := cloneOpts.GetRepo(context.Background())
@@ -90,24 +50,24 @@ func ValidateAppSource(c *gin.Context) {
 		return
 	}
 
-	if !repofs.ExistsOrDie(req.SrcPath) {
-		err := fmt.Errorf("path %s does not exist in repository %s", req.SrcPath, req.SrcRepoURL)
+	if !repofs.ExistsOrDie(req.Path) {
+		err := fmt.Errorf("path %s does not exist in repository %s", req.Path, req.Repo)
 		log.G().Error(err)
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Check if path exists
-	if !repofs.ExistsOrDie(req.SrcPath) {
-		err := fmt.Errorf("path %s does not exist in repository %s", req.SrcPath, req.SrcRepoURL)
+	if !repofs.ExistsOrDie(req.Path) {
+		err := fmt.Errorf("path %s does not exist in repository %s", req.Path, req.Repo)
 		log.G().Error(err)
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Check application type (Helm vs Kustomize)
-	chartPath := repofs.Join(req.SrcPath, "Chart.yaml")
-	kustomizationPath := repofs.Join(req.SrcPath, "kustomization.yaml")
+	chartPath := repofs.Join(req.Path, "Chart.yaml")
+	kustomizationPath := repofs.Join(req.Path, "kustomization.yaml")
 
 	var appType string
 	if repofs.ExistsOrDie(chartPath) {
@@ -120,7 +80,7 @@ func ValidateAppSource(c *gin.Context) {
 	}
 
 	// Validate manifest files
-	manifestPath := repofs.Join(req.SrcPath, "templates")
+	manifestPath := repofs.Join(req.Path, "templates")
 	if appType == "helm" {
 		if !repofs.ExistsOrDie(manifestPath) {
 			c.JSON(400, gin.H{"error": "Helm chart templates directory not found"})
@@ -134,64 +94,6 @@ func ValidateAppSource(c *gin.Context) {
 		"type":    appType,
 		"message": fmt.Sprintf("Valid %s application source", appType),
 	})
-}
-
-// DryRunArgoApplications handles the dry run request for Argo applications
-func DryRunArgoApplications(c *gin.Context) {
-	var req DryRunRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
-		return
-	}
-
-	// Validate clusters exist
-	for _, cluster := range req.Clusters {
-		// Check if cluster exists
-		exists, err := validateClusterExists(cluster)
-		if err != nil {
-			c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to validate cluster %s: %v", cluster, err)})
-			return
-		}
-		if !exists {
-			c.JSON(404, gin.H{"error": fmt.Sprintf("Cluster %s not found", cluster)})
-			return
-		}
-	}
-
-	response := DryRunResponse{
-		Yamls: make([]ClusterYAML, 0, len(req.Clusters)),
-	}
-
-	for _, clusterName := range req.Clusters {
-		// Deep copy the template for each cluster
-		clusterTemplate := deepCopyMap(req.Template)
-
-		// Apply cluster-specific modifications
-		if err := applyClusterSpecifics(clusterTemplate, clusterName, req.Namespace, req.Parameters); err != nil {
-			c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to apply cluster specifics for %s: %v", clusterName, err)})
-			return
-		}
-
-		// Validate the modified template
-		if err := validateDryRunTemplate(clusterTemplate); err != nil {
-			c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid template for %s: %v", clusterName, err)})
-			return
-		}
-
-		// Convert to YAML
-		yamlContent, err := generateYAML(clusterTemplate)
-		if err != nil {
-			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to generate YAML for %s: %v", clusterName, err)})
-			return
-		}
-
-		response.Yamls = append(response.Yamls, ClusterYAML{
-			Cluster: clusterName,
-			Content: yamlContent,
-		})
-	}
-
-	c.JSON(200, response)
 }
 
 // validateClusterExists checks if the given cluster exists

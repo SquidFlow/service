@@ -5,7 +5,7 @@ Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 {
-    "project-name": "testing",
+    "project-name": "tenant1",
     "labels": {
         "label1": "value1"
     },

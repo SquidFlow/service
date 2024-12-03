@@ -6,8 +6,51 @@ Authorization: Bearer username@tenant1
 
 {
     "repo":"git@github.com:SquidFlow/platform.git",
-    "target_version": "main",
+    "target_revision": "main",
     "path":"overlays/app/fluent-operator"
+}
+
+### create app for dryrun
+POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "application_source": {
+        "repo":"git@github.com:SquidFlow/platform.git",
+        "target_revision": "main",
+        "path":"overlays/app/fluent-operator"
+    },
+    "application_instantiation": {
+        "application_name": "abc",
+        "tenant_name": "tenant1",
+        "appcode": "edsf",
+        "description": "this application description",
+        "ingress": [
+            {
+                "host": "demo1.h4.com",
+                "tls": {
+                "enabled": true,
+                    "secretName": "demo1-tls"
+                }
+            }
+        ],
+        "security": {
+            "external_secret": {
+                "secret_store_ref": {
+                    "id": "secret-store"
+                }
+            }
+        }
+    },
+    "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ],
+    "is_dryrun": true
 }
 
 ### create app
@@ -18,33 +61,22 @@ Authorization: Bearer username@tenant1
 
 {
     "application_source": {
-        "type": "git",
-        "url": "github.com/squidflow/demo-app",
-        "targetRevision": "main",
-        "path": "/"
+        "repo":"git@github.com:SquidFlow/platform.git",
+        "target_revision": "main",
+        "path":"overlays/app/fluent-operator"
     },
-    "application_name": "abc",
-    "tenant_name": "tenant1",
-    "appcode": "edsf",
-    "description": "this application description",
-    "destination_clusters": {
-        "clusters": ["in-cluster"],
-        "namespace": "default"
+    "application_instantiation": {
+        "application_name": "abc",
+        "tenant_name": "tenant1",
+        "appcode": "edsf",
+        "description": "this application description"
     },
-    "ingress": {
-        "host": "demo1.h4.com",
-        "tls": {
-            "enabled": true,
-            "secretName": "demo1-tls"
+   "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
         }
-    },
-    "security": {
-        "external_secret": {
-            "secret_store_ref": {
-                "id": "secret-store"
-            }
-        }
-    },
+    ],
     "is_dryrun": false
 }
 

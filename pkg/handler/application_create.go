@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -18,68 +17,6 @@ import (
 	"github.com/squidflow/service/pkg/middleware"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/util"
-)
-
-type (
-	AppCreateOptions struct {
-		CloneOpts       *git.CloneOptions
-		AppsCloneOpts   *git.CloneOptions
-		ProjectName     string
-		KubeContextName string
-		createOpts      *application.CreateOptions
-		KubeFactory     kube.Factory
-		Timeout         time.Duration
-		Labels          map[string]string
-		Annotations     map[string]string
-		Include         string
-		Exclude         string
-	}
-
-	DestinationClusters struct {
-		Clusters  []string `json:"clusters"`
-		Namespace string   `json:"namespace"`
-	}
-
-	TLS struct {
-		Enabled    bool   `json:"enabled"`
-		SecretName string `json:"secretName"`
-	}
-
-	Ingress struct {
-		Host string `json:"host"`
-		TLS  *TLS   `json:"tls,omitempty"`
-	}
-
-	SecretStoreRef struct {
-		ID string `json:"id"`
-	}
-
-	ExternalSecret struct {
-		SecretStoreRef SecretStoreRef `json:"secret_store_ref"`
-	}
-
-	Security struct {
-		ExternalSecret *ExternalSecret `json:"external_secret,omitempty"`
-	}
-
-	ApplicationCreate struct {
-		ApplicationSource   ApplicationSource   `json:"application_source"`
-		ApplicationName     string              `json:"application_name"`
-		TenantName          string              `json:"tenant_name"`
-		AppCode             string              `json:"appcode"`
-		Description         string              `json:"description"`
-		DestinationClusters DestinationClusters `json:"destination_clusters"`
-		Ingress             *Ingress            `json:"ingress,omitempty"`
-		Security            *Security           `json:"security,omitempty"`
-		IsDryRun            bool                `json:"is_dryrun"`
-	}
-
-	ApplicationSource struct {
-		Type           string `json:"type" binding:"required,oneof=git"`
-		URL            string `json:"url" binding:"required"`
-		TargetRevision string `json:"targetRevision" binding:"required"`
-		Path           string `json:"path" binding:"required"`
-	}
 )
 
 var (
@@ -119,7 +56,7 @@ var (
 	}
 )
 
-func CreateArgoApplication(c *gin.Context) {
+func CreateApplicationHandler(c *gin.Context) {
 	username := c.GetString(middleware.UserNameKey)
 	tenant := c.GetString(middleware.TenantKey)
 	log.G().WithFields(log.Fields{
@@ -127,19 +64,14 @@ func CreateArgoApplication(c *gin.Context) {
 		"tenant":   tenant,
 	}).Debug("create argo application")
 
-	var createReq ApplicationCreate
+	var createReq ApplicationCreateRequest
 	if err := c.BindJSON(&createReq); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
 
-	if tenant != createReq.TenantName {
+	if tenant != createReq.ApplicationInstantiation.TenantName {
 		c.JSON(400, gin.H{"error": "tenant in request body does not match tenant in authorization header"})
-		return
-	}
-
-	if err := validateApplication(&createReq); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -167,35 +99,23 @@ func CreateArgoApplication(c *gin.Context) {
 			CloneForWrite: false,
 		},
 		createOpts: &application.CreateOptions{
-			AppName:          createReq.ApplicationName,
+			AppName:          createReq.ApplicationInstantiation.ApplicationName,
 			AppType:          application.AppTypeKustomize,
-			AppSpecifier:     createReq.ApplicationSource.URL,
+			AppSpecifier:     createReq.ApplicationSource.Repo,
 			InstallationMode: application.InstallationModeNormal,
 			DestServer:       "https://kubernetes.default.svc",
 			Annotations: map[string]string{
 				"squidflow.github.io/created-by":  username,
 				"squidflow.github.io/tenant":      tenant,
-				"squidflow.github.io/description": createReq.Description,
-				"squidflow.github.io/appcode":     createReq.AppCode,
+				"squidflow.github.io/description": createReq.ApplicationInstantiation.Description,
+				"squidflow.github.io/appcode":     createReq.ApplicationInstantiation.AppCode,
 			},
 		},
-		ProjectName: createReq.TenantName,
+		ProjectName: createReq.ApplicationInstantiation.TenantName,
 		KubeFactory: kube.NewFactory(),
 	}
 	opt.CloneOpts.Parse()
 	opt.AppsCloneOpts.Parse()
-
-	if createReq.Ingress != nil {
-		opt.createOpts.Annotations["squidflow.github.io/ingress.host"] = createReq.Ingress.Host
-		if createReq.Ingress.TLS != nil {
-			opt.createOpts.Annotations["squidflow.github.io/ingress.tls.enabled"] = fmt.Sprintf("%v", createReq.Ingress.TLS.Enabled)
-			opt.createOpts.Annotations["squidflow.github.io/ingress.tls.secretName"] = createReq.Ingress.TLS.SecretName
-		}
-	}
-
-	if createReq.Security != nil && createReq.Security.ExternalSecret != nil {
-		 opt.createOpts.Annotations["squidflow.github.io/security.external_secret.secret_store_ref.id"] = createReq.Security.ExternalSecret.SecretStoreRef.ID
-	}
 
 	// TODO: support multiple clusters
 	// for _, cluster := range createReq.DestinationClusters.Clusters {
@@ -216,93 +136,6 @@ func CreateArgoApplication(c *gin.Context) {
 		"message":     "Applications created successfully",
 		"application": createReq,
 	})
-}
-
-func validateApplication(app *ApplicationCreate) error {
-	if app.ApplicationName == "" {
-		return fmt.Errorf("application_name is required")
-	}
-	if app.TenantName == "" {
-		return fmt.Errorf("tenant_name is required")
-	}
-	if app.Description == "" {
-		return fmt.Errorf("description is required")
-	}
-
-	if err := validateApplicationSource(&app.ApplicationSource); err != nil {
-		return fmt.Errorf("invalid application_source: %w", err)
-	}
-
-	if err := validateDestinationClusters(&app.DestinationClusters); err != nil {
-		return fmt.Errorf("invalid destination_cluster: %w", err)
-	}
-
-	if app.Ingress != nil {
-		if err := validateIngress(app.Ingress); err != nil {
-			return fmt.Errorf("invalid ingress configuration: %w", err)
-		}
-	}
-
-	if app.Security != nil {
-		if err := validateSecurity(app.Security); err != nil {
-			return fmt.Errorf("invalid security configuration: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func validateApplicationSource(source *ApplicationSource) error {
-	if source == nil {
-		return fmt.Errorf("application_source is required")
-	}
-	if source.Type != "git" {
-		return fmt.Errorf("source type must be git")
-	}
-	if source.URL == "" {
-		return fmt.Errorf("source URL is required")
-	}
-	if source.TargetRevision == "" {
-		return fmt.Errorf("source targetRevision is required")
-	}
-	if source.Path == "" {
-		return fmt.Errorf("source path is required")
-	}
-	return nil
-}
-
-func validateDestinationClusters(dest *DestinationClusters) error {
-	if dest == nil {
-		return fmt.Errorf("destination_clusters is required")
-	}
-	if len(dest.Clusters) == 0 {
-		return fmt.Errorf("at least one destination cluster must be specified")
-	}
-	if dest.Namespace == "" {
-		dest.Namespace = "default"
-	}
-	return nil
-}
-
-func validateIngress(ingress *Ingress) error {
-	if ingress.Host == "" {
-		return fmt.Errorf("ingress host is required when ingress is enabled")
-	}
-	if ingress.TLS != nil {
-		if ingress.TLS.Enabled && ingress.TLS.SecretName == "" {
-			return fmt.Errorf("TLS secret name is required when TLS is enabled")
-		}
-	}
-	return nil
-}
-
-func validateSecurity(security *Security) error {
-	if security.ExternalSecret != nil {
-		if security.ExternalSecret.SecretStoreRef.ID == "" {
-			return fmt.Errorf("secret store ID is required when external secret is enabled")
-		}
-	}
-	return nil
 }
 
 func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
