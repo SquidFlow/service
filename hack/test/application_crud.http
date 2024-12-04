@@ -1,0 +1,46 @@
+### create app with simple kustomize ref
+POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "application_source": {
+        "repo":"https://github.com/argoproj/argocd-example-apps.git",
+        "target_revision": "master",
+        "path":"kustomize-guestbook",
+        "submodules": true
+    },
+    "application_instantiation": {
+        "application_name": "kustomize-guestbook",
+        "tenant_name": "tenant1",
+        "appcode": "edsf",
+        "description": "this application description"
+    },
+   "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ],
+    "is_dryrun": false
+}
+
+
+### get app with project
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+### argocdapplications/abcs
+GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/abcs
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+### del app
+DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/fluent-operator-testing1
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1

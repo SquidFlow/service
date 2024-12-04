@@ -1,0 +1,105 @@
+### standard structure for kustomize with git protocol
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"git@github.com:SquidFlow/platform.git",
+    "target_revision": "main",
+    "path":"overlays/app/fluent-operator",
+    "submodules": true
+}
+
+### standard structure for kustomize with https protocol
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"https://github.com/SquidFlow/platform.git",
+    "target_revision": "main",
+    "path":"overlays/app/fluent-operator",
+    "submodules": true
+}
+
+### standard structure for helm with git protocol
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"git@github.com:apache/apisix-helm-chart.git",
+    "target_revision": "master",
+    "path":"charts/apisix"
+}
+
+
+### standard structure for helm with https protocol
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"https://github.com/apache/apisix-helm-chart.git",
+    "target_revision": "master",
+    "path":"charts/apisix"
+}
+
+
+### validate application source with multiple environments with kustomize
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"git@github.com:SquidFlow/kustomize-example-app.git",
+    "target_revision": "main",
+    "path":"/"
+}
+
+### validate application source with multiple environments with kustomize with https protocol
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"https://github.com/SquidFlow/kustomize-example-app.git",
+    "target_revision": "main",
+    "path":"/"
+}
+
+### validate application source with multiple environments with helm with git protocol
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"git@github.com:SquidFlow/helm-example-app.git",
+    "target_revision": "main",
+    "path":"/",
+    "application_specifier": {
+        "helm_manifest_path": "manifests/4.0.0"
+    }
+}
+
+### validate application source with multiple environments with helm with https protocol
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"https://github.com/SquidFlow/helm-example-app.git",
+    "target_revision": "main",
+    "path":"/",
+    "application_specifier": {
+        "helm_manifest_path": "manifests/4.0.0"
+    }
+}

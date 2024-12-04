@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -113,7 +114,7 @@ func CreateApplicationHandler(c *gin.Context) {
 		createOpts: &application.CreateOptions{
 			AppName:          createReq.ApplicationInstantiation.ApplicationName,
 			AppType:          application.AppTypeKustomize,
-			AppSpecifier:     createReq.ApplicationSource.Repo,
+			AppSpecifier:     buildKustomizeResourceRef(createReq.ApplicationSource),
 			InstallationMode: application.InstallationModeNormal,
 			DestServer:       "https://kubernetes.default.svc",
 			Annotations: map[string]string{
@@ -602,4 +603,34 @@ func copyChartFiles(repofs fs.FS, srcPath, destPath string) error {
 	}
 
 	return nil
+}
+
+// buildKustomizeResourceRef builds a kustomize resource reference from an ApplicationSourceRequest
+func buildKustomizeResourceRef(source ApplicationSourceRequest) string {
+	// remove possible .git suffix
+	repoURL := strings.TrimSuffix(source.Repo, ".git")
+
+	// if git@ format, convert to https:// format
+	if strings.HasPrefix(repoURL, "git@") {
+		repoURL = strings.Replace(repoURL, "git@", "", 1)
+		repoURL = strings.Replace(repoURL, ":", "/", 1)
+	}
+
+	// remove https:// prefix if exists
+	repoURL = strings.TrimPrefix(repoURL, "https://")
+
+	// build path part
+	pathPart := ""
+	if source.Path != "" {
+		pathPart = "/" + source.Path
+	}
+
+	// build reference
+	ref := source.TargetRevision
+	if ref == "" {
+		ref = "main" // default to main branch
+	}
+
+	// return format: repository/path?ref=revision
+	return fmt.Sprintf("%s%s?ref=%s", repoURL, pathPart, ref)
 }

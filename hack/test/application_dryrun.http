@@ -1,56 +1,3 @@
-### standard structure for kustomize
-PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
-{
-    "repo":"git@github.com:SquidFlow/platform.git",
-    "target_revision": "main",
-    "path":"overlays/app/fluent-operator",
-    "submodules": true
-}
-
-### standard structure for helm
-PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
-{
-    "repo":"https://github.com/apache/apisix-helm-chart.git",
-    "target_revision": "master",
-    "path":"charts/apisix"
-}
-
-
-### validate application source with multiple environments with kustomize
-PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
-{
-    "repo":"git@github.com:SquidFlow/kustomize-example-app.git",
-    "target_revision": "main",
-    "path":"/"
-}
-
-### validate application source with multiple environments with helm
-PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
-{
-    "repo":"git@github.com:SquidFlow/helm-example-app.git",
-    "target_revision": "main",
-    "path":"/",
-    "application_specifier": {
-        "helm_manifest_path": "manifests/4.0.0"
-    }
-}
-
 ### create app for dryrun for helm
 POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
 Accept: application/json
@@ -149,12 +96,12 @@ Authorization: Bearer username@tenant1
 
 {
     "application_source": {
-        "repo":"git@github.com:SquidFlow/platform.git",
+        "repo":"git@github.com:SquidFlow/kustomize-example-app.git",
         "target_revision": "main",
-        "path":"overlays/app/fluent-operator"
+        "path":"/"
     },
     "application_instantiation": {
-        "application_name": "qqq",
+        "application_name": "abc",
         "tenant_name": "tenant1",
         "appcode": "edsf",
         "description": "this application description"
@@ -168,20 +115,3 @@ Authorization: Bearer username@tenant1
     "is_dryrun": false
 }
 
-### get app with project
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
-### argocdapplications/abcs
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/abcs
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
-### del app
-DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/fluent-operator-testing1
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
