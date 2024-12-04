@@ -1,4 +1,4 @@
-### validate application source with standard structure
+### standard structure for kustomize
 PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
 Accept: application/json
 Content-Type: application/json
@@ -10,6 +10,19 @@ Authorization: Bearer username@tenant1
     "path":"overlays/app/fluent-operator",
     "submodules": true
 }
+
+### standard structure for helm
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"https://github.com/apache/apisix-helm-chart.git",
+    "target_revision": "master",
+    "path":"charts/apisix"
+}
+
 
 ### validate application source with multiple environments with kustomize
 PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
@@ -32,7 +45,10 @@ Authorization: Bearer username@tenant1
 {
     "repo":"git@github.com:SquidFlow/helm-example-app.git",
     "target_revision": "main",
-    "path":"/"
+    "path":"/",
+    "application_specifier": {
+        "helm_manifest_path": "manifests/4.0.0"
+    }
 }
 
 ### create app for dryrun for helm
@@ -138,7 +154,7 @@ Authorization: Bearer username@tenant1
         "path":"overlays/app/fluent-operator"
     },
     "application_instantiation": {
-        "application_name": "abc",
+        "application_name": "qqq",
         "tenant_name": "tenant1",
         "appcode": "edsf",
         "description": "this application description"

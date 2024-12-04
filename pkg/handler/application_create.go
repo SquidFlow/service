@@ -250,7 +250,7 @@ func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*Applica
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := validateApplicationStructure(repofs, req.ApplicationSource.Path)
+	appType, environments, err := validateApplicationStructure(repofs, req.ApplicationSource)
 	if err != nil {
 		return nil, err
 	}
@@ -271,20 +271,20 @@ func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*Applica
 	for _, env := range environments {
 		log.G().WithFields(log.Fields{
 			"environment": env,
-			"type":       appType,
+			"type":        appType,
 		}).Debug("Processing environment")
 
 		envResult := ApplicationDryRunEnv{
 			Environment: env,
-			IsValid:    true,
+			IsValid:     true,
 		}
 
 		var manifests []byte
 		switch appType {
 		case "helm":
-			manifests, err = generateHelmManifest(repofs, req, env)
+			manifests, err = generateHelmManifest(repofs, &req.ApplicationSource, env, req.ApplicationInstantiation.ApplicationName, req.ApplicationTarget[0].Namespace)
 		case "kustomize":
-			manifests, err = generateKustomizeManifest(repofs, req, env)
+			manifests, err = generateKustomizeManifest(repofs, &req.ApplicationSource, env, req.ApplicationInstantiation.ApplicationName, req.ApplicationTarget[0].Namespace)
 		default:
 			err = fmt.Errorf("unsupported application type: %s", appType)
 		}
@@ -313,62 +313,73 @@ func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*Applica
 }
 
 // generateHelmManifest generates Helm manifests for a specific environment
-func generateHelmManifest(repofs fs.FS, req *ApplicationCreateRequest, env string) ([]byte, error) {
+func generateHelmManifest(repofs fs.FS, req *ApplicationSourceRequest, env string, applicationName string, applicationNamespace string) ([]byte, error) {
 	log.G().WithFields(log.Fields{
-		"path": req.ApplicationSource.Path,
-		"env":  env,
+		"path":      req.Path,
+		"env":       env,
+		"name":      applicationName,
+		"namespace": applicationNamespace,
 	}).Debug("Preparing helm template")
 
-	// Get chart path - require explicit specification for Helm applications
-	if req.ApplicationSource.ApplicationSpecifier == nil ||
-		req.ApplicationSource.ApplicationSpecifier.HelmManifestPath == "" {
-		return nil, fmt.Errorf("helm_manifest_path is required for Helm applications")
+	// determine chart path
+	var chartPath string
+	if req.ApplicationSpecifier != nil && req.ApplicationSpecifier.HelmManifestPath != "" {
+		// case 1: use specified helm manifest path
+		chartPath = repofs.Join(req.Path, req.ApplicationSpecifier.HelmManifestPath)
+	} else {
+		// case 2: directly use the specified path to find Chart.yaml
+		chartPath = req.Path
 	}
-
-	// Use specified helm manifest path
-	chartPath := repofs.Join(req.ApplicationSource.Path,
-		req.ApplicationSource.ApplicationSpecifier.HelmManifestPath)
 
 	log.G().WithFields(log.Fields{
 		"chartPath": chartPath,
 	}).Debug("Looking for chart")
 
-	// Create temp directory for chart files
+	// validate Chart.yaml exists
+	if !repofs.ExistsOrDie(repofs.Join(chartPath, "Chart.yaml")) {
+		return nil, fmt.Errorf("Chart.yaml not found at path: %s", chartPath)
+	}
+
+	// create temp directory for chart files
 	tmpDir, err := os.MkdirTemp("", "helm-chart-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Copy chart files to temp directory
+	// copy chart files to temp directory
 	if err := copyChartFiles(repofs, chartPath, tmpDir); err != nil {
 		return nil, fmt.Errorf("failed to copy chart files: %w", err)
 	}
 
-	// Validate Chart.yaml exists
-	if _, err := os.Stat(filepath.Join(tmpDir, "Chart.yaml")); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Chart.yaml not found at path: %s", filepath.Join(tmpDir, "Chart.yaml"))
-	}
-
-	// read environment specific values file
+	// read values file
 	var valuesContent []byte
 	if env != "default" {
-		var valuesPath string
-		if req.ApplicationSource.Path == "/" || req.ApplicationSource.Path == "" {
-			valuesPath = repofs.Join("environments", env, "values.yaml")
+		// check if environment specific values directory exists
+		envValuesPath := repofs.Join(req.Path, "environments", env, "values.yaml")
+		if repofs.ExistsOrDie(envValuesPath) {
+			log.G().WithFields(log.Fields{
+				"valuesPath": envValuesPath,
+			}).Debug("Reading environment values")
+
+			valuesContent, err = repofs.ReadFile(envValuesPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read values file for environment %s: %w", env, err)
+			}
 		} else {
-			valuesPath = repofs.Join(req.ApplicationSource.Path, "environments", env, "values.yaml")
-		}
+			// if no environment specific values, use default
+			valuesPath := repofs.Join(chartPath, "values.yaml")
+			log.G().WithFields(log.Fields{
+				"valuesPath": valuesPath,
+			}).Debug("Environment values not found, using default values")
 
-		log.G().WithFields(log.Fields{
-			"valuesPath": valuesPath,
-		}).Debug("Reading environment values")
-
-		valuesContent, err = repofs.ReadFile(valuesPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read values file for environment %s: %w", env, err)
+			valuesContent, err = repofs.ReadFile(valuesPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read values file: %w", err)
+			}
 		}
 	} else {
+		// use default values.yaml
 		valuesPath := repofs.Join(chartPath, "values.yaml")
 		log.G().WithFields(log.Fields{
 			"valuesPath": valuesPath,
@@ -393,7 +404,7 @@ func generateHelmManifest(repofs fs.FS, req *ApplicationCreateRequest, env strin
 	// init action configuration
 	if err := actionConfig.Init(
 		settings.RESTClientGetter(),
-		req.ApplicationTarget[0].Namespace,
+		applicationName,
 		"secrets",
 		log.G().Debugf,
 	); err != nil {
@@ -403,18 +414,17 @@ func generateHelmManifest(repofs fs.FS, req *ApplicationCreateRequest, env strin
 	// create install action and configure dry run
 	client := action.NewInstall(actionConfig)
 	client.DryRun = true
-	client.ReleaseName = req.ApplicationInstantiation.ApplicationName
-	client.Namespace = req.ApplicationTarget[0].Namespace
+	client.ReleaseName = applicationName
+	client.Namespace = applicationNamespace
 	client.ClientOnly = true
 	client.SkipCRDs = true
-	// skip Kubernetes version validation
 	client.KubeVersion = &chartutil.KubeVersion{
 		Version: "v1.28.0",
 		Major:   "1",
 		Minor:   "28",
 	}
 
-	// load chart from tmp dir
+	// load chart
 	chart, err := loader.Load(tmpDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load helm chart: %w", err)
@@ -429,50 +439,59 @@ func generateHelmManifest(repofs fs.FS, req *ApplicationCreateRequest, env strin
 	log.G().WithFields(log.Fields{
 		"env":       env,
 		"chartPath": chartPath,
-		"namespace": req.ApplicationTarget[0].Namespace,
+		"namespace": applicationNamespace,
 	}).Debug("Successfully rendered helm templates")
 
 	return []byte(rel.Manifest), nil
 }
 
 // generateKustomizeManifest generates Kustomize manifests for a specific environment
-func generateKustomizeManifest(repofs fs.FS, req *ApplicationCreateRequest, env string) ([]byte, error) {
+func generateKustomizeManifest(repofs fs.FS, req *ApplicationSourceRequest, env string, applicationName string, applicationNamespace string) ([]byte, error) {
 	log.G().WithFields(log.Fields{
-		"path": req.ApplicationSource.Path,
-		"env":  env,
+		"path":      req.Path,
+		"env":       env,
+		"name":      applicationName,
+		"namespace": applicationNamespace,
 	}).Debug("Preparing kustomize build")
 
 	// Create an in-memory filesystem for kustomize
 	memFS := filesys.MakeFsInMemory()
 
-	// Copy base directory first
-	baseDir := repofs.Join(req.ApplicationSource.Path, "base")
-	if !repofs.ExistsOrDie(baseDir) {
-		return nil, fmt.Errorf("base directory not found in %s", req.ApplicationSource.Path)
-	}
-
-	// Copy base files
-	err := copyToMemFS(repofs, baseDir, "/base", memFS)
-	if err != nil {
-		return nil, fmt.Errorf("failed to copy base files: %w", err)
-	}
-
+	// configure build path
 	var buildPath string
-	if env != "default" {
-		// For multi-environment, use overlay
-		overlayPath := repofs.Join(req.ApplicationSource.Path, "overlays", env)
+	if env == "default" {
+		// case 1: simple Kustomize, directly use the specified path
+		buildPath = req.Path
+
+		// check if kustomization.yaml exists
+		if !repofs.ExistsOrDie(repofs.Join(buildPath, "kustomization.yaml")) {
+			return nil, fmt.Errorf("kustomization.yaml not found in %s", buildPath)
+		}
+
+		// copy the whole directory to memory filesystem
+		err := copyToMemFS(repofs, buildPath, "/", memFS)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy files: %w", err)
+		}
+		buildPath = "/"
+	} else {
+		// case 2: multi-environment Kustomize, use overlays structure
+		overlayPath := repofs.Join(req.Path, "overlays", env)
 		if !repofs.ExistsOrDie(overlayPath) {
 			return nil, fmt.Errorf("overlay directory for environment %s not found", env)
 		}
 
-		// Copy overlay files
-		err = copyToMemFS(repofs, overlayPath, "/overlay", memFS)
-		if err != nil {
-			return nil, fmt.Errorf("failed to copy overlay files: %w", err)
+		// check if kustomization.yaml exists in overlay
+		if !repofs.ExistsOrDie(repofs.Join(overlayPath, "kustomization.yaml")) {
+			return nil, fmt.Errorf("kustomization.yaml not found in overlay %s", env)
 		}
-		buildPath = "/overlay"
-	} else {
-		buildPath = "/base"
+
+		// copy the whole application directory (including base and overlays) to memory filesystem
+		err := copyToMemFS(repofs, req.Path, "/", memFS)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy files: %w", err)
+		}
+		buildPath = repofs.Join("/overlays", env)
 	}
 
 	// List files for debugging

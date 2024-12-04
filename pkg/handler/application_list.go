@@ -113,7 +113,7 @@ func RunAppList(ctx context.Context, opts *AppListOptions) (*ApplicationListResp
 		}
 
 		app := Application{
-			ApplicationSource: ApplicationSource{
+			ApplicationSource: ApplicationSourceRequest{
 				Repo:           conf.SrcRepoURL,
 				Path:           conf.SrcPath,
 				TargetRevision: conf.SrcTargetRevision,

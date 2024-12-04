@@ -92,7 +92,7 @@ func getApplicationDetail(ctx context.Context, opts *AppListOptions, appName str
 	}
 
 	app := &Application{
-		ApplicationSource: ApplicationSource{
+		ApplicationSource: ApplicationSourceRequest{
 			Repo:           conf.SrcRepoURL,
 			Path:           conf.SrcPath,
 			TargetRevision: conf.SrcTargetRevision,

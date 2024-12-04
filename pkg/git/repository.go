@@ -474,12 +474,11 @@ var clone = func(ctx context.Context, opts *CloneOptions) (*repo, error) {
 	}
 
 	cloneOpts := &gg.CloneOptions{
-		URL:               opts.url,
-		Auth:              getAuth(opts.Auth),
-		Depth:             1,
-		Progress:          progress,
-		CABundle:          cert,
-		RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
+		URL:      opts.url,
+		Auth:     getAuth(opts.Auth),
+		Depth:    1,
+		Progress: progress,
+		CABundle: cert,
 	}
 
 	log.G().WithField("url", opts.url).Debug("cloning git repo")

@@ -44,27 +44,10 @@ var (
 
 // validate application source request
 type (
-	ValidateAppSourceRequest struct {
-		Repo          string `json:"repo" binding:"required"`
-		TargetVersion string `json:"target_version"`
-		Path          string `json:"path" binding:"required"`
-	}
-
-	ValidateAppSourceResponse struct {
-		Success      bool     `json:"success"`
-		Message      string   `json:"message"`
-		Type         string   `json:"type"`
-		SuiteableEnv []string `json:"suiteable_env"`
-	}
-)
-
-// create application request and response structs
-type (
-	// ApplicationSource represents the source information of an application
-	ApplicationSource struct {
+	ApplicationSourceRequest struct {
 		Repo                 string                `json:"repo" binding:"required"`
-		TargetRevision       string                `json:"target_revision"`
-		Path                 string                `json:"path" binding:"required"`
+		TargetRevision       string                `json:"target_revision,omitempty"`
+		Path                 string                `json:"path,omitempty"`
 		Submodules           bool                  `json:"submodules,omitempty"`
 		ApplicationSpecifier *ApplicationSpecifier `json:"application_specifier,omitempty"`
 	}
@@ -76,10 +59,26 @@ type (
 		HelmManifestPath string `json:"helm_manifest_path,omitempty"`
 	}
 
+	ValidateAppSourceResponse struct {
+		Success      bool                       `json:"success"`
+		Message      string                     `json:"message"`
+		Type         string                     `json:"type"`
+		SuiteableEnv []AppSourceWithEnvironment `json:"suiteable_env"`
+	}
+
+	AppSourceWithEnvironment struct {
+		Environments string `json:"environments"`
+		Valid        bool   `json:"valid"`
+		Error        string `json:"error,omitempty"`
+	}
+)
+
+// create application request and response structs
+type (
 	// ApplicationCreateRequest represents the request body for creating an application
 	ApplicationCreateRequest struct {
 		// Source information of the application
-		ApplicationSource ApplicationSource `json:"application_source" binding:"required"`
+		ApplicationSource ApplicationSourceRequest `json:"application_source" binding:"required"`
 
 		// Application instantiation details
 		ApplicationInstantiation ApplicationInstantiation `json:"application_instantiation" binding:"required"`
@@ -161,7 +160,7 @@ type (
 type (
 	// single application response struct
 	Application struct {
-		ApplicationSource        ApplicationSource        `json:"application_source" binding:"required"`
+		ApplicationSource        ApplicationSourceRequest `json:"application_source" binding:"required"`
 		ApplicationInstantiation ApplicationInstantiation `json:"application_instantiation" binding:"required"`
 		ApplicationTarget        []ApplicationTarget      `json:"application_target" binding:"required"`
 		DryrunResult             ApplicationDryRunResult  `json:"dryrun_result,omitempty"`
@@ -182,6 +181,7 @@ type (
 		Environment string `json:"environment"`
 		IsValid     bool   `json:"is_valid"`
 		Manifest    string `json:"manifest,omitempty"`
+		ArgocdFile  string `json:"argocd_file,omitempty"`
 		Error       string `json:"error,omitempty"`
 	}
 
@@ -213,7 +213,7 @@ type (
 // ApplicationUpdateRequest represents the request body for updating an application
 type (
 	ApplicationUpdateRequest struct {
-		ApplicationSource        ApplicationSource        `json:"application_source" binding:"omitempty"`
+		ApplicationSource        ApplicationSourceRequest `json:"application_source" binding:"omitempty"`
 		ApplicationInstantiation ApplicationInstantiation `json:"application_instantiation" binding:"omitempty"`
 		ApplicationTarget        []ApplicationTarget      `json:"application_target" binding:"omitempty"`
 	}
@@ -316,9 +316,9 @@ func getNewId() string {
 
 // ValidationRequest represents the request structure for template validation
 type ValidationRequest struct {
-	Source         ApplicationSource `json:"source" binding:"required"`
-	Path           string            `json:"path" binding:"required"`
-	TargetRevision string            `json:"targetRevision" binding:"required"`
+	Source         ApplicationSourceRequest `json:"source" binding:"required"`
+	Path           string                   `json:"path" binding:"required"`
+	TargetRevision string                   `json:"targetRevision" binding:"required"`
 }
 
 // ValidationResult represents the validation result for each environment
