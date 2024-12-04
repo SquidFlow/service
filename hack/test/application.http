@@ -1,4 +1,4 @@
-### validate application source
+### validate application source with standard structure
 PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
 Accept: application/json
 Content-Type: application/json
@@ -8,6 +8,30 @@ Authorization: Bearer username@tenant1
     "repo":"git@github.com:SquidFlow/platform.git",
     "target_revision": "main",
     "path":"overlays/app/fluent-operator"
+}
+
+### validate application source with multiple environments with kustomize
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"git@github.com:SquidFlow/kustomize-example-app.git",
+    "target_revision": "main",
+    "path":"/"
+}
+
+### validate application source with multiple environments with helm
+PUT http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"git@github.com:SquidFlow/helm-example-app.git",
+    "target_revision": "main",
+    "path":"/"
 }
 
 ### create app for dryrun

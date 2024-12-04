@@ -152,20 +152,26 @@ type (
 type (
 	// single application response struct
 	Application struct {
-		ApplicationSource        ApplicationSource         `json:"application_source" binding:"required"`
-		ApplicationInstantiation ApplicationInstantiation  `json:"application_instantiation" binding:"required"`
-		ApplicationTarget        []ApplicationTarget       `json:"application_target" binding:"required"`
-		DryrunResult             ApplicationDryRunManifest `json:"dryrun_result,omitempty"`
-		ApplicationRuntime       ApplicationRuntime        `json:"application_runtime,omitempty"`
+		ApplicationSource        ApplicationSource        `json:"application_source" binding:"required"`
+		ApplicationInstantiation ApplicationInstantiation `json:"application_instantiation" binding:"required"`
+		ApplicationTarget        []ApplicationTarget      `json:"application_target" binding:"required"`
+		DryrunResult             ApplicationDryRunResult  `json:"dryrun_result,omitempty"`
+		ApplicationRuntime       ApplicationRuntime       `json:"application_runtime,omitempty"`
 	}
 
-	// ApplicationDryRunManifest represents the dry run result of an application
+	// ApplicationDryRunResult represents the dry run result of an application
 	// manifest and argocd file
-	ApplicationDryRunManifest struct {
-		Success    bool   `json:"success"`
-		Message    string `json:"message"`
-		Manifest   []byte `json:"manifest"`
-		ArgoCDFile []byte `json:"argocd_file"`
+	ApplicationDryRunResult struct {
+		Success                 bool                      `json:"success"`
+		Message                 string                    `json:"message"`
+		Total                   int                       `json:"total"`
+		ApplicationDryRunValues []ApplicationDryRunValues `json:"application_dryrun_values"`
+	}
+
+	ApplicationDryRunValues struct {
+		Environment string `json:"environment"`
+		Manifest    []byte `json:"manifest"`
+		ArgoCDFile  []byte `json:"argocd_file"`
 	}
 
 	// ApplicationRuntime represents the runtime information of an application
