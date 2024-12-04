@@ -468,9 +468,9 @@ func Test_clone(t *testing.T) {
 				Repo: "https://github.com/owner/name?ref=test",
 			},
 			expectedOpts: &gg.CloneOptions{
-				URL:               "https://github.com/owner/name.git",
-				Depth:             1,
-				Progress:          os.Stderr,
+				URL:      "https://github.com/owner/name.git",
+				Depth:    1,
+				Progress: os.Stderr,
 			},
 			wantErr: true,
 			checkoutRef: func(t *testing.T, _ *repo, ref string) error {
@@ -626,7 +626,7 @@ func TestGetRepo(t *testing.T) {
 	}{
 		"Should get a repo": {
 			opts: &CloneOptions{
-				Repo: "https://github.com/owner/name",
+				Repo: "https://github.com/owner/name1",
 				FS:   fs.Create(memfs.New()),
 			},
 			cloneFn: func(_ context.Context, opts *CloneOptions) (*repo, error) {
@@ -652,7 +652,7 @@ func TestGetRepo(t *testing.T) {
 		},
 		"Should fail when clone fails": {
 			opts: &CloneOptions{
-				Repo: "https://github.com/owner/name",
+				Repo: "https://github.com/owner/name2",
 			},
 			cloneFn: func(_ context.Context, opts *CloneOptions) (*repo, error) {
 				return nil, errors.New("some error")
@@ -665,7 +665,7 @@ func TestGetRepo(t *testing.T) {
 		},
 		"Should fail when repo not found": {
 			opts: &CloneOptions{
-				Repo: "https://github.com/owner/name",
+				Repo: "https://github.com/owner/name3",
 			},
 			cloneFn: func(_ context.Context, opts *CloneOptions) (*repo, error) {
 				return nil, transport.ErrRepositoryNotFound
@@ -678,7 +678,7 @@ func TestGetRepo(t *testing.T) {
 		},
 		"Should fail when CreateIfNotExist is true and create fails": {
 			opts: &CloneOptions{
-				Repo:             "https://github.com/owner/name",
+				Repo:             "https://github.com/owner/name4",
 				CreateIfNotExist: true,
 			},
 			wantErr: "some error",
@@ -696,7 +696,7 @@ func TestGetRepo(t *testing.T) {
 		},
 		"Should fail when repo is empty and init fails": {
 			opts: &CloneOptions{
-				Repo: "https://github.com/owner/name",
+				Repo: "https://github.com/owner/name5",
 			},
 			wantErr: "some error",
 			cloneFn: func(_ context.Context, _ *CloneOptions) (*repo, error) {
@@ -713,7 +713,7 @@ func TestGetRepo(t *testing.T) {
 		},
 		"Should create and init repo when CreateIfNotExist is true": {
 			opts: &CloneOptions{
-				Repo:             "https://github.com/owner/name",
+				Repo:             "https://github.com/owner/name6",
 				CreateIfNotExist: true,
 				FS:               fs.Create(memfs.New()),
 			},
@@ -754,7 +754,6 @@ func TestGetRepo(t *testing.T) {
 			if tt.opts != nil {
 				tt.opts.Parse()
 			}
-
 			r, fs, err := tt.opts.GetRepo(context.Background())
 			tt.assertFn(t, r, fs, err)
 		})
