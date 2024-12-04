@@ -62,11 +62,11 @@ type (
 		CreateIfNotExist bool
 		CloneForWrite    bool
 		UpsertBranch     bool
+		Submodules       bool
 
-		url        string
-		revision   string
-		submodules bool
-		path       string
+		url      string
+		revision string
+		path     string
 	}
 
 	PushOptions struct {
@@ -179,8 +179,6 @@ func AddFlags(cmd *cobra.Command, opts *AddFlagsOptions) *CloneOptions {
 		util.Die(cmd.MarkPersistentFlagRequired(opts.Prefix + "repo"))
 	}
 
-	cmd.PersistentFlags().BoolVar(&co.submodules, opts.Prefix+"submodules", false, "Clone with submodules")
-
 	return co
 }
 
@@ -191,7 +189,7 @@ func (o *CloneOptions) Parse() {
 		suffix  string
 	)
 
-	host, orgRepo, o.path, o.revision, o.submodules, suffix, _ = util.ParseGitUrl(o.Repo)
+	host, orgRepo, o.path, o.revision, _, suffix, _ = util.ParseGitUrl(o.Repo)
 	o.url = host + orgRepo + suffix
 
 	if o.Auth.Username == "" {
@@ -226,10 +224,10 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 
 	// Add debug logging to check cache key
 	log.G().WithFields(log.Fields{
-		"url":          o.url,
-		"repo":         o.Repo,
-		"path":         o.path,
-		"write_mode":   o.CloneForWrite,
+		"url":        o.url,
+		"repo":       o.Repo,
+		"path":       o.path,
+		"write_mode": o.CloneForWrite,
 	}).Debug("Trying to get repo from cache")
 
 	// Try to get from cache first
@@ -239,9 +237,9 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 		// Create a new repo instance with the cached repository
 		wrappedRepo := &repo{
 			Repository:   cachedRepo,
-			auth:        o.Auth,
-			progress:    o.Progress,
-			repoURL:     o.Repo,
+			auth:         o.Auth,
+			progress:     o.Progress,
+			repoURL:      o.Repo,
 			providerType: o.Provider,
 		}
 
@@ -290,7 +288,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 	}
 
 	// Handle submodules if needed
-	if o.submodules && newRepo != nil {
+	if o.Submodules && newRepo != nil {
 		if err := newRepo.cloneSubmodules(ctx); err != nil {
 			return nil, nil, fmt.Errorf("failed to clone submodules: %w", err)
 		}
@@ -804,7 +802,7 @@ func (r *repo) cloneSubmodules(ctx context.Context) error {
 		return fmt.Errorf("failed to get worktree: %w", err)
 	}
 
-	log.G().WithField("repo", r.repoURL).Debugf("Cloning submodules of repository")
+	log.G().WithField("repo", r.repoURL).Debug("Cloning submodules of repository")
 
 	subs, err := w.Submodules()
 	if err != nil {
@@ -814,12 +812,16 @@ func (r *repo) cloneSubmodules(ctx context.Context) error {
 	log.G().Infof("Found %d submodules", len(subs))
 
 	for _, sub := range subs {
-		log.G().Debugf("Updating submodule: %s", sub.Config().Name)
-		_, err := sub.Repository()
-		if err != nil {
-			return fmt.Errorf("failed to get submodule repository: %w", err)
+		log.G().Debugf("Cloning submodule: %s", sub.Config().Name)
+		if err := sub.Update(&gg.SubmoduleUpdateOptions{
+			Init:              true,
+			RecurseSubmodules: gg.DefaultSubmoduleRecursionDepth,
+			Auth:              getAuth(r.auth),
+		}); err != nil {
+			return fmt.Errorf("failed to update submodule %s: %w", sub.Config().Name, err)
 		}
-		log.G().Infof("Submodule repository: %s", sub.Config().Name)
+
+		log.G().Infof("Successfully cloned submodule: %s", sub.Config().Name)
 	}
 
 	return nil

@@ -7,7 +7,8 @@ Authorization: Bearer username@tenant1
 {
     "repo":"git@github.com:SquidFlow/platform.git",
     "target_revision": "main",
-    "path":"overlays/app/fluent-operator"
+    "path":"overlays/app/fluent-operator",
+    "submodules": true
 }
 
 ### validate application source with multiple environments with kustomize
@@ -34,17 +35,21 @@ Authorization: Bearer username@tenant1
     "path":"/"
 }
 
-### create app for dryrun
+### create app for dryrun for helm
 POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 {
+    "is_dryrun": true,
     "application_source": {
-        "repo":"git@github.com:SquidFlow/platform.git",
+        "repo":"git@github.com:SquidFlow/helm-example-app.git",
         "target_revision": "main",
-        "path":"overlays/app/fluent-operator"
+        "path":"/",
+        "application_specifier": {
+            "helm_manifest_path": "manifests/4.0.0"
+        }
     },
     "application_instantiation": {
         "application_name": "abc",
@@ -73,9 +78,52 @@ Authorization: Bearer username@tenant1
             "cluster": "in-cluster",
             "namespace": "default"
         }
-    ],
-    "is_dryrun": true
+    ]
 }
+
+### create app for dryrun for helm
+POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "is_dryrun": true,
+    "application_source": {
+        "repo":"git@github.com:SquidFlow/kustomize-example-app.git",
+        "target_revision": "main",
+        "path":"/"
+    },
+    "application_instantiation": {
+        "application_name": "abc",
+        "tenant_name": "tenant1",
+        "appcode": "edsf",
+        "description": "this application description",
+        "ingress": [
+            {
+                "host": "demo1.h4.com",
+                "tls": {
+                "enabled": true,
+                    "secretName": "demo1-tls"
+                }
+            }
+        ],
+        "security": {
+            "external_secret": {
+                "secret_store_ref": {
+                    "id": "secret-store"
+                }
+            }
+        }
+    },
+    "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ]
+}
+
 
 ### create app
 POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications

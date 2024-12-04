@@ -62,9 +62,18 @@ type (
 type (
 	// ApplicationSource represents the source information of an application
 	ApplicationSource struct {
-		Repo           string `json:"repo" binding:"required"`
-		TargetRevision string `json:"target_revision"`
-		Path           string `json:"path" binding:"required"`
+		Repo                 string                `json:"repo" binding:"required"`
+		TargetRevision       string                `json:"target_revision"`
+		Path                 string                `json:"path" binding:"required"`
+		Submodules           bool                  `json:"submodules,omitempty"`
+		ApplicationSpecifier *ApplicationSpecifier `json:"application_specifier,omitempty"`
+	}
+
+	// ApplicationSpecifier contains application-specific configuration
+	ApplicationSpecifier struct {
+		// HelmManifestPath specifies the path to Helm chart manifests
+		// Required for Helm applications, must point to the directory containing Chart.yaml
+		HelmManifestPath string `json:"helm_manifest_path,omitempty"`
 	}
 
 	// ApplicationCreateRequest represents the request body for creating an application
@@ -162,16 +171,18 @@ type (
 	// ApplicationDryRunResult represents the dry run result of an application
 	// manifest and argocd file
 	ApplicationDryRunResult struct {
-		Success                 bool                      `json:"success"`
-		Message                 string                    `json:"message"`
-		Total                   int                       `json:"total"`
-		ApplicationDryRunValues []ApplicationDryRunValues `json:"application_dryrun_values"`
+		Success      bool                   `json:"success"`
+		Message      string                 `json:"message"`
+		Total        int                    `json:"total"`
+		Environments []ApplicationDryRunEnv `json:"environments"`
 	}
 
-	ApplicationDryRunValues struct {
+	// ApplicationDryRunEnv represents the dry run result for each environment
+	ApplicationDryRunEnv struct {
 		Environment string `json:"environment"`
-		Manifest    []byte `json:"manifest"`
-		ArgoCDFile  []byte `json:"argocd_file"`
+		IsValid     bool   `json:"is_valid"`
+		Manifest    string `json:"manifest,omitempty"`
+		Error       string `json:"error,omitempty"`
 	}
 
 	// ApplicationRuntime represents the runtime information of an application
