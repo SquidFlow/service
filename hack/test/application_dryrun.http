@@ -44,7 +44,7 @@ Authorization: Bearer username@tenant1
     ]
 }
 
-### create app for dryrun for helm
+### create app for dryrun for kustomize
 POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
 Accept: application/json
 Content-Type: application/json
@@ -85,33 +85,5 @@ Authorization: Bearer username@tenant1
             "namespace": "default"
         }
     ]
-}
-
-
-### create app
-POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
-{
-    "application_source": {
-        "repo":"git@github.com:SquidFlow/kustomize-example-app.git",
-        "target_revision": "main",
-        "path":"/"
-    },
-    "application_instantiation": {
-        "application_name": "abc",
-        "tenant_name": "tenant1",
-        "appcode": "edsf",
-        "description": "this application description"
-    },
-   "application_target": [
-        {
-            "cluster": "in-cluster",
-            "namespace": "default"
-        }
-    ],
-    "is_dryrun": false
 }
 

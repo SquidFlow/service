@@ -1,16 +1,16 @@
-package handler
+package application
 
 import "testing"
 
 func TestBuildKustomizeResourceRef(t *testing.T) {
 	tests := []struct {
 		name string
-		args ApplicationSourceRequest
+		args ApplicationSourceOption
 		want string
 	}{
 		{
 			name: "simple kustomize ref",
-			args: ApplicationSourceRequest{
+			args: ApplicationSourceOption{
 				Repo:           "https://github.com/argoproj/argocd-example-apps.git",
 				Path:           "kustomize-guestbook",
 				TargetRevision: "master",
@@ -19,7 +19,7 @@ func TestBuildKustomizeResourceRef(t *testing.T) {
 		},
 		{
 			name: "git@ format",
-			args: ApplicationSourceRequest{
+			args: ApplicationSourceOption{
 				Repo:           "git@github.com:argoproj/argocd-example-apps.git",
 				Path:           "kustomize-guestbook",
 				TargetRevision: "master",
@@ -28,7 +28,7 @@ func TestBuildKustomizeResourceRef(t *testing.T) {
 		},
 		{
 			name: "no target revision",
-			args: ApplicationSourceRequest{
+			args: ApplicationSourceOption{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 				Path: "kustomize-guestbook",
 			},
@@ -36,7 +36,7 @@ func TestBuildKustomizeResourceRef(t *testing.T) {
 		},
 		{
 			name: "no path",
-			args: ApplicationSourceRequest{
+			args: ApplicationSourceOption{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
 			want: "github.com/argoproj/argocd-example-apps?ref=main",
@@ -44,7 +44,7 @@ func TestBuildKustomizeResourceRef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := buildKustomizeResourceRef(tt.args); got != tt.want {
+			if got := BuildKustomizeResourceRef(tt.args); got != tt.want {
 				t.Errorf("buildKustomizeResourceRef() = %v, want %v", got, tt.want)
 			}
 		})

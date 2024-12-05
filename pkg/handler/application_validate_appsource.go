@@ -9,6 +9,8 @@ import (
 
 	"github.com/yannh/kubeconform/pkg/validator"
 
+	"github.com/squidflow/service/pkg/application/dryrun"
+	"github.com/squidflow/service/pkg/application/reposource"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
@@ -65,7 +67,23 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := validateApplicationStructure(repofs, req)
+	appType, environments, err := reposource.ValidateApplicationStructure(
+		repofs,
+		reposource.AppSourceOption{
+			Repo:           req.Repo,
+			Path:           req.Path,
+			TargetRevision: req.TargetRevision,
+			Submodules:     req.Submodules,
+			ApplicationSpecifier: func() *reposource.AppSourceSpecifier {
+				if req.ApplicationSpecifier == nil {
+					return nil
+				}
+				return &reposource.AppSourceSpecifier{
+					HelmManifestPath: req.ApplicationSpecifier.HelmManifestPath,
+				}
+			}(),
+		},
+	)
 	if err != nil {
 		log.G().WithError(err).Error("Failed to validate application structure")
 		c.JSON(400, gin.H{
@@ -100,10 +118,21 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 		// generate manifest
 		var manifests []byte
 		switch appType {
-		case "helm":
-			manifests, err = generateHelmManifest(repofs, &req, env, "application1", "default")
-		case "kustomize":
-			manifests, err = generateKustomizeManifest(repofs, &req, env, "application1", "default")
+		case reposource.SourceHelm:
+		case reposource.SourceHelmMultiEnv:
+			manifests, err = dryrun.GenerateHelmManifest(repofs, &dryrun.SourceOption{
+				Repo:           req.Repo,
+				Path:           req.Path,
+				TargetRevision: req.TargetRevision,
+			}, env, "application1", "default")
+
+		case reposource.SourceKustomize:
+		case reposource.SourceKustomizeMultiEnv:
+			manifests, err = dryrun.GenerateKustomizeManifest(repofs, &dryrun.SourceOption{
+				Repo:           req.Repo,
+				Path:           req.Path,
+				TargetRevision: req.TargetRevision,
+			}, env, "application1", "default")
 		}
 
 		if err != nil {
@@ -185,156 +214,7 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 	c.JSON(200, ValidateAppSourceResponse{
 		Success:      true,
 		Message:      fmt.Sprintf("Valid %s application source", appType),
-		Type:         appType,
+		Type:         string(appType),
 		SuiteableEnv: suiteableEnv,
 	})
-}
-
-func validateApplicationStructure(repofs fs.FS, req ApplicationSourceRequest) (string, []string, error) {
-	appType, err := detectApplicationType(repofs, req)
-	if err != nil {
-		return "", nil, err
-	}
-	environments := []string{}
-	if appType == "helm" {
-		environments, err = detectHelmEnvironments(repofs, req.Path)
-	} else {
-		environments, err = detectKustomizeEnvironments(repofs, req.Path)
-	}
-
-	return appType, environments, nil
-}
-
-func detectApplicationType(repofs fs.FS, req ApplicationSourceRequest) (string, error) {
-	log.G().WithFields(log.Fields{
-		"repo":            req.Repo,
-		"path":            req.Path,
-		"target_revision": req.TargetRevision,
-	}).Debug("Detecting application type")
-
-	// the application specifier is used to specify the helm manifest path
-	if req.ApplicationSpecifier != nil && req.ApplicationSpecifier.HelmManifestPath != "" {
-		log.G().Debug("Detected Helm application from ApplicationSpecifier")
-		return "helm", nil
-	}
-
-	// check root path with standard structure
-	if repofs.ExistsOrDie(repofs.Join(req.Path, "kustomization.yaml")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("Detected Kustomize application from kustomization.yaml")
-		return "kustomize", nil
-	}
-
-	if repofs.ExistsOrDie(repofs.Join(req.Path, "Chart.yaml")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("Detected Helm application from Chart.yaml")
-		return "helm", nil
-	}
-
-	// multiple environments
-	// this is convention for helm applications
-	if repofs.ExistsOrDie(repofs.Join(req.Path, "manifests")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("Detected Helm application from manifests directory")
-		return "helm", nil
-	}
-
-	// this is convention for kustomize applications
-	if repofs.ExistsOrDie(repofs.Join(req.Path, "base")) &&
-		repofs.ExistsOrDie(repofs.Join(req.Path, "overlays")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("Detected Kustomize application from directories")
-		return "kustomize", nil
-	}
-
-	log.G().WithField("path", req.Path).Error("Failed to detect application type")
-	return "", fmt.Errorf("could not detect application type at path: %s", req.Path)
-}
-
-// detectHelmEnvironments detects the environments for Helm
-func detectHelmEnvironments(repofs fs.FS, path string) ([]string, error) {
-	var envDir string
-	if path == "" || path == "/" {
-		envDir = "environments"
-	} else {
-		envDir = repofs.Join(path, "environments")
-	}
-
-	if !repofs.ExistsOrDie(envDir) {
-		log.G().WithField("path", envDir).Debug("No environments directory found, using default")
-		return []string{"default"}, nil
-	}
-
-	entries, err := repofs.ReadDir(envDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read environments directory: %w", err)
-	}
-
-	var environments []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			envPath := repofs.Join(envDir, entry.Name())
-			if repofs.ExistsOrDie(repofs.Join(envPath, "values.yaml")) {
-				environments = append(environments, entry.Name())
-				log.G().WithField("env", entry.Name()).Debug("Found Helm environment")
-			}
-		}
-	}
-
-	if len(environments) == 0 {
-		log.G().Debug("No environments found, using default")
-		return []string{"default"}, nil
-	}
-
-	return environments, nil
-}
-
-// detectKustomizeEnvironments detects the environments for Kustomize
-func detectKustomizeEnvironments(repofs fs.FS, path string) ([]string, error) {
-	var overlaysDir string
-	if path == "" || path == "/" {
-		overlaysDir = "overlays"
-	} else {
-		overlaysDir = repofs.Join(path, "overlays")
-	}
-
-	if !repofs.ExistsOrDie(overlaysDir) {
-		log.G().WithField("path", overlaysDir).Debug("No overlays directory found, using default")
-		return []string{"default"}, nil
-	}
-
-	entries, err := repofs.ReadDir(overlaysDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read overlays directory: %w", err)
-	}
-
-	var environments []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			envPath := repofs.Join(overlaysDir, entry.Name())
-			if repofs.ExistsOrDie(repofs.Join(envPath, "kustomization.yaml")) {
-				environments = append(environments, entry.Name())
-				log.G().WithField("env", entry.Name()).Debug("Found Kustomize environment")
-			}
-		}
-	}
-
-	if len(environments) == 0 {
-		log.G().Debug("No environments found, using default")
-		return []string{"default"}, nil
-	}
-
-	return environments, nil
 }
