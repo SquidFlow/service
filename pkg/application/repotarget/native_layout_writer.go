@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"path"
 	"strings"
 
@@ -775,6 +776,198 @@ func (n *NativeRepoTarget) RunProjectGetDetail(ctx context.Context, projectName 
 	}
 
 	return detail, nil
+}
+func (n *NativeRepoTarget) RunListSecretStore(ctx context.Context, opts *types.SecretStoreListOptions) ([]types.SecretStoreDetail, error) {
+	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	matches, err := billyUtils.Glob(repofs, repofs.Join(
+		store.Default.BootsrtrapDir,
+		store.Default.ClusterResourcesDir,
+		store.Default.ClusterContextName,
+		"ss-*.yaml",
+	))
+	if err != nil {
+		return nil, err
+	}
+
+	var secretStores []types.SecretStoreDetail
+
+	for _, file := range matches {
+		log.G().WithField("file", file).Debug("Found secret store")
+
+		secretStore := &esv1beta1.SecretStore{}
+		if err := repofs.ReadYamls(file, secretStore); err != nil {
+			log.G().Warnf("Failed to read secret store from %s: %v", file, err)
+			continue
+		}
+
+		if secretStore.Kind != "SecretStore" {
+			log.G().Warnf("Skip %s: not a SecretStore", file)
+			continue
+		}
+
+		log.G().WithFields(log.Fields{
+			"id":       secretStore.Annotations["squidflow.github.io/id"],
+			"name":     secretStore.Name,
+			"provider": "vault",
+		}).Debug("Found secret store")
+
+		detail := types.SecretStoreDetail{
+			ID:          secretStore.Annotations["squidflow.github.io/id"],
+			Name:        secretStore.Name,
+			Provider:    "vault",
+			Type:        "SecretStore",
+			Status:      "Active",
+			Path:        *secretStore.Spec.Provider.Vault.Path,
+			LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
+			CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
+			LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
+			Environment: []string{"sit", "uat", "prod"},
+			Health: types.SecretStoreHealth{
+				Status:  "Healthy",
+				Message: "Secret store is operating normally",
+			},
+		}
+
+		secretStores = append(secretStores, detail)
+	}
+
+	return secretStores, nil
+}
+
+// WriteSecretStore2Repo the external secret to gitOps repo
+func (n *NativeRepoTarget) WriteSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
+	log.G().WithFields(log.Fields{
+		"name":      ss.Name,
+		"id":        ss.Annotations["squidflow.github.io/id"],
+		"cloneOpts": cloneOpts,
+		"force":     force,
+	}).Debug("clone options")
+
+	r, repofs, err := prepareRepo(ctx, cloneOpts, "")
+	if err != nil {
+		log.G().WithError(err).Error("failed to prepare repo")
+		return err
+	}
+
+	ssYaml, err := yaml.Marshal(ss)
+	if err != nil {
+		log.G().WithError(err).Error("failed to marshal secret store")
+		return err
+	}
+
+	ssExists := repofs.ExistsOrDie(
+		repofs.Join(
+			store.Default.BootsrtrapDir,
+			store.Default.ClusterResourcesDir,
+			store.Default.ClusterContextName,
+			fmt.Sprintf("ss-%s.yaml", ss.Annotations["squidflow.github.io/id"]),
+		),
+	)
+	if ssExists && !force {
+		return fmt.Errorf("secret store '%s' already exists", ss.GetName())
+	}
+
+	bulkWrites := []fs.BulkWriteRequest{}
+	bulkWrites = append(bulkWrites, fs.BulkWriteRequest{
+		Filename: repofs.Join(
+			store.Default.BootsrtrapDir,
+			store.Default.ClusterResourcesDir,
+			store.Default.ClusterContextName,
+			fmt.Sprintf("ss-%s.yaml", ss.Annotations["squidflow.github.io/id"]),
+		),
+		Data:   util.JoinManifests(ssYaml),
+		ErrMsg: "failed to create secret store file",
+	})
+
+	if err = fs.BulkWrite(repofs, bulkWrites...); err != nil {
+		return err
+	}
+
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: added secret store '%s'", ss.GetName())}); err != nil {
+		log.G().WithError(err).Error("failed to push secret store to repo")
+		return err
+	}
+
+	log.G().Infof("secret store created: '%s'", ss.GetName())
+
+	return nil
+}
+
+func (n *NativeRepoTarget) RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
+	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+	if err != nil {
+		return err
+	}
+
+	secretStorePath := repofs.Join(
+		store.Default.BootsrtrapDir,
+		store.Default.ClusterResourcesDir,
+		store.Default.ClusterContextName,
+		fmt.Sprintf("ss-%s.yaml", secretStoreID),
+	)
+
+	exists := repofs.ExistsOrDie(secretStorePath)
+	if !exists {
+		log.G().Infof("secret store %s not found, considering it as already deleted", secretStoreID)
+		return nil
+	}
+
+	if err := repofs.Remove(secretStorePath); err != nil {
+		return fmt.Errorf("failed to delete secret store file: %v", err)
+	}
+
+	if _, err = r.Persist(ctx, &git.PushOptions{
+		CommitMsg: fmt.Sprintf("chore: deleted secret store '%s'", secretStoreID),
+	}); err != nil {
+		return fmt.Errorf("failed to push secret store deletion to repo: %v", err)
+	}
+
+	log.G().Infof("secret store deleted: '%s'", secretStoreID)
+	return nil
+}
+
+func (n *NativeRepoTarget) GetSecretStoreFromRepo(ctx context.Context, opts *types.SecretStoreGetOptions) (*types.SecretStoreDetail, error) {
+	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	secretStorePath := repofs.Join(
+		store.Default.BootsrtrapDir,
+		store.Default.ClusterResourcesDir,
+		store.Default.ClusterContextName,
+		fmt.Sprintf("ss-%s.yaml", opts.ID),
+	)
+
+	secretStore := &esv1beta1.SecretStore{}
+	if err := repofs.ReadYamls(secretStorePath, secretStore); err != nil {
+		return nil, fmt.Errorf("failed to read secret store %s: %v", opts.ID, err)
+	}
+
+	if secretStore.Kind != "SecretStore" {
+		return nil, fmt.Errorf("invalid secret store kind: %s", secretStore.Kind)
+	}
+
+	return &types.SecretStoreDetail{
+		ID:          secretStore.Annotations["squidflow.github.io/id"],
+		Name:        secretStore.Name,
+		Provider:    "vault",
+		Status:      "Active",
+		Path:        *secretStore.Spec.Provider.Vault.Path,
+		Type:        "SecretStore",
+		Environment: []string{"sit", "uat", "prod"},
+		LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
+		CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
+		LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
+		Health: types.SecretStoreHealth{
+			Status:  "Healthy", // 可以根据实际状态判断
+			Message: "Secret store is operating normally",
+		},
+	}, nil
 }
 
 var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {

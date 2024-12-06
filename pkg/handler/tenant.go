@@ -1,243 +1,146 @@
 package handler
 
 import (
-	_ "embed"
-	"encoding/json"
+	"context"
 	"fmt"
-	"path"
-	"strings"
 
-	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/ghodss/yaml"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/viper"
 
-	"github.com/squidflow/service/pkg/application"
-	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/application/repotarget"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/middleware"
 	"github.com/squidflow/service/pkg/types"
 )
 
-var (
-	DefaultApplicationSetGeneratorInterval int64 = 20
-
-	//go:embed assets/cluster_res_readme.md
-	clusterResReadmeTpl []byte
-)
-
-func generateProjectManifests(o *types.GenerateProjectOptions) (projectYAML, appSetYAML, clusterResReadme, clusterResConfig []byte, err error) {
-	project := &argocdv1alpha1.AppProject{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       argocdv1alpha1.AppProjectSchemaGroupVersionKind.Kind,
-			APIVersion: argocdv1alpha1.AppProjectSchemaGroupVersionKind.GroupVersion().String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      o.Name,
-			Namespace: o.Namespace,
-			Annotations: map[string]string{
-				"argocd.argoproj.io/sync-wave":     "-2",
-				"argocd.argoproj.io/sync-options":  "PruneLast=true",
-				store.Default.DestServerAnnotation: o.DefaultDestServer,
-			},
-		},
-		Spec: argocdv1alpha1.AppProjectSpec{
-			SourceRepos: []string{"*"},
-			Destinations: []argocdv1alpha1.ApplicationDestination{
-				{
-					Server:    "*",
-					Namespace: "*",
-				},
-			},
-			Description: fmt.Sprintf("%s project", o.Name),
-			ClusterResourceWhitelist: []metav1.GroupKind{
-				{
-					Group: "*",
-					Kind:  "*",
-				},
-			},
-			NamespaceResourceWhitelist: []metav1.GroupKind{
-				{
-					Group: "*",
-					Kind:  "*",
-				},
-			},
-		},
-	}
-	if projectYAML, err = yaml.Marshal(project); err != nil {
-		err = fmt.Errorf("failed to marshal AppProject: %w", err)
+func CreateTenant(c *gin.Context) {
+	var req types.ProjectCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
 		return
 	}
 
-	appSetYAML, err = createAppSet(&createAppSetOptions{
-		name:                        o.Name,
-		namespace:                   o.Namespace,
-		appName:                     fmt.Sprintf("%s-{{ userGivenName }}", o.Name),
-		appNamespace:                o.Namespace,
-		appProject:                  o.Name,
-		repoURL:                     "{{ srcRepoURL }}",
-		srcPath:                     "{{ srcPath }}",
-		revision:                    "{{ srcTargetRevision }}",
-		destServer:                  "{{ destServer }}",
-		destNamespace:               "{{ destNamespace }}",
-		prune:                       true,
-		preserveResourcesOnDeletion: false,
-		appLabels:                   getDefaultAppLabels(o.Labels),
-		appAnnotations:              o.Annotations,
-		generators: []argocdv1alpha1.ApplicationSetGenerator{
-			{
-				Git: &argocdv1alpha1.GitGenerator{
-					RepoURL:  o.RepoURL,
-					Revision: o.Revision,
-					Files: []argocdv1alpha1.GitFileGeneratorItem{
-						{
-							Path: path.Join(o.InstallationPath, store.Default.AppsDir, "**", o.Name, "config.json"),
-						},
-					},
-					RequeueAfterSeconds: &DefaultApplicationSetGeneratorInterval,
-				},
-			},
-			{
-				Git: &argocdv1alpha1.GitGenerator{
-					RepoURL:  o.RepoURL,
-					Revision: o.Revision,
-					Files: []argocdv1alpha1.GitFileGeneratorItem{
-						{
-							Path: path.Join(o.InstallationPath, store.Default.AppsDir, "**", o.Name, "config_dir.json"),
-						},
-					},
-					RequeueAfterSeconds: &DefaultApplicationSetGeneratorInterval,
-					Template: argocdv1alpha1.ApplicationSetTemplate{
-						Spec: argocdv1alpha1.ApplicationSpec{
-							Source: &argocdv1alpha1.ApplicationSource{
-								Directory: &argocdv1alpha1.ApplicationSourceDirectory{
-									Recurse: true,
-									Exclude: "{{ exclude }}",
-									Include: "{{ include }}",
-								},
-							},
-						},
-					},
-				},
-			},
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
 		},
+		CloneForWrite: true,
+	}
+	cloneOpts.Parse()
+
+	opts := &types.ProjectCreateOptions{
+		CloneOpts:   cloneOpts,
+		ProjectName: req.ProjectName,
+		Labels:      req.Labels,
+		Annotations: req.Annotations,
+	}
+
+	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	err := nativeRepoWriter.RunProjectCreate(context.Background(), opts)
+	if err != nil {
+		log.G().Errorf("Failed to create project: %v", err)
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create project: %v", err)})
+		return
+	}
+
+	c.JSON(201, gin.H{
+		"message": fmt.Sprintf("Project '%s' created successfully", req.ProjectName),
+		"project": req,
 	})
-	if err != nil {
-		err = fmt.Errorf("failed to marshal ApplicationSet: %w", err)
+}
+
+func DeleteTenant(c *gin.Context) {
+	projectName := c.Param("name")
+	if projectName == "" {
+		c.JSON(400, gin.H{"error": "Project name is required"})
 		return
 	}
 
-	clusterResReadme = []byte(strings.ReplaceAll(string(clusterResReadmeTpl), "{CLUSTER}", o.DefaultDestServer))
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: true,
+	}
+	cloneOpts.Parse()
 
-	clusterResConfig, err = json.Marshal(&application.ClusterResConfig{Name: o.DefaultDestContext, Server: o.DefaultDestServer})
+	opts := &types.ProjectDeleteOptions{
+		CloneOpts:   cloneOpts,
+		ProjectName: projectName,
+	}
+
+	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	err := nativeRepoWriter.RunProjectDelete(context.Background(), opts)
 	if err != nil {
-		err = fmt.Errorf("failed to create cluster resources config: %w", err)
+		log.G().Errorf("Failed to delete project: %v", err)
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete project: %v", err)})
 		return
 	}
 
-	return
+	c.JSON(200, gin.H{"message": fmt.Sprintf("Project '%s' deleted successfully", projectName)})
 }
 
-type createAppSetOptions struct {
-	name                        string
-	namespace                   string
-	appName                     string
-	appNamespace                string
-	appProject                  string
-	repoURL                     string
-	revision                    string
-	srcPath                     string
-	destServer                  string
-	destNamespace               string
-	prune                       bool
-	preserveResourcesOnDeletion bool
-	appLabels                   map[string]string
-	appAnnotations              map[string]string
-	generators                  []argocdv1alpha1.ApplicationSetGenerator
+func DescribeTenant(c *gin.Context) {
+	tenant := c.GetString(middleware.TenantKey)
+	log.G().Infof("auth context info tenant: %s", tenant)
+
+	projectName := c.Param("name")
+
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: false,
+	}
+	cloneOpts.Parse()
+
+	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	tenantResp, err := nativeRepoWriter.RunProjectGetDetail(context.Background(), projectName, cloneOpts)
+	if err != nil {
+		log.G().Errorf("Failed to get project detail: %v", err)
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get project detail: %v", err)})
+		return
+	}
+
+	c.JSON(200, tenantResp)
 }
 
-func createAppSet(o *createAppSetOptions) ([]byte, error) {
-	if o.destServer == "" {
-		o.destServer = store.Default.DestServer
-	}
-
-	if o.appProject == "" {
-		o.appProject = "default"
-	}
-
-	if o.appLabels == nil {
-		// default labels
-		o.appLabels = map[string]string{
-			store.Default.LabelKeyAppManagedBy: store.Default.LabelValueManagedBy,
-			"app.kubernetes.io/name":           o.appName,
-		}
-	}
-
-	appSet := &argocdv1alpha1.ApplicationSet{
-		TypeMeta: metav1.TypeMeta{
-			// do not use argocdv1alpha1.ApplicationSetSchemaGroupVersionKind.Kind because it is "Applicationset" - noticed the lowercase "s"
-			Kind:       "ApplicationSet",
-			APIVersion: argocdv1alpha1.ApplicationSetSchemaGroupVersionKind.GroupVersion().String(),
+func ListTenants(c *gin.Context) {
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      o.name,
-			Namespace: o.namespace,
-			Annotations: map[string]string{
-				"argocd.argoproj.io/sync-wave": "0",
-			},
-		},
-		Spec: argocdv1alpha1.ApplicationSetSpec{
-			Generators: o.generators,
-			Template: argocdv1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argocdv1alpha1.ApplicationSetTemplateMeta{
-					Namespace:   o.appNamespace,
-					Name:        o.appName,
-					Labels:      o.appLabels,
-					Annotations: o.appAnnotations,
-				},
-				Spec: argocdv1alpha1.ApplicationSpec{
-					Project: o.appProject,
-					Source: &argocdv1alpha1.ApplicationSource{
-						RepoURL:        o.repoURL,
-						Path:           o.srcPath,
-						TargetRevision: o.revision,
-					},
-					Destination: argocdv1alpha1.ApplicationDestination{
-						Server:    o.destServer,
-						Namespace: o.destNamespace,
-					},
-					SyncPolicy: &argocdv1alpha1.SyncPolicy{
-						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							SelfHeal:   true,
-							Prune:      o.prune,
-							AllowEmpty: true,
-						},
-					},
-					IgnoreDifferences: []argocdv1alpha1.ResourceIgnoreDifferences{
-						{
-							Group: "argoproj.io",
-							Kind:  "Application",
-							JSONPointers: []string{
-								"/status",
-							},
-						},
-					},
-				},
-			},
-			SyncPolicy: &argocdv1alpha1.ApplicationSetSyncPolicy{
-				PreserveResourcesOnDeletion: o.preserveResourcesOnDeletion,
-			},
-		},
+		CloneForWrite: false,
+	}
+	cloneOpts.Parse()
+
+	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+
+	tenants, err := nativeRepoWriter.RunProjectList(context.Background(), &types.ProjectListOptions{CloneOpts: cloneOpts})
+	if err != nil {
+		log.G().Errorf("Failed to list tenants: %v", err)
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list tenants: %v", err)})
+		return
 	}
 
-	return yaml.Marshal(appSet)
-}
-
-func getDefaultAppLabels(labels map[string]string) map[string]string {
-	res := map[string]string{
-		store.Default.LabelKeyAppManagedBy: store.Default.LabelValueManagedBy,
-		store.Default.LabelKeyAppName:      "{{ appName }}",
-	}
-	for k, v := range labels {
-		res[k] = v
-	}
-
-	return res
+	c.JSON(200, gin.H{
+		"success": true,
+		"total":   len(tenants),
+		"items":   tenants,
+	})
 }

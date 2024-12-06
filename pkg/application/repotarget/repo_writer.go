@@ -2,6 +2,7 @@ package repotarget
 
 import (
 	"context"
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/types"
@@ -35,4 +36,11 @@ type ProjectWriter interface {
 	RunProjectList(ctx context.Context, opts *types.ProjectListOptions) ([]types.TenantInfo, error)
 	// RunProjectDelete deletes a project
 	RunProjectDelete(ctx context.Context, opts *types.ProjectDeleteOptions) error
+}
+
+type SecretStoreWriter interface {
+	WriteSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error
+	RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error
+	GetSecretStoreFromRepo(ctx context.Context, opts *types.SecretStoreGetOptions) (*types.SecretStoreDetail, error)
+	RunListSecretStore(ctx context.Context, opts *types.SecretStoreListOptions) ([]types.SecretStoreDetail, error)
 }
