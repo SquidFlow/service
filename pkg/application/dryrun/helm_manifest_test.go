@@ -8,12 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/types"
 )
 
 func TestGenerateHelmManifest(t *testing.T) {
 	tests := map[string]struct {
 		setupFS   func() fs.FS
-		req       *SourceOption
+		req       types.ApplicationSourceRequest
 		env       string
 		wantErr   bool
 		errString string
@@ -67,7 +68,7 @@ spec:
 `), 0666)
 				return fs.Create(memFS)
 			},
-			req: &SourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
 			env:     "default",
@@ -105,7 +106,7 @@ replicaCount: 2
 
 				return fs.Create(memFS)
 			},
-			req: &SourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
 			env:     "staging",
@@ -115,7 +116,7 @@ replicaCount: 2
 			setupFS: func() fs.FS {
 				return fs.Create(memfs.New())
 			},
-			req: &SourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
 			env:       "default",
@@ -167,9 +168,9 @@ spec:
 
 				return fs.Create(memFS)
 			},
-			req: &SourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
-				SourceSpecifier: &SourceSpecifier{
+				ApplicationSpecifier: &types.ApplicationSpecifier{
 					HelmManifestPath: "custom/path",
 				},
 			},

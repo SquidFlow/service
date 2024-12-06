@@ -13,10 +13,11 @@ import (
 
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/types"
 )
 
 // GenerateHelmManifest generates Helm manifests for a specific environment
-func GenerateHelmManifest(repofs fs.FS, req *SourceOption, env string, applicationName string, applicationNamespace string) ([]byte, error) {
+func GenerateHelmManifest(repofs fs.FS, req types.ApplicationSourceRequest, env string, applicationName string, applicationNamespace string) ([]byte, error) {
 	log.G().WithFields(log.Fields{
 		"path":      req.Path,
 		"env":       env,
@@ -26,9 +27,9 @@ func GenerateHelmManifest(repofs fs.FS, req *SourceOption, env string, applicati
 
 	// determine chart path
 	var chartPath string
-	if req.SourceSpecifier != nil && req.SourceSpecifier.HelmManifestPath != "" {
+	if req.ApplicationSpecifier != nil && req.ApplicationSpecifier.HelmManifestPath != "" {
 		// case 1: use specified helm manifest path
-		chartPath = repofs.Join(req.Path, req.SourceSpecifier.HelmManifestPath)
+		chartPath = repofs.Join(req.Path, req.ApplicationSpecifier.HelmManifestPath)
 	} else {
 		// case 2: directly use the specified path to find Chart.yaml
 		chartPath = req.Path

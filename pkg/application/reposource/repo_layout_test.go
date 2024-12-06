@@ -8,12 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/types"
 )
 
 func TestValidateApplicationStructure(t *testing.T) {
 	tests := map[string]struct {
-		setupFS         func() fs.FS
-		req            AppSourceOption
+		setupFS        func() fs.FS
+		req            types.ApplicationSourceRequest
 		wantSourceType AppSourceType
 		wantEnvs       []string
 		wantErr        bool
@@ -38,7 +39,7 @@ kind: Deployment
 `), 0666)
 				return fs.Create(memFS)
 			},
-			req: AppSourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
 			wantSourceType: SourceHelm,
@@ -61,7 +62,7 @@ kind: Deployment
 `), 0666)
 				return fs.Create(memFS)
 			},
-			req: AppSourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
 			wantSourceType: SourceKustomizeMultiEnv,
@@ -90,7 +91,7 @@ environment: production
 `), 0666)
 				return fs.Create(memFS)
 			},
-			req: AppSourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
 			wantSourceType: SourceHelmMultiEnv,
@@ -126,7 +127,7 @@ bases:
 `), 0666)
 				return fs.Create(memFS)
 			},
-			req: AppSourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
 			wantSourceType: SourceKustomizeMultiEnv,
@@ -145,9 +146,9 @@ version: 0.1.0
 `), 0666)
 				return fs.Create(memFS)
 			},
-			req: AppSourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/",
-				ApplicationSpecifier: &AppSourceSpecifier{
+				ApplicationSpecifier: &types.ApplicationSpecifier{
 					HelmManifestPath: "custom/path",
 				},
 			},
@@ -159,7 +160,7 @@ version: 0.1.0
 			setupFS: func() fs.FS {
 				return fs.Create(memfs.New())
 			},
-			req: AppSourceOption{
+			req: types.ApplicationSourceRequest{
 				Path: "/nonexistent",
 			},
 			wantErr: true,

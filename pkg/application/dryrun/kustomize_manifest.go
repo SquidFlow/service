@@ -4,27 +4,15 @@ import (
 	"fmt"
 
 	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/types"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	"github.com/squidflow/service/pkg/fs"
 )
 
-// internal struct for kustomize and helm manifest generation
-type SourceOption struct {
-	Repo            string
-	TargetRevision  string
-	Path            string
-	Submodules      bool
-	SourceSpecifier *SourceSpecifier
-}
-
-type SourceSpecifier struct {
-	HelmManifestPath string
-}
-
 // GenerateKustomizeManifest generates Kustomize manifests for a specific environment
-func GenerateKustomizeManifest(repofs fs.FS, req *SourceOption, env string, applicationName string, applicationNamespace string) ([]byte, error) {
+func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest, env string, applicationName string, applicationNamespace string) ([]byte, error) {
 	log.G().WithFields(log.Fields{
 		"path":      req.Path,
 		"env":       env,

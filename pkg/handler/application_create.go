@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -12,12 +11,14 @@ import (
 	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/application/dryrun"
 	"github.com/squidflow/service/pkg/application/reposource"
+	"github.com/squidflow/service/pkg/application/repotarget"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/middleware"
 	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/types"
 	"github.com/squidflow/service/pkg/util"
 )
 
@@ -66,7 +67,7 @@ func CreateApplicationHandler(c *gin.Context) {
 		"tenant":   tenant,
 	}).Debug("create argo application")
 
-	var createReq ApplicationCreateRequest
+	var createReq types.ApplicationCreateRequest
 	if err := c.BindJSON(&createReq); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
@@ -90,7 +91,7 @@ func CreateApplicationHandler(c *gin.Context) {
 
 	// Normal application creation flow
 	var gitOpsFs = memfs.New()
-	var opt = AppCreateOptions{
+	var opt = types.AppCreateOptions{
 		CloneOpts: &git.CloneOptions{
 			Repo:     viper.GetString("application_repo.remote_url"),
 			FS:       fs.Create(gitOpsFs),
@@ -103,7 +104,7 @@ func CreateApplicationHandler(c *gin.Context) {
 		AppsCloneOpts: &git.CloneOptions{
 			CloneForWrite: false,
 		},
-		createOpts: &application.CreateOptions{
+		AppOpts: &application.CreateOptions{
 			AppName: createReq.ApplicationInstantiation.ApplicationName,
 			AppType: application.AppTypeKustomize,
 			AppSpecifier: application.BuildKustomizeResourceRef(application.ApplicationSourceOption{
@@ -136,8 +137,9 @@ func CreateApplicationHandler(c *gin.Context) {
 	// 	}
 	// }
 
-	if err := RunAppCreate(context.Background(), &opt); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", opt.createOpts.DestServer, err)})
+	var native repotarget.NativeRepoTarget
+	if err := native.RunAppCreate(context.Background(), &opt); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
 		return
 	}
 
@@ -147,80 +149,7 @@ func CreateApplicationHandler(c *gin.Context) {
 	})
 }
 
-func RunAppCreate(ctx context.Context, opts *AppCreateOptions) error {
-	var (
-		appsRepo git.Repository
-		appsfs   fs.FS
-	)
-
-	log.G().WithFields(log.Fields{
-		"app-url":      opts.AppsCloneOpts.URL(),
-		"app-revision": opts.AppsCloneOpts.Revision(),
-		"app-path":     opts.AppsCloneOpts.Path(),
-	}).Debug("starting with options: ")
-
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
-	if err != nil {
-		return err
-	}
-	log.G().Debugf("repofs: %v", repofs)
-
-	if opts.AppsCloneOpts.Repo != "" {
-		if opts.AppsCloneOpts.Auth.Password == "" {
-			opts.AppsCloneOpts.Auth.Username = opts.CloneOpts.Auth.Username
-			opts.AppsCloneOpts.Auth.Password = opts.CloneOpts.Auth.Password
-			opts.AppsCloneOpts.Auth.CertFile = opts.CloneOpts.Auth.CertFile
-			opts.AppsCloneOpts.Provider = opts.CloneOpts.Provider
-		}
-
-		appsRepo, appsfs, err = getRepo(ctx, opts.AppsCloneOpts)
-		if err != nil {
-			return err
-		}
-	} else {
-		opts.AppsCloneOpts = opts.CloneOpts
-		appsRepo, appsfs = r, repofs
-	}
-
-	if err = setAppOptsDefaults(ctx, repofs, opts); err != nil {
-		return err
-	}
-
-	app, err := parseApp(opts.createOpts, opts.ProjectName, opts.CloneOpts.URL(), opts.CloneOpts.Revision(), opts.CloneOpts.Path())
-	if err != nil {
-		return fmt.Errorf("failed to parse application from flags: %w", err)
-	}
-
-	if err = app.CreateFiles(repofs, appsfs, opts.ProjectName); err != nil {
-		if errors.Is(err, application.ErrAppAlreadyInstalledOnProject) {
-			return fmt.Errorf("application '%s' already exists in project '%s': %w", app.Name(), opts.ProjectName, err)
-		}
-
-		return err
-	}
-
-	if opts.AppsCloneOpts != opts.CloneOpts {
-		log.G().Info("committing changes to apps repo...")
-		if _, err = appsRepo.Persist(ctx, &git.PushOptions{
-			CommitMsg: genCommitMsg("chore: "+ActionTypeCreate, ResourceNameApp, opts.createOpts.AppName, opts.ProjectName, repofs),
-		}); err != nil {
-			return fmt.Errorf("failed to push to apps repo: %w", err)
-		}
-	}
-
-	log.G().Info("committing changes to git-ops repo...")
-	var opt = git.PushOptions{CommitMsg: genCommitMsg("chore: "+ActionTypeCreate, ResourceNameApp, opts.createOpts.AppName, opts.ProjectName, repofs)}
-	log.G().Debugf("git push option: %v", opt)
-	revision, err := r.Persist(ctx, &opt)
-	if err != nil {
-		return fmt.Errorf("failed to push to gitops repo: %w", err)
-	}
-
-	log.G().Infof("installed application: %s and revision: %s", opts.createOpts.AppName, revision)
-	return nil
-}
-
-func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*ApplicationDryRunResult, error) {
+func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*types.ApplicationDryRunResult, error) {
 	log.G().WithFields(log.Fields{
 		"repo":           req.ApplicationSource.Repo,
 		"path":           req.ApplicationSource.Path,
@@ -247,23 +176,7 @@ func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*Applica
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := reposource.ValidateApplicationStructure(
-		repofs,
-		reposource.AppSourceOption{
-			Repo:           req.ApplicationSource.Repo,
-			Path:           req.ApplicationSource.Path,
-			TargetRevision: req.ApplicationSource.TargetRevision,
-			Submodules:     req.ApplicationSource.Submodules,
-			ApplicationSpecifier: func() *reposource.AppSourceSpecifier {
-				if req.ApplicationSource.ApplicationSpecifier == nil {
-					return nil
-				}
-				return &reposource.AppSourceSpecifier{
-					HelmManifestPath: req.ApplicationSource.ApplicationSpecifier.HelmManifestPath,
-				}
-			}(),
-		},
-	)
+	appType, environments, err := reposource.ValidateApplicationStructure(repofs, req.ApplicationSource)
 	if err != nil {
 		return nil, err
 	}
@@ -274,10 +187,10 @@ func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*Applica
 	}).Debug("Detected application structure")
 
 	// Initialize dry run result
-	result := &ApplicationDryRunResult{
+	result := &types.ApplicationDryRunResult{
 		Success:      true,
 		Total:        len(environments),
-		Environments: make([]ApplicationDryRunEnv, 0, len(environments)),
+		Environments: make([]types.ApplicationDryRunEnv, 0, len(environments)),
 	}
 
 	// For each environment, render and validate the templates
@@ -287,7 +200,7 @@ func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*Applica
 			"type":        appType,
 		}).Debug("Processing environment")
 
-		envResult := ApplicationDryRunEnv{
+		envResult := types.ApplicationDryRunEnv{
 			Environment: env,
 			IsValid:     true,
 		}
@@ -296,27 +209,22 @@ func performDryRun(ctx context.Context, req *ApplicationCreateRequest) (*Applica
 		switch appType {
 		case reposource.SourceHelm:
 		case reposource.SourceHelmMultiEnv:
-			manifests, err = dryrun.GenerateHelmManifest(repofs, &dryrun.SourceOption{
-				Repo:           req.ApplicationSource.Repo,
-				Path:           req.ApplicationSource.Path,
-				TargetRevision: req.ApplicationSource.TargetRevision,
-				SourceSpecifier: func() *dryrun.SourceSpecifier {
-					if req.ApplicationSource.ApplicationSpecifier == nil {
-						return nil
-					}
-					return &dryrun.SourceSpecifier{
-						HelmManifestPath: req.ApplicationSource.ApplicationSpecifier.HelmManifestPath,
-					}
-				}(),
-			}, env, req.ApplicationInstantiation.ApplicationName, req.ApplicationTarget[0].Namespace)
-
+			manifests, err = dryrun.GenerateHelmManifest(
+				repofs,
+				req.ApplicationSource,
+				env,
+				req.ApplicationInstantiation.ApplicationName,
+				req.ApplicationTarget[0].Namespace,
+			)
 		case reposource.SourceKustomize:
 		case reposource.SourceKustomizeMultiEnv:
-			manifests, err = dryrun.GenerateKustomizeManifest(repofs, &dryrun.SourceOption{
-				Repo:           req.ApplicationSource.Repo,
-				Path:           req.ApplicationSource.Path,
-				TargetRevision: req.ApplicationSource.TargetRevision,
-			}, env, req.ApplicationInstantiation.ApplicationName, req.ApplicationTarget[0].Namespace)
+			manifests, err = dryrun.GenerateKustomizeManifest(
+				repofs,
+				req.ApplicationSource,
+				env,
+				req.ApplicationInstantiation.ApplicationName,
+				req.ApplicationTarget[0].Namespace,
+			)
 
 		default:
 			err = fmt.Errorf("unsupported application type: %s", appType)

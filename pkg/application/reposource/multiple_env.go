@@ -92,7 +92,8 @@ func (d *KustomizeMultiEnvDetector) DetectEnvironments() ([]string, error) {
 	for _, entry := range entries {
 		if entry.IsDir() {
 			envPath := d.repofs.Join(overlaysDir, entry.Name())
-			if d.repofs.ExistsOrDie(d.repofs.Join(envPath, "kustomization.yaml")) {
+			if d.repofs.ExistsOrDie(d.repofs.Join(envPath, "kustomization.yaml")) ||
+				d.repofs.ExistsOrDie(d.repofs.Join(envPath, "kustomization.yml")) {
 				environments = append(environments, entry.Name())
 				log.WithField("env", entry.Name()).Debug("Found Kustomize environment")
 			}

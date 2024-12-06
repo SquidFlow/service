@@ -10,11 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/types"
 )
 
 // SyncApplicationHandler handles the synchronization of one or more Argo CD applications
 func SyncApplicationHandler(c *gin.Context) {
-	var req SyncApplicationRequest
+	var req types.SyncApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request format: %v", err)})
 		return
@@ -27,13 +28,13 @@ func SyncApplicationHandler(c *gin.Context) {
 		return
 	}
 
-	response := SyncApplicationResponse{
-		Results: make([]SyncApplicationResult, 0, len(req.Applications)),
+	response := types.SyncApplicationResponse{
+		Results: make([]types.SyncApplicationResult, 0, len(req.Applications)),
 	}
 
 	// Process each application
 	for _, appName := range req.Applications {
-		result := SyncApplicationResult{
+		result := types.SyncApplicationResult{
 			Name: appName,
 		}
 

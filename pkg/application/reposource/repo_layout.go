@@ -12,6 +12,7 @@ import (
 
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/types"
 )
 
 type AppSourceType string
@@ -36,7 +37,7 @@ type AppSourceSpecifier struct {
 	HelmManifestPath string
 }
 
-func ValidateApplicationStructure(repofs fs.FS, req AppSourceOption) (AppSourceType, []string, error) {
+func ValidateApplicationStructure(repofs fs.FS, req types.ApplicationSourceRequest) (AppSourceType, []string, error) {
 	appSourceType, err := detectApplicationType(repofs, req)
 	if err != nil {
 		return "", nil, err
@@ -72,7 +73,7 @@ func ValidateApplicationStructure(repofs fs.FS, req AppSourceOption) (AppSourceT
 	}
 }
 
-func detectApplicationType(repofs fs.FS, req AppSourceOption) (AppSourceType, error) {
+func detectApplicationType(repofs fs.FS, req types.ApplicationSourceRequest) (AppSourceType, error) {
 	log.G().WithFields(log.Fields{
 		"repo":            req.Repo,
 		"path":            req.Path,

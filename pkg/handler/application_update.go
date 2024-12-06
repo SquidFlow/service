@@ -8,22 +8,14 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
+	"github.com/squidflow/service/pkg/application/repotarget"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/middleware"
+	"github.com/squidflow/service/pkg/types"
 )
-
-type UpdateOptions struct {
-	CloneOpts   *git.CloneOptions
-	ProjectName string
-	AppName     string
-	Username    string
-	UpdateReq   *ApplicationUpdateRequest
-	KubeFactory kube.Factory
-	Annotations map[string]string
-}
 
 func UpdateApplicationHandler(c *gin.Context) {
 	username := c.GetString(middleware.UserNameKey)
@@ -36,7 +28,7 @@ func UpdateApplicationHandler(c *gin.Context) {
 		"appName":  appName,
 	}).Debug("update argo application")
 
-	var updateReq ApplicationUpdateRequest
+	var updateReq types.ApplicationUpdateRequest
 	if err := c.BindJSON(&updateReq); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
@@ -70,7 +62,7 @@ func UpdateApplicationHandler(c *gin.Context) {
 
 	annotations["squidflow.github.io/last-modified-by"] = username
 
-	updateOpts := &UpdateOptions{
+	updateOpts := &types.UpdateOptions{
 		CloneOpts:   cloneOpts,
 		ProjectName: tenant,
 		AppName:     appName,
@@ -79,8 +71,9 @@ func UpdateApplicationHandler(c *gin.Context) {
 		KubeFactory: kube.NewFactory(),
 		Annotations: annotations,
 	}
+	var native repotarget.NativeRepoTarget
 
-	if err := updateApplication(context.Background(), updateOpts); err != nil {
+	if err := native.RunAppUpdate(context.Background(), updateOpts); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update application: %v", err)})
 		return
 	}
@@ -91,7 +84,7 @@ func UpdateApplicationHandler(c *gin.Context) {
 		return
 	}
 
-	app, err := getApplicationDetail(context.Background(), &AppListOptions{
+	app, err := native.RunAppGet(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  tenant,
 		ArgoCDClient: argoClient,
@@ -106,9 +99,4 @@ func UpdateApplicationHandler(c *gin.Context) {
 		"message":     "Application updated successfully",
 		"application": app,
 	})
-}
-
-// TODO: implement this function
-func updateApplication(ctx context.Context, opts *UpdateOptions) error {
-	return nil
 }

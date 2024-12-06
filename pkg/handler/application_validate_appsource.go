@@ -14,11 +14,12 @@ import (
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/types"
 )
 
 // ValidateApplicationSourceHandler handles the request for validating application source
 func ValidateApplicationSourceHandler(c *gin.Context) {
-	var req ApplicationSourceRequest
+	var req types.ApplicationSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
 			"success": false,
@@ -67,23 +68,7 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := reposource.ValidateApplicationStructure(
-		repofs,
-		reposource.AppSourceOption{
-			Repo:           req.Repo,
-			Path:           req.Path,
-			TargetRevision: req.TargetRevision,
-			Submodules:     req.Submodules,
-			ApplicationSpecifier: func() *reposource.AppSourceSpecifier {
-				if req.ApplicationSpecifier == nil {
-					return nil
-				}
-				return &reposource.AppSourceSpecifier{
-					HelmManifestPath: req.ApplicationSpecifier.HelmManifestPath,
-				}
-			}(),
-		},
-	)
+	appType, environments, err := reposource.ValidateApplicationStructure(repofs, req)
 	if err != nil {
 		log.G().WithError(err).Error("Failed to validate application structure")
 		c.JSON(400, gin.H{
@@ -102,7 +87,7 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 	}).Info("Detected application structure")
 
 	memFS := memfs.New()
-	suiteableEnv := []AppSourceWithEnvironment{}
+	suiteableEnv := []types.AppSourceWithEnvironment{}
 
 	for _, env := range environments {
 		log.G().WithFields(log.Fields{
@@ -110,7 +95,7 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 			"env":  env,
 		}).Debug("Validating environment")
 
-		envResult := AppSourceWithEnvironment{
+		envResult := types.AppSourceWithEnvironment{
 			Environments: env,
 			Valid:        true,
 		}
@@ -120,19 +105,23 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 		switch appType {
 		case reposource.SourceHelm:
 		case reposource.SourceHelmMultiEnv:
-			manifests, err = dryrun.GenerateHelmManifest(repofs, &dryrun.SourceOption{
-				Repo:           req.Repo,
-				Path:           req.Path,
-				TargetRevision: req.TargetRevision,
-			}, env, "application1", "default")
+			manifests, err = dryrun.GenerateHelmManifest(repofs, req, env, "application1", "default")
+			if err != nil {
+				log.G().WithError(err).Error("Failed to generate helm manifest")
+				envResult.Valid = false
+				envResult.Error = err.Error()
+				continue
+			}
 
 		case reposource.SourceKustomize:
 		case reposource.SourceKustomizeMultiEnv:
-			manifests, err = dryrun.GenerateKustomizeManifest(repofs, &dryrun.SourceOption{
-				Repo:           req.Repo,
-				Path:           req.Path,
-				TargetRevision: req.TargetRevision,
-			}, env, "application1", "default")
+			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req, env, "application1", "default")
+			if err != nil {
+				log.G().WithError(err).Error("Failed to generate kustomize manifest")
+				envResult.Valid = false
+				envResult.Error = err.Error()
+				continue
+			}
 		}
 
 		if err != nil {
@@ -211,7 +200,7 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 		suiteableEnv = append(suiteableEnv, envResult)
 	}
 
-	c.JSON(200, ValidateAppSourceResponse{
+	c.JSON(200, types.ValidateAppSourceResponse{
 		Success:      true,
 		Message:      fmt.Sprintf("Valid %s application source", appType),
 		Type:         string(appType),
