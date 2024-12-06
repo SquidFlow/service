@@ -15,12 +15,10 @@ import (
 // TODO: in-cluster mode
 func GetArgoServerClient() argocdclient.Client {
 	opts := argocdclient.ClientOptions{
-		ConfigPath:      "",
-		ServerAddr:      viper.GetString("argocd.server_address"),
-		PlainText:       false,
-		GRPCWeb:         true,
-		Insecure:        true,
-		GRPCWebRootPath: "",
+		ServerAddr: viper.GetString("argocd.server_address"),
+		PlainText:  false,
+		Insecure:   true,
+		GRPCWeb:    true,
 	}
 
 	opts.AuthToken = passwordLogin(

@@ -32,6 +32,7 @@ func init() {
 		Level:  "debug",
 		Format: log.FormatterText,
 	})
+
 	log.SetDefault(logger)
 
 	store.Get().Version = store.Version{

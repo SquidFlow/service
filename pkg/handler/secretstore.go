@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"sigs.k8s.io/yaml"
 
-	"github.com/squidflow/service/pkg/application/repotarget"
+	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
@@ -80,7 +80,7 @@ func CreateSecretStore(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repotarget.NativeRepoTarget{}
+	var nativeRepoWrite = repowriter.NativeRepoTarget{}
 
 	if err := nativeRepoWrite.WriteSecretStore2Repo(context.Background(), &want, cloneOpts, false); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create external secret: %v", err)})
@@ -113,7 +113,7 @@ func DeleteSecretStore(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repotarget.NativeRepoTarget{}
+	var nativeRepoWrite = repowriter.NativeRepoTarget{}
 
 	if err := nativeRepoWrite.RunDeleteSecretStore(context.Background(), secretStoreID, &types.SecretStoreDeleteOptions{
 		CloneOpts: cloneOpts,
@@ -148,7 +148,7 @@ func DescribeSecretStore(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repotarget.NativeRepoTarget{}
+	var nativeRepoWrite = repowriter.NativeRepoTarget{}
 	secretStore, err := nativeRepoWrite.GetSecretStoreFromRepo(context.Background(), &types.SecretStoreGetOptions{
 		CloneOpts: cloneOpts,
 		ID:        id,
@@ -184,7 +184,7 @@ func ListSecretStore(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repotarget.NativeRepoTarget{}
+	var nativeRepoWrite = repowriter.NativeRepoTarget{}
 	secretStores, err := nativeRepoWrite.RunListSecretStore(context.Background(), &types.SecretStoreListOptions{
 		CloneOpts: cloneOpts,
 	})
@@ -260,7 +260,7 @@ func UpdateSecretStore(c *gin.Context) {
 
 	secretStore.Annotations["squidflow.github.io/updated-at"] = time.Now().Format(time.RFC3339)
 
-	var nativeRepoWrite = repotarget.NativeRepoTarget{}
+	var nativeRepoWrite = repowriter.NativeRepoTarget{}
 	if err := nativeRepoWrite.WriteSecretStore2Repo(context.Background(), secretStore, cloneOpts, true); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to write secret store to repo: %v", err)})
 		return

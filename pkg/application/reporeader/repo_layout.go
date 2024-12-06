@@ -5,7 +5,7 @@
 // - helm with multiple environments
 // - kustomize with multiple environments
 // - some existing gitops patterns
-package reposource
+package reporeader
 
 import (
 	"fmt"

@@ -8,7 +8,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
-	"github.com/squidflow/service/pkg/application/repotarget"
+	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
@@ -41,7 +41,7 @@ func CreateTenant(c *gin.Context) {
 		Annotations: req.Annotations,
 	}
 
-	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	var nativeRepoWriter = repowriter.NativeRepoTarget{}
 	err := nativeRepoWriter.RunProjectCreate(context.Background(), opts)
 	if err != nil {
 		log.G().Errorf("Failed to create project: %v", err)
@@ -78,7 +78,7 @@ func DeleteTenant(c *gin.Context) {
 		ProjectName: projectName,
 	}
 
-	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	var nativeRepoWriter = repowriter.NativeRepoTarget{}
 	err := nativeRepoWriter.RunProjectDelete(context.Background(), opts)
 	if err != nil {
 		log.G().Errorf("Failed to delete project: %v", err)
@@ -106,7 +106,7 @@ func DescribeTenant(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	var nativeRepoWriter = repowriter.NativeRepoTarget{}
 	tenantResp, err := nativeRepoWriter.RunProjectGetDetail(context.Background(), projectName, cloneOpts)
 	if err != nil {
 		log.G().Errorf("Failed to get project detail: %v", err)
@@ -129,7 +129,7 @@ func ListTenants(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	var nativeRepoWriter = repowriter.NativeRepoTarget{}
 
 	tenants, err := nativeRepoWriter.RunProjectList(context.Background(), &types.ProjectListOptions{CloneOpts: cloneOpts})
 	if err != nil {

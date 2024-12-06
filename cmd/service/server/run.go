@@ -185,11 +185,11 @@ func setupRouter() *gin.Engine {
 	// cluster name is required, immutable, unique
 	clusters := v1.Group("/destinationCluster")
 	{
-		clusters.POST("", handler.CreateDestinationCluster)
-		clusters.GET("", handler.ListDestinationCluster)
-		clusters.GET("/:name", handler.GetDestinationCluster)
-		clusters.DELETE("/:name", handler.DeleteDestinationCluster)
-		clusters.PATCH("/:name", handler.UpdateDestinationCluster)
+		clusters.POST("", handler.DestinationClusterCreate)
+		clusters.GET("", handler.DestinationClusterList)
+		clusters.GET("/:name", handler.DestinationClusterGet)
+		clusters.DELETE("/:name", handler.DestinationClusterDelete)
+		clusters.PATCH("/:name", handler.DestinationClusterUpdate)
 	}
 
 	// real api, to manage the lifecycle of ArgoApplication

@@ -1,9 +1,10 @@
-package reposource
+package reporeader
 
 import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/squidflow/service/pkg/fs"
 )
 

@@ -1,4 +1,4 @@
-package reposource
+package reporeader
 
 import (
 	"testing"

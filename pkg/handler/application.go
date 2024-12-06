@@ -13,8 +13,8 @@ import (
 
 	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/application/dryrun"
-	"github.com/squidflow/service/pkg/application/reposource"
-	"github.com/squidflow/service/pkg/application/repotarget"
+	"github.com/squidflow/service/pkg/application/reporeader"
+	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
@@ -140,7 +140,7 @@ func CreateApplicationHandler(c *gin.Context) {
 	// 	}
 	// }
 
-	var native repotarget.NativeRepoTarget
+	var native repowriter.NativeRepoTarget
 	if err := native.RunAppCreate(context.Background(), &opt); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
 		return
@@ -179,7 +179,7 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := reposource.ValidateApplicationStructure(repofs, req.ApplicationSource)
+	appType, environments, err := reporeader.ValidateApplicationStructure(repofs, req.ApplicationSource)
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +210,8 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 
 		var manifests []byte
 		switch appType {
-		case reposource.SourceHelm:
-		case reposource.SourceHelmMultiEnv:
+		case reporeader.SourceHelm:
+		case reporeader.SourceHelmMultiEnv:
 			manifests, err = dryrun.GenerateHelmManifest(
 				repofs,
 				req.ApplicationSource,
@@ -219,8 +219,8 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 				req.ApplicationInstantiation.ApplicationName,
 				req.ApplicationTarget[0].Namespace,
 			)
-		case reposource.SourceKustomize:
-		case reposource.SourceKustomizeMultiEnv:
+		case reporeader.SourceKustomize:
+		case reporeader.SourceKustomizeMultiEnv:
 			manifests, err = dryrun.GenerateKustomizeManifest(
 				repofs,
 				req.ApplicationSource,
@@ -291,7 +291,7 @@ func DeleteApplicationHandler(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var native repotarget.NativeRepoTarget
+	var native repowriter.NativeRepoTarget
 
 	if err := native.RunAppDelete(context.Background(), &types.AppDeleteOptions{
 		CloneOpts:   cloneOpts,
@@ -331,7 +331,7 @@ func DescribeApplicationHandler(c *gin.Context) {
 	}
 
 	// TODO: add target repo detection
-	var native repotarget.NativeRepoTarget
+	var native repowriter.NativeRepoTarget
 	app, err := native.RunAppGet(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  tenant,
@@ -371,7 +371,7 @@ func ListApplicationsHandler(c *gin.Context) {
 		return
 	}
 
-	var native repotarget.NativeRepoTarget
+	var native repowriter.NativeRepoTarget
 
 	apps, err := native.RunAppList(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
@@ -504,7 +504,7 @@ func UpdateApplicationHandler(c *gin.Context) {
 		KubeFactory: kube.NewFactory(),
 		Annotations: annotations,
 	}
-	var native repotarget.NativeRepoTarget
+	var native repowriter.NativeRepoTarget
 
 	if err := native.RunAppUpdate(context.Background(), updateOpts); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update application: %v", err)})
@@ -585,7 +585,7 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := reposource.ValidateApplicationStructure(repofs, req)
+	appType, environments, err := reporeader.ValidateApplicationStructure(repofs, req)
 	if err != nil {
 		log.G().WithError(err).Error("Failed to validate application structure")
 		c.JSON(400, gin.H{
@@ -620,8 +620,8 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 		// generate manifest
 		var manifests []byte
 		switch appType {
-		case reposource.SourceHelm:
-		case reposource.SourceHelmMultiEnv:
+		case reporeader.SourceHelm:
+		case reporeader.SourceHelmMultiEnv:
 			manifests, err = dryrun.GenerateHelmManifest(repofs, req, env, "application1", "default")
 			if err != nil {
 				log.G().WithError(err).Error("Failed to generate helm manifest")
@@ -630,8 +630,8 @@ func ValidateApplicationSourceHandler(c *gin.Context) {
 				continue
 			}
 
-		case reposource.SourceKustomize:
-		case reposource.SourceKustomizeMultiEnv:
+		case reporeader.SourceKustomize:
+		case reporeader.SourceKustomizeMultiEnv:
 			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req, env, "application1", "default")
 			if err != nil {
 				log.G().WithError(err).Error("Failed to generate kustomize manifest")

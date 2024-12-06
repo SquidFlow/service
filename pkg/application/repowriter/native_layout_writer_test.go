@@ -1,4 +1,4 @@
-package repotarget
+package repowriter
 
 import (
 	"context"
