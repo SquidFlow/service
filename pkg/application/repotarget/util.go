@@ -237,3 +237,15 @@ func waitAppSynced(ctx context.Context, f kube.Factory, timeout time.Duration, a
 		},
 	})
 }
+
+func getDefaultAppLabels(labels map[string]string) map[string]string {
+	res := map[string]string{
+		store.Default.LabelKeyAppManagedBy: store.Default.LabelValueManagedBy,
+		store.Default.LabelKeyAppName:      "{{ appName }}",
+	}
+	for k, v := range labels {
+		res[k] = v
+	}
+
+	return res
+}

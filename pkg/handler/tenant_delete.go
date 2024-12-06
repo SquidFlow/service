@@ -8,11 +8,11 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
-	"github.com/squidflow/service/pkg/application"
+	"github.com/squidflow/service/pkg/application/repotarget"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
-	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/types"
 )
 
 // DeleteProject handles the HTTP request to delete a project
@@ -34,12 +34,13 @@ func DeleteTenant(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	opts := &ProjectDeleteOptions{
+	opts := &types.ProjectDeleteOptions{
 		CloneOpts:   cloneOpts,
 		ProjectName: projectName,
 	}
 
-	err := RunProjectDelete(context.Background(), opts)
+	var nativeRepoWriter = repotarget.NativeRepoTarget{}
+	err := nativeRepoWriter.RunProjectDelete(context.Background(), opts)
 	if err != nil {
 		log.G().Errorf("Failed to delete project: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete project: %v", err)})
@@ -47,35 +48,4 @@ func DeleteTenant(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": fmt.Sprintf("Project '%s' deleted successfully", projectName)})
-}
-
-func RunProjectDelete(ctx context.Context, opts *ProjectDeleteOptions) error {
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
-	if err != nil {
-		return err
-	}
-
-	allApps, err := repofs.ReadDir(store.Default.AppsDir)
-	if err != nil {
-		return fmt.Errorf("failed to list all applications")
-	}
-
-	for _, app := range allApps {
-		err = application.DeleteFromProject(repofs, app.Name(), opts.ProjectName)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = repofs.Remove(repofs.Join(store.Default.ProjectsDir, opts.ProjectName+".yaml"))
-	if err != nil {
-		return fmt.Errorf("failed to delete project '%s': %w", opts.ProjectName, err)
-	}
-
-	log.G().Info("committing changes to gitops repo...")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", opts.ProjectName)}); err != nil {
-		return fmt.Errorf("failed to push to repo: %w", err)
-	}
-
-	return nil
 }

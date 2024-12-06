@@ -12,9 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/squidflow/service/pkg/application"
-	"github.com/squidflow/service/pkg/argocd"
-	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/types"
 )
 
 var (
@@ -24,41 +23,7 @@ var (
 	clusterResReadmeTpl []byte
 )
 
-type (
-	ProjectCreateOptions struct {
-		CloneOpts       *git.CloneOptions
-		ProjectName     string
-		DestKubeServer  string
-		DestKubeContext string
-		DryRun          bool
-		AddCmd          argocd.AddClusterCmd
-		Labels          map[string]string
-		Annotations     map[string]string
-	}
-
-	ProjectDeleteOptions struct {
-		CloneOpts   *git.CloneOptions
-		ProjectName string
-	}
-
-	ProjectListOptions struct {
-		CloneOpts *git.CloneOptions
-	}
-
-	GenerateProjectOptions struct {
-		Name               string
-		Namespace          string
-		DefaultDestServer  string
-		DefaultDestContext string
-		RepoURL            string
-		Revision           string
-		InstallationPath   string
-		Labels             map[string]string
-		Annotations        map[string]string
-	}
-)
-
-func generateProjectManifests(o *GenerateProjectOptions) (projectYAML, appSetYAML, clusterResReadme, clusterResConfig []byte, err error) {
+func generateProjectManifests(o *types.GenerateProjectOptions) (projectYAML, appSetYAML, clusterResReadme, clusterResConfig []byte, err error) {
 	project := &argocdv1alpha1.AppProject{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       argocdv1alpha1.AppProjectSchemaGroupVersionKind.Kind,

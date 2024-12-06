@@ -20,14 +20,14 @@ Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
-### delete project
-GET http://{{host}}:{{port}}/api/v1/tenants/tenant3
+### get project
+GET http://{{host}}:{{port}}/api/v1/tenants/tenant2
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 ### delete project(testing)
-DELETE http://{{host}}:{{port}}/api/v1/tenants/tenant3
+DELETE http://{{host}}:{{port}}/api/v1/tenants/tenant2
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
