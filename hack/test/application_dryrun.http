@@ -1,5 +1,5 @@
 ### create app for dryrun for helm
-POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -45,7 +45,7 @@ Authorization: Bearer username@tenant1
 }
 
 ### create app for dryrun for kustomize
-POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1

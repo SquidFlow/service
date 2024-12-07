@@ -178,45 +178,45 @@ func setupRouter() *gin.Engine {
 
 	// app code
 	{
-		v1.GET("/appcode", handler.ListAppCode)
+		v1.GET("/appcode", handler.AppCodeList)
 	}
 
 	// the target cluster of argo application
 	// cluster name is required, immutable, unique
-	clusters := v1.Group("/destinationCluster")
+	clusters := v1.Group("/clusters")
 	{
-		clusters.POST("", handler.DestinationClusterCreate)
-		clusters.GET("", handler.DestinationClusterList)
-		clusters.GET("/:name", handler.DestinationClusterGet)
-		clusters.DELETE("/:name", handler.DestinationClusterDelete)
-		clusters.PATCH("/:name", handler.DestinationClusterUpdate)
+		clusters.POST("", handler.ClusterRegister)
+		clusters.GET("", handler.ClusterList)
+		clusters.GET("/:name", handler.ClusterGet)
+		clusters.DELETE("/:name", handler.ClusterDeregister)
+		clusters.PATCH("/:name", handler.ClusterUpdate)
 	}
 
 	// real api, to manage the lifecycle of ArgoApplication
-	applications := v1.Group("/deploy/argocdapplications")
+	applications := v1.Group("/deploy/applications")
 	{
-		applications.POST("", handler.CreateApplicationHandler)
-		applications.GET("", handler.ListApplicationsHandler)
-		applications.POST("/sync", handler.SyncApplicationHandler)
-		applications.PUT("/validate", handler.ValidateApplicationSourceHandler)
+		applications.POST("", handler.ApplicationCreate)
+		applications.GET("", handler.ApplicationsList)
+		applications.POST("/sync", handler.ApplicationSync)
+		applications.PUT("/validate", handler.ApplicationSourceValidate)
 
 		app := applications.Group("/:name")
 		{
-			app.GET("", handler.DescribeApplicationHandler)
-			app.PATCH("", handler.UpdateApplicationHandler)
-			app.DELETE("", handler.DeleteApplicationHandler)
+			app.GET("", handler.ApplicationGet)
+			app.PATCH("", handler.ApplicationUpdate)
+			app.DELETE("", handler.ApplicationDelete)
 		}
 	}
 
 	// one tenant : one ArgoCD Project
 	tenants := v1.Group("/tenants")
 	{
-		tenants.POST("", handler.CreateTenant)
-		tenants.GET("", handler.ListTenants)
+		tenants.POST("", handler.TenantCreate)
+		tenants.GET("", handler.TenantsList)
 		tenantsOne := tenants.Group("/:name")
 		{
-			tenantsOne.DELETE("", handler.DeleteTenant)
-			tenantsOne.GET("", handler.DescribeTenant)
+			tenantsOne.DELETE("", handler.TenantDelete)
+			tenantsOne.GET("", handler.TenantGet)
 		}
 	}
 
@@ -225,13 +225,13 @@ func setupRouter() *gin.Engine {
 	{
 		secretStore := security.Group("/externalsecrets/secretstore")
 		{
-			secretStore.POST("", handler.CreateSecretStore)
-			secretStore.GET("", handler.ListSecretStore)
+			secretStore.POST("", handler.SecretStoreCreate)
+			secretStore.GET("", handler.SecretStoreList)
 			secretStoreOne := secretStore.Group("/:id")
 			{
-				secretStoreOne.GET("", handler.DescribeSecretStore)
-				secretStoreOne.PATCH("", handler.UpdateSecretStore)
-				secretStoreOne.DELETE("", handler.DeleteSecretStore)
+				secretStoreOne.GET("", handler.SecretStoreDescribe)
+				secretStoreOne.PATCH("", handler.SecretStoreUpdate)
+				secretStoreOne.DELETE("", handler.SecretStoreDelete)
 			}
 		}
 	}

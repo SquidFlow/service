@@ -16,7 +16,7 @@ import (
 	"github.com/squidflow/service/pkg/types"
 )
 
-func CreateTenant(c *gin.Context) {
+func TenantCreate(c *gin.Context) {
 	var req types.ProjectCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
@@ -55,7 +55,7 @@ func CreateTenant(c *gin.Context) {
 	})
 }
 
-func DeleteTenant(c *gin.Context) {
+func TenantDelete(c *gin.Context) {
 	projectName := c.Param("name")
 	if projectName == "" {
 		c.JSON(400, gin.H{"error": "Project name is required"})
@@ -89,7 +89,7 @@ func DeleteTenant(c *gin.Context) {
 	c.JSON(200, gin.H{"message": fmt.Sprintf("Project '%s' deleted successfully", projectName)})
 }
 
-func DescribeTenant(c *gin.Context) {
+func TenantGet(c *gin.Context) {
 	tenant := c.GetString(middleware.TenantKey)
 	log.G().Infof("auth context info tenant: %s", tenant)
 
@@ -117,7 +117,7 @@ func DescribeTenant(c *gin.Context) {
 	c.JSON(200, tenantResp)
 }
 
-func ListTenants(c *gin.Context) {
+func TenantsList(c *gin.Context) {
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),

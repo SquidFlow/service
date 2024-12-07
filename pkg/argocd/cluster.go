@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"strings"
 
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -63,6 +64,24 @@ func RegisterCluster2ArgoCd(name, env, kubeconfig string, labels map[string]stri
 	})
 	if err != nil {
 		log.G().Errorf("failed to create cluster in argo-cd db: %v", err)
+		if strings.Contains(err.Error(), "while trying to verify candidate authority certificate") {
+			log.G().Warn("will force insert cluster to argocd-server cache, please confirm the CA has been mounted to argocd-server pod")
+			log.G().Warn("the argocd-server cache will not be set, if you care about the cache, please update it again")
+			argoDB, err := NewArgoCDDB(context.Background())
+			if err != nil {
+				log.G().Errorf("failed to create argo-cd db: %v", err)
+				return nil, err
+			}
+			cls, err = argoDB.CreateCluster(context.Background(), createClusterReq)
+			if err != nil {
+				log.G().Errorf("failed to create cluster in argo-cd db: %v", err)
+				return nil, err
+			}
+			log.G().WithFields(log.Fields{
+				"cluster": cls.Name,
+			}).Debug("cluster created in argo-cd db")
+			return cls, nil
+		}
 		return nil, err
 	}
 

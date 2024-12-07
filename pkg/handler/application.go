@@ -62,7 +62,7 @@ var (
 	}
 )
 
-func CreateApplicationHandler(c *gin.Context) {
+func ApplicationCreate(c *gin.Context) {
 	username := c.GetString(middleware.UserNameKey)
 	tenant := c.GetString(middleware.TenantKey)
 	log.G().WithFields(log.Fields{
@@ -256,7 +256,7 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 	return result, nil
 }
 
-func DeleteApplicationHandler(c *gin.Context) {
+func ApplicationDelete(c *gin.Context) {
 	username := c.GetString(middleware.UserNameKey)
 	tenant := c.GetString(middleware.TenantKey)
 	appName := c.Param("name")
@@ -306,7 +306,7 @@ func DeleteApplicationHandler(c *gin.Context) {
 	c.JSON(204, nil)
 }
 
-func DescribeApplicationHandler(c *gin.Context) {
+func ApplicationGet(c *gin.Context) {
 	tenant := c.GetString(middleware.TenantKey)
 	username := c.GetString(middleware.UserNameKey)
 	appName := c.Param("name")
@@ -346,7 +346,7 @@ func DescribeApplicationHandler(c *gin.Context) {
 	c.JSON(200, app)
 }
 
-func ListApplicationsHandler(c *gin.Context) {
+func ApplicationsList(c *gin.Context) {
 	tenant := c.GetString(middleware.TenantKey)
 	username := c.GetString(middleware.UserNameKey)
 
@@ -386,8 +386,8 @@ func ListApplicationsHandler(c *gin.Context) {
 	c.JSON(200, apps)
 }
 
-// SyncApplicationHandler handles the synchronization of one or more Argo CD applications
-func SyncApplicationHandler(c *gin.Context) {
+// ApplicationSync handles the synchronization of one or more Argo CD applications
+func ApplicationSync(c *gin.Context) {
 	var req types.SyncApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request format: %v", err)})
@@ -450,7 +450,7 @@ func SyncApplicationHandler(c *gin.Context) {
 	c.JSON(200, response)
 }
 
-func UpdateApplicationHandler(c *gin.Context) {
+func ApplicationUpdate(c *gin.Context) {
 	username := c.GetString(middleware.UserNameKey)
 	tenant := c.GetString(middleware.TenantKey)
 	appName := c.Param("name")
@@ -534,8 +534,8 @@ func UpdateApplicationHandler(c *gin.Context) {
 	})
 }
 
-// ValidateApplicationSourceHandler handles the request for validating application source
-func ValidateApplicationSourceHandler(c *gin.Context) {
+// ApplicationSourceValidate handles the request for validating application source
+func ApplicationSourceValidate(c *gin.Context) {
 	var req types.ApplicationSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{

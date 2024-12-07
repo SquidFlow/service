@@ -108,6 +108,10 @@ type (
 
 // using heuristic from https://argoproj.github.io/argo-cd/user-guide/tool_detection/#tool-detection
 func InferAppType(repofs fs.FS) string {
+	if repofs.ExistsOrDie("app.yaml") && repofs.ExistsOrDie("components/params.libsonnet") {
+		return AppTypeKsonnet
+	}
+
 	if repofs.ExistsOrDie("Chart.yaml") {
 		return AppTypeHelm
 	}

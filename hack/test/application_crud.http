@@ -1,5 +1,5 @@
 ### create app with simple kustomize ref
-POST http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -12,7 +12,7 @@ Authorization: Bearer username@tenant1
         "submodules": true
     },
     "application_instantiation": {
-        "application_name": "kustomize-guestbook",
+        "application_name": "kustomize-guestbook2",
         "tenant_name": "tenant1",
         "appcode": "edsf",
         "description": "this application description"
@@ -28,19 +28,19 @@ Authorization: Bearer username@tenant1
 
 
 ### get app with project
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications
+GET http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 ### argocdapplications/abcs
-GET http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/kustomize-guestbook2
+GET http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook2
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 ### del app
-DELETE http://{{host}}:{{port}}/api/v1/deploy/argocdapplications/kustomize-guestbook2
+DELETE http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook2
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1

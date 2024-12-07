@@ -19,7 +19,7 @@ import (
 	"github.com/squidflow/service/pkg/types"
 )
 
-func CreateSecretStore(c *gin.Context) {
+func SecretStoreCreate(c *gin.Context) {
 	var req types.SecretStoreCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
@@ -95,7 +95,7 @@ func CreateSecretStore(c *gin.Context) {
 	})
 }
 
-func DeleteSecretStore(c *gin.Context) {
+func SecretStoreDelete(c *gin.Context) {
 	secretStoreID := c.Param("id")
 	if secretStoreID == "" {
 		c.JSON(400, gin.H{"error": "SecretStore ID is required"})
@@ -128,7 +128,7 @@ func DeleteSecretStore(c *gin.Context) {
 	})
 }
 
-func DescribeSecretStore(c *gin.Context) {
+func SecretStoreDescribe(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(400, gin.H{"error": "SecretStore ID is required"})
@@ -171,8 +171,8 @@ func DescribeSecretStore(c *gin.Context) {
 	})
 }
 
-// ListSecretStore returns a list of secret stores
-func ListSecretStore(c *gin.Context) {
+// SecretStoreList returns a list of secret stores
+func SecretStoreList(c *gin.Context) {
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),
@@ -202,7 +202,7 @@ func ListSecretStore(c *gin.Context) {
 	})
 }
 
-func UpdateSecretStore(c *gin.Context) {
+func SecretStoreUpdate(c *gin.Context) {
 	secretStoreID := c.Param("id")
 	if secretStoreID == "" {
 		c.JSON(400, gin.H{"error": "secret store ID is required"})

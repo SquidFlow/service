@@ -26,11 +26,11 @@ import (
 	"github.com/squidflow/service/pkg/types"
 )
 
-// DestinationClusterCreate creates a new destination cluster
+// ClusterRegister creates a new destination cluster
 // Note: for self-signed CA certificate, this API just forward the request to argocd-server
 // you should confirm the CA has been mount to argocd-server pod
 // otherwise, the API will reject your request with CA related error
-func DestinationClusterCreate(c *gin.Context) {
+func ClusterRegister(c *gin.Context) {
 	var req types.CreateClusterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
@@ -62,8 +62,8 @@ func DestinationClusterCreate(c *gin.Context) {
 	})
 }
 
-// DestinationClusterDelete deletes a destination cluster by name
-func DestinationClusterDelete(c *gin.Context) {
+// ClusterDeregister deletes a destination cluster by name
+func ClusterDeregister(c *gin.Context) {
 	name := c.Param("name")
 	if name == "" {
 		c.JSON(400, gin.H{"error": "cluster name is required"})
@@ -86,8 +86,8 @@ func DestinationClusterDelete(c *gin.Context) {
 	})
 }
 
-// DestinationClusterGet handles the GET request for a single cluster
-func DestinationClusterGet(c *gin.Context) {
+// ClusterGet handles the GET request for a single cluster
+func ClusterGet(c *gin.Context) {
 	name := c.Param("name")
 	if name == "" {
 		c.JSON(400, gin.H{"error": "cluster name is required"})
@@ -156,8 +156,8 @@ func DestinationClusterGet(c *gin.Context) {
 	c.JSON(200, response)
 }
 
-// DestinationClusterList handles the GET request for listing clusters
-func DestinationClusterList(c *gin.Context) {
+// ClusterList handles the GET request for listing clusters
+func ClusterList(c *gin.Context) {
 	clusterList, err := argocd.ListClusters()
 	if err != nil {
 		log.G().Errorf("failed to list clusters: %v", err)
@@ -219,7 +219,7 @@ func DestinationClusterList(c *gin.Context) {
 	c.JSON(200, response)
 }
 
-func DestinationClusterUpdate(c *gin.Context) {
+func ClusterUpdate(c *gin.Context) {
 	name := c.Param("name")
 	if name == "" {
 		c.JSON(400, gin.H{"error": "cluster name is required"})

@@ -12,8 +12,8 @@ type AppCodeResponse struct {
 	AppCodes []string `json:"appCodes"`
 }
 
-// ListAppCode handles the request to list app codes
-func ListAppCode(c *gin.Context) {
+// AppCodeList handles the request to list app codes
+func AppCodeList(c *gin.Context) {
 	appCodes := []string{"esfs", "esfs-dev", "esfs-test"}
 	c.JSON(http.StatusOK, AppCodeResponse{
 		Success:  true,
