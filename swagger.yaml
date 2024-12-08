@@ -1,20 +1,18 @@
 openapi: 3.0.0
 info:
-  title: H4 Platform API
+  title: SquidFlow Platform
   version: '1.0.0'
   description: API for managing applications, clusters, templates and secrets
 
 tags:
-  - name: ApplicationTemplate
-    description: Application template management endpoints
-  - name: ArgoApplication
-    description: ArgoCD application deployment and validation
+  - name: Application
+    description: Application deployment and validation
   - name: Tenants
     description: Tenant management operations
   - name: Security
     description: Security and secrets management
-  - name: DestinationCluster
-    description: Destination cluster management operations
+  - name: Cluster
+    description: Cluster management operations
   - name: AppCode
     description: Application code repository management
   - name: Healthz
@@ -23,8 +21,6 @@ tags:
 servers:
   - url: http://localhost:38080/api/v1
     description: Local development server
-  - url: http://alb-0y0w4z2gd7tcsjgg07.cn-hongkong.alb.aliyuncs.com/api/v1
-    description: test env
 
 components:
   schemas:
@@ -34,72 +30,6 @@ components:
         error:
           type: string
           description: Error message
-
-    ApplicationTemplateCreate:
-      type: object
-      required:
-        - name
-        - path
-        - owner
-        - source
-        - appType
-      properties:
-        name:
-          type: string
-          example: "test-app-test1"
-        description:
-          type: string
-          example: "test-app-template-description"
-        path:
-          type: string
-          example: "/apps/test-app"
-        owner:
-          type: string
-          example: "team-a"
-        source:
-          type: object
-          required:
-            - type
-            - url
-            - targetRevision
-          properties:
-            type:
-              type: string
-              enum: [git]
-            url:
-              type: string
-              example: "https://github.com/example/mytest-app.git"
-            targetRevision:
-              type: string
-              example: "main"
-        appType:
-          type: string
-          enum: [helm, kustomize, helm+kustomize]
-
-    ApplicationTemplate:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        description:
-          type: string
-        path:
-          type: string
-        owner:
-          type: string
-        source:
-          $ref: '#/components/schemas/ApplicationSource'
-        validated:
-          type: boolean
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
 
     ApplicationSource:
       type: object
@@ -329,47 +259,6 @@ components:
           default: false
           example: false
 
-    ArgoApplication:
-      type: object
-      properties:
-        name:
-          type: string
-        project:
-          type: string
-        status:
-          type: string
-        health:
-          type: string
-        syncStatus:
-          type: string
-
-    ValidateTemplateRequest:
-      type: object
-      required:
-        - templateSource
-        - targetRevision
-        - path
-      properties:
-        templateSource:
-          type: string
-          example: "git@github.com:squidflow/platform.git"
-        targetRevision:
-          type: string
-          example: "main"
-        path:
-          type: string
-          example: "manifest/fluent-operator"
-
-    ValidateTemplateResponse:
-      type: object
-      properties:
-        valid:
-          type: boolean
-        message:
-          type: string
-        details:
-          type: object
-
     ProjectDest:
       type: object
       properties:
@@ -457,23 +346,116 @@ components:
       properties:
         secret_store_yaml:
           type: string
-          description: YAML configuration for SecretStore
+          description: YAML representation of the SecretStore configuration
+
+    SecretStoreCreateResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
 
     SecretStoreInfo:
       type: object
       properties:
         id:
           type: string
-          format: uuid
         name:
           type: string
         provider:
           type: string
+        type:
+          type: string
         status:
+          type: string
+        path:
+          type: string
+        lastSynced:
           type: string
         createdAt:
           type: string
-          format: date-time
+        lastUpdated:
+          type: string
+        health:
+          type: object
+          properties:
+            status:
+              type: string
+            message:
+              type: string
+
+    SecretStoreUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        server:
+          type: string
+        auth:
+          type: object
+          additionalProperties: true
+
+    ProjectCreateRequest:
+      type: object
+      required:
+        - project-name
+      properties:
+        project-name:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+
+    TenantResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantDetailInfo'
+
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        version:
+          type: object
+          properties:
+            version:
+              type: string
+            buildDate:
+              type: string
+            gitCommit:
+              type: string
+            goVersion:
+              type: string
+            goCompiler:
+              type: string
+            platform:
+              type: string
+        kubernetes:
+          type: string
+        argocd:
+          type: string
+        error:
+          type: string
 
     AppCode:
       type: object
@@ -500,152 +482,40 @@ components:
     AppCodeResponse:
       type: object
       properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "App codes listed successfully"
         appCodes:
           type: array
           items:
             type: string
           example: ["esfs", "esfs-dev", "esfs-test"]
 
-    HealthCheckResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: "ok"
-        kubernetes:
-          type: string
-          example: "ok"
-        argocd:
-          type: string
-          example: "ok"
-        version:
-          type: object
-          properties:
-            version:
-              type: string
-              example: "v1.0.0"
-            buildDate:
-              type: string
-              example: "2024-03-15T12:00:00Z"
-            gitCommit:
-              type: string
-              example: "abc123def"
-            goVersion:
-              type: string
-              example: "go1.21.0"
-            goCompiler:
-              type: string
-              example: "gc"
-            platform:
-              type: string
-              example: "linux/amd64"
-
-    TenantListResponse:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/TenantInfo'
-        success:
-          type: boolean
-          example: true
-        total:
-          type: integer
-          example: 3
-
-    TenantInfo:
-      type: object
-      properties:
-        name:
-          type: string
-          example: "tenant1"
-        namespace:
-          type: string
-          example: "argocd"
-        default_cluster:
-          type: string
-          example: "https://kubernetes.default.svc"
-
-    ArgoApplicationResponse:
+    ApplicationResponse:
       type: object
       properties:
         message:
           type: string
-          example: "Application created successfully"
+          example: "Applications created successfully"
         application:
-          type: object
-          properties:
-            name:
-              type: string
-              example: "demo1"
-            tenant_name:
-              type: string
-              example: "testing"
-            appcode:
-              type: string
-              example: "edsf"
-            description:
-              type: string
-              example: "test description"
-            source:
-              $ref: '#/components/schemas/ApplicationSource'
-            destination_clusters:
-              $ref: '#/components/schemas/DestinationCluster'
-            ingress:
-              $ref: '#/components/schemas/Ingress'
-            security:
-              $ref: '#/components/schemas/Security'
-            created_by:
-              type: string
-              example: "username"
-            labels:
-              type: object
-              additionalProperties:
-                type: string
-            annotations:
-              type: object
-              additionalProperties:
-                type: string
-            status:
-              type: string
-              example: "Pending"
-            revision:
-              type: string
-              example: "main"
+          $ref: '#/components/schemas/ApplicationDetail'
 
-    ArgoApplicationListResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        total:
-          type: integer
-          example: 2
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ArgoApplicationDetail'
-
-    ArgoApplicationDetail:
+    ApplicationDetail:
       type: object
       properties:
         name:
           type: string
-          example: "demo-app"
         tenant_name:
           type: string
-          example: "tenant1"
         appcode:
           type: string
-          example: "demo"
         description:
           type: string
-          example: "Demo application"
         created_by:
           type: string
-          example: "john.doe"
         template:
           type: object
           properties:
@@ -656,45 +526,22 @@ components:
               properties:
                 commit_id:
                   type: string
-                  example: "abc123"
                 message:
                   type: string
-                  example: "Update configuration"
                 author:
                   type: string
-                  example: "jane.doe"
                 timestamp:
                   type: string
                   format: date-time
-        h4_config:
-          type: object
-          properties:
-            destination_clusters:
-              $ref: '#/components/schemas/DestinationCluster'
-            ingress:
-              $ref: '#/components/schemas/Ingress'
-            security:
-              $ref: '#/components/schemas/Security'
-            labels:
-              type: object
-              additionalProperties:
-                type: string
-            annotations:
-              type: object
-              additionalProperties:
-                type: string
         runtime_status:
           type: object
           properties:
             status:
               type: string
-              example: "Healthy"
             health:
               type: string
-              example: "Healthy"
             sync_status:
               type: string
-              example: "Synced"
             deployed_clusters:
               type: array
               items:
@@ -731,41 +578,165 @@ components:
           type: string
           example: "256Mi"
 
+    ClusterResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        environment:
+          type: string
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentStatus'
+        provider:
+          type: string
+        version:
+          $ref: '#/components/schemas/VersionInfo'
+        nodeCount:
+          type: integer
+        region:
+          type: string
+        resourceQuota:
+          $ref: '#/components/schemas/ResourceQuota'
+        health:
+          $ref: '#/components/schemas/HealthStatus'
+        nodes:
+          $ref: '#/components/schemas/NodeStatus'
+        networkPolicy:
+          type: boolean
+        ingressController:
+          type: string
+        lastUpdated:
+          type: string
+        consoleUrl:
+          type: string
+        monitoring:
+          $ref: '#/components/schemas/MonitoringInfo'
+        builtin:
+          type: boolean
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+
+    MonitoringInfo:
+      type: object
+      properties:
+        prometheus:
+          type: boolean
+        grafana:
+          type: boolean
+        alertManager:
+          type: boolean
+        urls:
+          type: object
+          properties:
+            prometheus:
+              type: string
+            grafana:
+              type: string
+            alertManager:
+              type: string
+
 
 paths:
-  /deploy/argocdapplications:
+  /deploy/applications:
     post:
-      tags: [ArgoApplication]
-      summary: Create ArgoCD application
-      description: Create a new ArgoCD application with support for multi-cluster deployment
-      operationId: createArgoApplication
+      tags: [Application]
+      summary: Create application
+      operationId: ApplicationCreate
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ArgoApplicationCreate'
+              type: object
+              required:
+                - application_source
+                - application_instantiation
+              properties:
+                application_source:
+                  type: object
+                  required:
+                    - repo
+                    - target_revision
+                    - path
+                  properties:
+                    repo:
+                      type: string
+                    target_revision:
+                      type: string
+                    path:
+                      type: string
+                    submodules:
+                      type: boolean
+                application_instantiation:
+                  type: object
+                  required:
+                    - application_name
+                    - tenant_name
+                  properties:
+                    application_name:
+                      type: string
+                    tenant_name:
+                      type: string
+                    appcode:
+                      type: string
+                    description:
+                      type: string
+                application_target:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - cluster
+                      - namespace
+                    properties:
+                      cluster:
+                        type: string
+                      namespace:
+                        type: string
+                is_dryrun:
+                  type: boolean
+                  default: false
       responses:
         '201':
           description: Application created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ArgoApplicationResponse'
-        '400':
-          description: Invalid request
+                $ref: '#/components/schemas/ApplicationResponse'
+
+    get:
+      tags: [Application]
+      summary: List applications
+      operationId: ApplicationsList
+      responses:
+        '200':
+          description: List of applications
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden - tenant mismatch
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApplicationDetail'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /deploy/argocdapplications/{name}:
+  /deploy/applications/{name}:
     parameters:
       - name: name
         in: path
@@ -775,17 +746,17 @@ paths:
         description: Application name
 
     get:
-      tags: [ArgoApplication]
-      summary: Get ArgoCD application details
-      description: Get detailed information about an ArgoCD application including template source, H4 configuration and runtime status
-      operationId: describeArgoApplication
+      tags: [Application]
+      summary: Get application details
+      description: Get detailed information about an application including template source, H4 configuration and runtime status
+      operationId: ApplicationGet
       responses:
         '200':
           description: Application details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ArgoApplicationDetail'
+                $ref: '#/components/schemas/ApplicationDetail'
         '403':
           description: Forbidden - user does not have permission to view this application
           content:
@@ -800,10 +771,10 @@ paths:
                 $ref: '#/components/schemas/Error'
 
     delete:
-      tags: [ArgoApplication]
-      summary: Delete ArgoCD application
-      description: Delete an ArgoCD application. If this is the last project using the application, the entire application directory will be removed.
-      operationId: deleteArgoApplication
+      tags: [Application]
+      summary: Delete application
+      description: Delete an application. If this is the last project using the application, the entire application directory will be removed.
+      operationId: ApplicationDelete
       responses:
         '204':
           description: Application deleted successfully
@@ -833,39 +804,47 @@ paths:
                   value:
                     error: "Failed to delete ArgoCD application"
 
-  /deploy/argocdapplications/validate:
-    post:
-      tags: [ArgoApplication]
-      summary: Validate ArgoCD application template
-      operationId: validateArgoApplication
+    patch:
+      tags: [Application]
+      summary: Update application
+      operationId: ApplicationUpdate
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Application name
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ValidateTemplateRequest'
+              type: object
+              properties:
+                application_source:
+                  type: object
+                  properties:
+                    repo:
+                      type: string
+                    target_revision:
+                      type: string
+                    path:
+                      type: string
+                    submodules:
+                      type: boolean
+                application_instantiation:
+                  type: object
+                  properties:
+                    description:
+                      type: string
+                    security:
+                      $ref: '#/components/schemas/Security'
+                    ingress:
+                      $ref: '#/components/schemas/Ingress'
       responses:
         '200':
-          description: Validation successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidateTemplateResponse'
-
-  /tenants:
-    post:
-      tags: [Tenants]
-      summary: Create tenant
-      operationId: createTenant
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TenantCreate'
-      responses:
-        '201':
-          description: Tenant created successfully
+          description: Application updated successfully
           content:
             application/json:
               schema:
@@ -873,11 +852,123 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Tenant created successfully"
-                  tenant:
-                    $ref: '#/components/schemas/TenantDetailInfo'
+                    example: "Application updated successfully"
+                  application:
+                    $ref: '#/components/schemas/ApplicationDetail'
+        '403':
+          description: Forbidden - user does not have permission to update this application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /deploy/applications/validate:
+    put:
+      tags: [Application]
+      summary: Validate application source
+      operationId: ApplicationSourceValidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                repo:
+                  type: string
+                  example: "git@github.com:SquidFlow/platform.git"
+                target_revision:
+                  type: string
+                  example: "main"
+                path:
+                  type: string
+                  example: "overlays/app/fluent-operator"
+                submodules:
+                  type: boolean
+                  example: true
+                application_specifier:
+                  type: object
+                  properties:
+                    helm_manifest_path:
+                      type: string
+                      example: "manifests/4.0.0"
+      responses:
+        '200':
+          description: Application source validated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Valid kustomize application source"
+                  type:
+                    type: string
+                    example: "kustomize"
+                  suiteableEnv:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        environments:
+                          type: string
+                          example: "sit"
+                        valid:
+                          type: boolean
+                          example: true
+                        error:
+                          type: string
         '400':
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tenants:
+    post:
+      tags: [Tenants]
+      summary: Create a new tenant
+      operationId: TenantCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreateRequest'
+      responses:
+        '201':
+          description: Tenant created successfully
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -886,16 +977,16 @@ paths:
     get:
       tags: [Tenants]
       summary: List all tenants
-      operationId: listTenants
+      operationId: TenantsList
       responses:
         '200':
           description: List of tenants
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantListResponse'
-        '400':
-          description: Invalid request
+                $ref: '#/components/schemas/TenantResponse'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -908,19 +999,18 @@ paths:
         required: true
         schema:
           type: string
-        description: Tenant name
 
     get:
       tags: [Tenants]
       summary: Get tenant details
-      operationId: describeTenant
+      operationId: TenantGet
       responses:
         '200':
           description: Tenant details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantDetailInfo'
+                $ref: '#/components/schemas/TenantResponse'
         '404':
           description: Tenant not found
           content:
@@ -931,9 +1021,9 @@ paths:
     delete:
       tags: [Tenants]
       summary: Delete tenant
-      operationId: deleteTenant
+      operationId: TenantDelete
       responses:
-        '204':
+        '200':
           description: Tenant deleted successfully
         '404':
           description: Tenant not found
@@ -946,7 +1036,7 @@ paths:
     post:
       tags: [Security]
       summary: Create SecretStore
-      operationId: createSecretStore
+      operationId: SecretStoreCreate
       requestBody:
         required: true
         content:
@@ -956,11 +1046,15 @@ paths:
       responses:
         '201':
           description: SecretStore created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretStoreCreateResponse'
 
     get:
       tags: [Security]
       summary: List SecretStores
-      operationId: listSecretStores
+      operationId: SecretStoreList
       responses:
         '200':
           description: List of SecretStores
@@ -971,30 +1065,76 @@ paths:
                 items:
                   $ref: '#/components/schemas/SecretStoreInfo'
 
-  /appcode:
+  /security/externalsecrets/secretstore/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+
     get:
-      tags: [AppCode]
-      summary: List all application code repositories
-      operationId: listAppCodes
+      tags: [Security]
+      summary: Get SecretStore details
+      operationId: SecretStoreDescribe
       responses:
         '200':
-          description: List of application code names
+          description: SecretStore details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppCodeResponse'
-        '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/SecretStoreInfo'
+        '404':
+          description: SecretStore not found
 
-  /destinationCluster:
+    delete:
+      tags: [Security]
+      summary: Delete SecretStore
+      operationId: SecretStoreDelete
+      responses:
+        '200':
+          description: SecretStore deleted successfully
+        '404':
+          description: SecretStore not found
+
+    patch:
+      tags: [Security]
+      summary: Update SecretStore
+      operationId: SecretStoreUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecretStoreUpdate'
+      responses:
+        '200':
+          description: SecretStore updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretStoreInfo'
+        '404':
+          description: SecretStore not found
+
+  /healthz:
     get:
-      tags: [DestinationCluster]
+      tags: [Healthz]
+      summary: Get system health status
+      operationId: Healthz
+      responses:
+        '200':
+          description: System health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  /clusters:
+    get:
+      tags: [Cluster]
       summary: List all clusters
-      operationId: listClusters
+      operationId: ClusterList
       responses:
         '200':
           description: List of clusters
@@ -1003,12 +1143,18 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ClusterInfo'
+                  $ref: '#/components/schemas/ClusterResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
     post:
-      tags: [DestinationCluster]
+      tags: [Cluster]
       summary: Create cluster
-      operationId: createCluster
+      operationId: ClusterRegister
       requestBody:
         required: true
         content:
@@ -1021,59 +1167,89 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClusterInfo'
+                type: object
+                properties:
+                  message:
+                    type: string
+                  cluster:
+                    $ref: '#/components/schemas/ClusterInfo'
         '400':
           description: Invalid request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /destinationCluster/{clusterName}:
+  /clusters/{clusterName}:
     parameters:
       - name: clusterName
         in: path
         required: true
         schema:
           type: string
+        description: Cluster name
 
     get:
-      tags: [DestinationCluster]
-      summary: Get single cluster
-      operationId: getCluster
+      tags: [Cluster]
+      summary: Get cluster details
+      operationId: ClusterGet
       responses:
         '200':
           description: Cluster details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClusterInfo'
+                $ref: '#/components/schemas/ClusterResponse'
         '404':
           description: Cluster not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
     delete:
-      tags: [DestinationCluster]
-      summary: Deregister cluster
-      operationId: deleteCluster
+      tags: [Cluster]
+      summary: Delete cluster
+      operationId: ClusterDeregister
       responses:
-        '204':
+        '200':
           description: Cluster deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '404':
           description: Cluster not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
     patch:
-      tags: [DestinationCluster]
+      tags: [Cluster]
       summary: Update cluster
-      operationId: updateCluster
-      description: Update cluster environment and labels
+      operationId: ClusterUpdate
       requestBody:
         required: true
         content:
@@ -1086,23 +1262,35 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClusterInfo'
+                $ref: '#/components/schemas/ClusterResponse'
         '404':
           description: Cluster not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  /healthz:
-    get:
-      tags: [Healthz]
-      summary: Get system health status
-      operationId: getHealthStatus
-      responses:
-        '200':
-          description: System health status
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthCheckResponse'
+                $ref: '#/components/schemas/Error'
+
+  /appcode:
+    get:
+      tags: [AppCode]
+      summary: List application codes
+      operationId: AppCodeList
+      responses:
+        '200':
+          description: List of application codes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppCodeResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
