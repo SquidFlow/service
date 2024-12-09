@@ -13,12 +13,16 @@ import (
 	clusterclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/discovery"
 
+	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/argocd"
 	"github.com/squidflow/service/pkg/config"
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/handler"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
@@ -131,6 +135,11 @@ func runServer(cmd *cobra.Command, args []string) {
 		log.G().Fatalf("Failed to list destination clusters: %v", err)
 	}
 
+	// new repo writer
+	if err := newRepoWriter(); err != nil {
+		log.G().Fatalf("Failed to initialize repo writer: %v", err)
+	}
+
 	//TODO: check gitOps repo
 	r := setupRouter()
 
@@ -237,6 +246,33 @@ func setupRouter() *gin.Engine {
 	}
 
 	return r
+}
+
+// new repo writer
+func newRepoWriter() error {
+	cloneOpts := &git.CloneOptions{
+		Repo:     viper.GetString("application_repo.remote_url"),
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: true,
+	}
+	cloneOpts.Parse()
+
+	_, fs, err := cloneOpts.GetRepo(context.Background())
+	if err != nil {
+		log.G().Errorf("failed to get git repo: %v", err)
+		return err
+	}
+
+	if err := repowriter.InitRepoWriter(fs); err != nil {
+		log.G().Errorf("failed to initialize repo writer: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // listDestinationCluster

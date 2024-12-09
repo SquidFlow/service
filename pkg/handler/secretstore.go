@@ -80,9 +80,7 @@ func SecretStoreCreate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repowriter.NativeRepoTarget{}
-
-	if err := nativeRepoWrite.WriteSecretStore2Repo(context.Background(), &want, cloneOpts, false); err != nil {
+	if err := repowriter.GetRepoWriter().WriteSecretStore2Repo(context.Background(), &want, cloneOpts, false); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create external secret: %v", err)})
 		return
 	}
@@ -148,8 +146,7 @@ func SecretStoreDescribe(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repowriter.NativeRepoTarget{}
-	secretStore, err := nativeRepoWrite.GetSecretStoreFromRepo(context.Background(), &types.SecretStoreGetOptions{
+	secretStore, err := repowriter.GetRepoWriter().GetSecretStoreFromRepo(context.Background(), &types.SecretStoreGetOptions{
 		CloneOpts: cloneOpts,
 		ID:        id,
 	})
@@ -184,8 +181,7 @@ func SecretStoreList(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repowriter.NativeRepoTarget{}
-	secretStores, err := nativeRepoWrite.RunListSecretStore(context.Background(), &types.SecretStoreListOptions{
+	secretStores, err := repowriter.GetRepoWriter().RunListSecretStore(context.Background(), &types.SecretStoreListOptions{
 		CloneOpts: cloneOpts,
 	})
 	if err != nil {
@@ -260,8 +256,7 @@ func SecretStoreUpdate(c *gin.Context) {
 
 	secretStore.Annotations["squidflow.github.io/updated-at"] = time.Now().Format(time.RFC3339)
 
-	var nativeRepoWrite = repowriter.NativeRepoTarget{}
-	if err := nativeRepoWrite.WriteSecretStore2Repo(context.Background(), secretStore, cloneOpts, true); err != nil {
+	if err := repowriter.GetRepoWriter().WriteSecretStore2Repo(context.Background(), secretStore, cloneOpts, true); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to write secret store to repo: %v", err)})
 		return
 	}

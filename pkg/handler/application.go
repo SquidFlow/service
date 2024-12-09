@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/yannh/kubeconform/pkg/validator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,8 +141,7 @@ func ApplicationCreate(c *gin.Context) {
 	// 	}
 	// }
 
-	var native repowriter.NativeRepoTarget
-	if err := native.RunAppCreate(context.Background(), &opt); err != nil {
+	if err := repowriter.GetRepoWriter().RunAppCreate(context.Background(), &opt); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
 		return
 	}
@@ -291,9 +291,7 @@ func ApplicationDelete(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var native repowriter.NativeRepoTarget
-
-	if err := native.RunAppDelete(context.Background(), &types.AppDeleteOptions{
+	if err := repowriter.GetRepoWriter().RunAppDelete(context.Background(), &types.AppDeleteOptions{
 		CloneOpts:   cloneOpts,
 		ProjectName: tenant,
 		AppName:     appName,
@@ -331,8 +329,7 @@ func ApplicationGet(c *gin.Context) {
 	}
 
 	// TODO: add target repo detection
-	var native repowriter.NativeRepoTarget
-	app, err := native.RunAppGet(context.Background(), &types.AppListOptions{
+	app, err := repowriter.GetRepoWriter().RunAppGet(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  tenant,
 		ArgoCDClient: argoClient,
@@ -371,9 +368,7 @@ func ApplicationsList(c *gin.Context) {
 		return
 	}
 
-	var native repowriter.NativeRepoTarget
-
-	apps, err := native.RunAppList(context.Background(), &types.AppListOptions{
+	apps, err := repowriter.GetRepoWriter().RunAppList(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  project,
 		ArgoCDClient: argoClient,
@@ -504,9 +499,8 @@ func ApplicationUpdate(c *gin.Context) {
 		KubeFactory: kube.NewFactory(),
 		Annotations: annotations,
 	}
-	var native repowriter.NativeRepoTarget
 
-	if err := native.RunAppUpdate(context.Background(), updateOpts); err != nil {
+	if err := repowriter.GetRepoWriter().RunAppUpdate(context.Background(), updateOpts); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update application: %v", err)})
 		return
 	}
@@ -517,7 +511,7 @@ func ApplicationUpdate(c *gin.Context) {
 		return
 	}
 
-	app, err := native.RunAppGet(context.Background(), &types.AppListOptions{
+	app, err := repowriter.GetRepoWriter().RunAppGet(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  tenant,
 		ArgoCDClient: argoClient,
