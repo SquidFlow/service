@@ -41,7 +41,7 @@ func TenantCreate(c *gin.Context) {
 		Annotations: req.Annotations,
 	}
 
-	err := repowriter.GetRepoWriter().RunProjectCreate(context.Background(), opts)
+	err := repowriter.Repo().RunProjectCreate(context.Background(), opts)
 	if err != nil {
 		log.G().Errorf("Failed to create project: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create project: %v", err)})
@@ -77,7 +77,7 @@ func TenantDelete(c *gin.Context) {
 		ProjectName: projectName,
 	}
 
-	err := repowriter.GetRepoWriter().RunProjectDelete(context.Background(), opts)
+	err := repowriter.Repo().RunProjectDelete(context.Background(), opts)
 	if err != nil {
 		log.G().Errorf("Failed to delete project: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete project: %v", err)})
@@ -104,7 +104,7 @@ func TenantGet(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	tenantResp, err := repowriter.GetRepoWriter().RunProjectGetDetail(context.Background(), projectName, cloneOpts)
+	tenantResp, err := repowriter.Repo().RunProjectGetDetail(context.Background(), projectName, cloneOpts)
 	if err != nil {
 		log.G().Errorf("Failed to get project detail: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get project detail: %v", err)})
@@ -126,7 +126,7 @@ func TenantsList(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	tenants, err := repowriter.GetRepoWriter().RunProjectList(context.Background(), &types.ProjectListOptions{CloneOpts: cloneOpts})
+	tenants, err := repowriter.Repo().RunProjectList(context.Background(), &types.ProjectListOptions{CloneOpts: cloneOpts})
 	if err != nil {
 		log.G().Errorf("Failed to list tenants: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list tenants: %v", err)})

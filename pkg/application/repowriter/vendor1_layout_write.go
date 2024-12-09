@@ -43,7 +43,7 @@ func (v *Vendor1RepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDel
 }
 
 // RunAppList lists all applications in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) (*types.ApplicationListResponse, error) {
+func (v *Vendor1RepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
 	return nil, nil
 }
 
@@ -78,26 +78,26 @@ func (v *Vendor1RepoTarget) RunProjectGetDetail(ctx context.Context, projectName
 }
 
 // RunListSecretStore lists all secret stores in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunListSecretStore(ctx context.Context, opts *types.SecretStoreListOptions) ([]types.SecretStoreDetail, error) {
+func (v *Vendor1RepoTarget) SecretStoreList(ctx context.Context, opts *types.SecretStoreListOptions) ([]esv1beta1.SecretStore, error) {
 	return nil, nil
 }
 
 // WriteSecretStore2Repo writes a secret store to the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) WriteSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
+func (v *Vendor1RepoTarget) SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
 	return nil
 }
 
 // UpdateSecretStore updates a secret store in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) UpdateSecretStore(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
+func (v *Vendor1RepoTarget) SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
 	return nil, nil
 }
 
 // RunDeleteSecretStore deletes a secret store from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
+func (v *Vendor1RepoTarget) SecretStoreDelete(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
 	return nil
 }
 
 // GetSecretStoreFromRepo gets a secret store from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) GetSecretStoreFromRepo(ctx context.Context, opts *types.SecretStoreGetOptions) (*types.SecretStoreDetail, error) {
+func (v *Vendor1RepoTarget) SecretStoreGet(ctx context.Context, opts *types.SecretStoreGetOptions) (*esv1beta1.SecretStore, error) {
 	return nil, nil
 }

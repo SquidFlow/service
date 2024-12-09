@@ -79,7 +79,7 @@ func SecretStoreCreate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	if err := repowriter.GetRepoWriter().WriteSecretStore2Repo(context.Background(), &want, cloneOpts, false); err != nil {
+	if err := repowriter.Repo().SecretStoreCreate(context.Background(), &want, cloneOpts, false); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create external secret: %v", err)})
 		return
 	}
@@ -112,7 +112,7 @@ func SecretStoreDelete(c *gin.Context) {
 
 	var nativeRepoWrite = repowriter.NativeRepoTarget{}
 
-	if err := nativeRepoWrite.RunDeleteSecretStore(context.Background(), secretStoreID, &types.SecretStoreDeleteOptions{
+	if err := nativeRepoWrite.SecretStoreDelete(context.Background(), secretStoreID, &types.SecretStoreDeleteOptions{
 		CloneOpts: cloneOpts,
 	}); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete secret store: %v", err)})
@@ -145,10 +145,11 @@ func SecretStoreDescribe(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	secretStore, err := repowriter.GetRepoWriter().GetSecretStoreFromRepo(context.Background(), &types.SecretStoreGetOptions{
-		CloneOpts: cloneOpts,
-		ID:        id,
-	})
+	secretStore, err := repowriter.Repo().SecretStoreGet(context.Background(),
+		&types.SecretStoreGetOptions{
+			CloneOpts: cloneOpts,
+			ID:        id,
+		})
 	if err != nil {
 		log.G().Errorf("Failed to get secret store: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get secret store: %v", err)})
@@ -162,7 +163,22 @@ func SecretStoreDescribe(c *gin.Context) {
 
 	c.JSON(200, types.DescribeSecretStoreResponse{
 		Success: true,
-		Item:    *secretStore,
+		Item: types.SecretStoreDetail{
+			ID:          secretStore.Annotations["squidflow.github.io/id"],
+			Name:        secretStore.Name,
+			Provider:    "vault",
+			Status:      "Active",
+			Path:        *secretStore.Spec.Provider.Vault.Path,
+			Type:        "SecretStore",
+			Environment: []string{"sit", "uat", "prod"},
+			LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
+			CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
+			LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
+			Health: types.SecretStoreHealth{
+				Status:  "Healthy", // fix this with actual health check
+				Message: "Secret store is operating normally",
+			},
+		},
 		Message: "secret store retrieved successfully",
 	})
 }
@@ -180,7 +196,7 @@ func SecretStoreList(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	secretStores, err := repowriter.GetRepoWriter().RunListSecretStore(context.Background(), &types.SecretStoreListOptions{
+	secretStores, err := repowriter.Repo().SecretStoreList(context.Background(), &types.SecretStoreListOptions{
 		CloneOpts: cloneOpts,
 	})
 	if err != nil {
@@ -189,10 +205,31 @@ func SecretStoreList(c *gin.Context) {
 		return
 	}
 
+	// simple convert to response
+	var items []types.SecretStoreDetail
+	for _, secretStore := range secretStores {
+		items = append(items, types.SecretStoreDetail{
+			ID:          secretStore.Annotations["squidflow.github.io/id"],
+			Name:        secretStore.Name,
+			Provider:    "vault",
+			Status:      "Active",
+			Path:        *secretStore.Spec.Provider.Vault.Path,
+			Type:        "SecretStore",
+			Environment: []string{"sit", "uat", "prod"},
+			LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
+			CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
+			LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
+			Health: types.SecretStoreHealth{
+				Status:  "Healthy", // fix this with actual health check
+				Message: "Secret store is operating normally",
+			},
+		})
+	}
+
 	c.JSON(200, types.ListSecretStoreResponse{
 		Success: true,
 		Total:   len(secretStores),
-		Items:   secretStores,
+		Items:   items,
 		Message: "secret stores retrieved successfully",
 	})
 }
@@ -221,7 +258,7 @@ func SecretStoreUpdate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	secretStore, err := repowriter.GetRepoWriter().UpdateSecretStore(context.Background(), secretStoreID, &req, cloneOpts)
+	secretStore, err := repowriter.Repo().SecretStoreUpdate(context.Background(), secretStoreID, &req, cloneOpts)
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update secret store: %v", err)})
 		return

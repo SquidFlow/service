@@ -26,73 +26,60 @@ func GenerateHelmManifest(repofs fs.FS, req types.ApplicationSourceRequest, env 
 	}).Debug("Preparing helm template")
 
 	// determine chart path
-	var chartPath string
+	chartPath := req.Path
 	if req.ApplicationSpecifier != nil && req.ApplicationSpecifier.HelmManifestPath != "" {
-		// case 1: use specified helm manifest path
 		chartPath = repofs.Join(req.Path, req.ApplicationSpecifier.HelmManifestPath)
-	} else {
-		// case 2: directly use the specified path to find Chart.yaml
-		chartPath = req.Path
 	}
 
 	log.G().WithFields(log.Fields{
 		"chartPath": chartPath,
-	}).Debug("Looking for chart")
+	}).Debug("looking for chart")
 
 	// validate Chart.yaml exists
 	if !repofs.ExistsOrDie(repofs.Join(chartPath, "Chart.yaml")) {
 		return nil, fmt.Errorf("Chart.yaml not found at path: %s", chartPath)
 	}
 
-	// create temp directory for chart files
+	// create and prepare temp directory
 	tmpDir, err := os.MkdirTemp("", "helm-chart-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// copy chart files to temp directory
 	if err := copyChartFiles(repofs, chartPath, tmpDir); err != nil {
 		return nil, fmt.Errorf("failed to copy chart files: %w", err)
 	}
 
-	// read values file
+	// read values file using switch
 	var valuesContent []byte
-	if env != "default" {
-		// check if environment specific values directory exists
-		envValuesPath := repofs.Join(req.Path, "environments", env, "values.yaml")
-		if repofs.ExistsOrDie(envValuesPath) {
-			log.G().WithFields(log.Fields{
-				"valuesPath": envValuesPath,
-			}).Debug("Reading environment values")
+	var valuesPath string
 
-			valuesContent, err = repofs.ReadFile(envValuesPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read values file for environment %s: %w", env, err)
-			}
-		} else {
-			// if no environment specific values, use default
-			valuesPath := repofs.Join(chartPath, "values.yaml")
-			log.G().WithFields(log.Fields{
-				"valuesPath": valuesPath,
-			}).Debug("Environment values not found, using default values")
-
-			valuesContent, err = repofs.ReadFile(valuesPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read values file: %w", err)
-			}
-		}
-	} else {
-		// use default values.yaml
-		valuesPath := repofs.Join(chartPath, "values.yaml")
+	switch env {
+	case "default":
+		valuesPath = repofs.Join(chartPath, "values.yaml")
 		log.G().WithFields(log.Fields{
 			"valuesPath": valuesPath,
-		}).Debug("Reading default values")
-
-		valuesContent, err = repofs.ReadFile(valuesPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read values file: %w", err)
+		}).Debug("reading default values")
+	default:
+		// Try environment specific values first
+		envValuesPath := repofs.Join(req.Path, "environments", env, "values.yaml")
+		if repofs.ExistsOrDie(envValuesPath) {
+			valuesPath = envValuesPath
+			log.G().WithFields(log.Fields{
+				"valuesPath": valuesPath,
+			}).Debug("reading environment values")
+		} else {
+			valuesPath = repofs.Join(chartPath, "values.yaml")
+			log.G().WithFields(log.Fields{
+				"valuesPath": valuesPath,
+			}).Debug("environment values not found, using default values")
 		}
+	}
+
+	valuesContent, err = repofs.ReadFile(valuesPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read values file: %w", err)
 	}
 
 	// parse values

@@ -65,8 +65,8 @@ func InitRepoWriter(fs fs.FS) error {
 	return initErr
 }
 
-// GetRepoWriter returns the initialized RepoWriter instance
-func GetRepoWriter() RepoWriter {
+// Repo returns the initialized RepoWriter instance
+func Repo() RepoWriter {
 	return instance
 }
 
@@ -87,9 +87,10 @@ type ApplicationWriter interface {
 	// RunAppGet gets a single application
 	RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error)
 	// RunAppList lists all applications
-	RunAppList(ctx context.Context, opts *types.AppListOptions) (*types.ApplicationListResponse, error)
+	RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error)
 }
 
+// ProjectWriter defines how to interact with a GitOps repository
 type ProjectWriter interface {
 	// RunProjectCreate Project methods
 	RunProjectCreate(ctx context.Context, opts *types.ProjectCreateOptions) error
@@ -102,9 +103,9 @@ type ProjectWriter interface {
 }
 
 type SecretStoreWriter interface {
-	WriteSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error
-	UpdateSecretStore(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error)
-	RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error
-	GetSecretStoreFromRepo(ctx context.Context, opts *types.SecretStoreGetOptions) (*types.SecretStoreDetail, error)
-	RunListSecretStore(ctx context.Context, opts *types.SecretStoreListOptions) ([]types.SecretStoreDetail, error)
+	SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error
+	SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error)
+	SecretStoreDelete(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error
+	SecretStoreGet(ctx context.Context, opts *types.SecretStoreGetOptions) (*esv1beta1.SecretStore, error)
+	SecretStoreList(ctx context.Context, opts *types.SecretStoreListOptions) ([]esv1beta1.SecretStore, error)
 }

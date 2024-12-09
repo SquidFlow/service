@@ -3,12 +3,12 @@ package dryrun
 import (
 	"fmt"
 
-	"github.com/squidflow/service/pkg/log"
-	"github.com/squidflow/service/pkg/types"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/types"
 )
 
 // GenerateKustomizeManifest generates Kustomize manifests for a specific environment
@@ -18,15 +18,15 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 		"env":       env,
 		"name":      applicationName,
 		"namespace": applicationNamespace,
-	}).Debug("Preparing kustomize build")
+	}).Debug("preparing kustomize build")
 
 	// Create an in-memory filesystem for kustomize
 	memFS := filesys.MakeFsInMemory()
 
-	// configure build path
 	var buildPath string
-	if env == "default" {
-		// case 1: simple Kustomize, directly use the specified path
+	switch env {
+	// case 1: simple Kustomize, directly use the specified path
+	case "default":
 		buildPath = req.Path
 
 		// check if kustomization.yaml exists
@@ -35,13 +35,13 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 		}
 
 		// copy the whole directory to memory filesystem
-		err := copyToMemFS(repofs, buildPath, "/", memFS)
+		err := copyToMemFS(repofs, "/", "/", memFS)
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy files: %w", err)
 		}
-		buildPath = "/"
-	} else {
-		// case 2: multi-environment Kustomize, use overlays structure
+
+	// case 2: multi-environment Kustomize, use overlays structure
+	default:
 		overlayPath := repofs.Join(req.Path, "overlays", env)
 		if !repofs.ExistsOrDie(overlayPath) {
 			return nil, fmt.Errorf("overlay directory for environment %s not found", env)
@@ -70,7 +70,7 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 		log.G().WithFields(log.Fields{
 			"path":  buildPath,
 			"files": fileNames,
-		}).Debug("Files in memory filesystem")
+		}).Debug("files in memory filesystem")
 	}
 
 	// Create kustomize build options
@@ -83,7 +83,7 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 		log.G().WithFields(log.Fields{
 			"error": err,
 			"path":  buildPath,
-		}).Error("Failed to build kustomize")
+		}).Error("failed to build kustomize")
 		return nil, fmt.Errorf("failed to build kustomize: %w", err)
 	}
 
@@ -93,6 +93,6 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 		return nil, fmt.Errorf("failed to generate yaml: %w", err)
 	}
 
-	log.G().Debug("Successfully generated kustomize manifest")
+	log.G().Debug("successfully generated kustomize manifest")
 	return yaml, nil
 }

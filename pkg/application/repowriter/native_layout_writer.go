@@ -187,7 +187,7 @@ func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDele
 }
 
 // RunAppList lists all applications in the native GitOps repository structure
-func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) (*types.ApplicationListResponse, error) {
+func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
 	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
 	if err != nil {
 		return nil, err
@@ -206,11 +206,7 @@ func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOp
 		return nil, fmt.Errorf("failed to run glob on %s: %w", opts.ProjectName, err)
 	}
 
-	response := &types.ApplicationListResponse{
-		Total:        int64(len(matches)),
-		Success:      true,
-		Applications: make([]types.Application, 0, len(matches)),
-	}
+	applications := make([]types.Application, 0, len(matches))
 
 	for _, appPath := range matches {
 		conf, err := getConfigFileFromPath(repofs, appPath)
@@ -218,23 +214,7 @@ func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOp
 			return nil, err
 		}
 
-		gitInfo, err := getGitInfo(repofs, appPath)
-		if err != nil {
-			log.G().Warnf("failed to get git info for %s: %v", appPath, err)
-		}
-
-		var (
-			applicationName = opts.ProjectName + "-" + conf.UserGivenName
-			applicationNs   = store.Default.ArgoCDNamespace
-		)
-		log.G().Debugf("applicationName: %s, applicationNs: %s", applicationName, applicationNs)
-
-		resourceMetrics, err := getResourceMetrics(ctx, opts.KubeClient, conf.DestNamespace)
-		if err != nil {
-			log.G().Warnf("failed to get resource metrics for %s: %v", conf.DestNamespace, err)
-		}
-
-		app := types.Application{
+		applications = append(applications, types.Application{
 			ApplicationSource: types.ApplicationSourceRequest{
 				Repo:           conf.SrcRepoURL,
 				Path:           conf.SrcPath,
@@ -253,28 +233,16 @@ func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOp
 				},
 			},
 			ApplicationRuntime: types.ApplicationRuntime{
-				GitInfo:         []types.GitInfo{*gitInfo},
-				ResourceMetrics: *resourceMetrics,
+				GitInfo:         []types.GitInfo{},
+				ResourceMetrics: types.ResourceMetricsInfo{},
+				Status:          "unknown",
+				Health:          "unknown",
+				SyncStatus:      "unknown",
 			},
-		}
-
-		// Get runtime status from ArgoCD
-		argoApp, err := opts.ArgoCDClient.Applications(applicationNs).Get(ctx, applicationName, metav1.GetOptions{})
-		if err != nil {
-			log.G().Warnf("failed to get ArgoCD app info for %s: %v", conf.UserGivenName, err)
-			app.ApplicationRuntime.Status = "Unknown"
-			app.ApplicationRuntime.Health = "Unknown"
-			app.ApplicationRuntime.SyncStatus = "Unknown"
-		} else {
-			app.ApplicationRuntime.Status = getAppStatus(argoApp)
-			app.ApplicationRuntime.Health = getAppHealth(argoApp)
-			app.ApplicationRuntime.SyncStatus = getAppSyncStatus(argoApp)
-		}
-
-		response.Applications = append(response.Applications, app)
+		})
 	}
 
-	return response, nil
+	return applications, nil
 }
 
 // RunAppUpdate updates an application in the native GitOps repository structure
@@ -300,59 +268,36 @@ func (n *NativeRepoTarget) RunAppGet(ctx context.Context, opts *types.AppListOpt
 
 	conf, err := getConfigFileFromPath(repofs, appPath)
 	if err != nil {
+		log.G().Errorf("failed to get application detail: %v", err)
 		return nil, err
 	}
 
-	gitInfo, err := getGitInfo(repofs, appPath)
-	if err != nil {
-		log.G().Warnf("failed to get git info for %s: %v", appPath, err)
-	}
-
-	var (
-		applicationName = opts.ProjectName + "-" + conf.UserGivenName
-		applicationNs   = store.Default.ArgoCDNamespace
-	)
-	log.G().Debugf("applicationName: %s, applicationNs: %s", applicationName, applicationNs)
-
-	resourceMetrics, err := getResourceMetrics(ctx, opts.KubeClient, conf.DestNamespace)
-	if err != nil {
-		log.G().Warnf("failed to get resource metrics for %s: %v", conf.DestNamespace, err)
-	}
-
-	app := &types.Application{
+	return &types.Application{
 		ApplicationSource: types.ApplicationSourceRequest{
 			Repo:           conf.SrcRepoURL,
 			Path:           conf.SrcPath,
 			TargetRevision: conf.SrcTargetRevision,
 		},
 		ApplicationInstantiation: types.ApplicationInstantiation{
-			ApplicationName: conf.AppName,
+			ApplicationName: conf.UserGivenName,
 			TenantName:      opts.ProjectName,
 			AppCode:         conf.Annotations["squidflow.github.io/appcode"],
 			Description:     conf.Annotations["squidflow.github.io/description"],
 		},
 		ApplicationTarget: []types.ApplicationTarget{
 			{
-				Cluster:   "default",
+				Cluster:   "in-cluster",
 				Namespace: conf.DestNamespace,
 			},
 		},
 		ApplicationRuntime: types.ApplicationRuntime{
-			GitInfo:         []types.GitInfo{*gitInfo},
-			ResourceMetrics: *resourceMetrics,
+			GitInfo:         []types.GitInfo{},
+			ResourceMetrics: types.ResourceMetricsInfo{},
+			Status:          "unknown",
+			Health:          "unknown",
+			SyncStatus:      "unknown",
 		},
-	}
-
-	argoApp, err := opts.ArgoCDClient.Applications(applicationNs).Get(ctx, applicationName, metav1.GetOptions{})
-	if err != nil {
-		log.G().Warnf("failed to get ArgoCD app info for %s: %v", conf.UserGivenName, err)
-	}
-
-	app.ApplicationRuntime.Status = getAppStatus(argoApp)
-	app.ApplicationRuntime.Health = getAppHealth(argoApp)
-	app.ApplicationRuntime.SyncStatus = getAppSyncStatus(argoApp)
-
-	return app, nil
+	}, nil
 }
 
 // RunProjectCreate creates a project in the native GitOps repository structure
@@ -778,7 +723,7 @@ func (n *NativeRepoTarget) RunProjectGetDetail(ctx context.Context, projectName 
 
 	return detail, nil
 }
-func (n *NativeRepoTarget) RunListSecretStore(ctx context.Context, opts *types.SecretStoreListOptions) ([]types.SecretStoreDetail, error) {
+func (n *NativeRepoTarget) SecretStoreList(ctx context.Context, opts *types.SecretStoreListOptions) ([]esv1beta1.SecretStore, error) {
 	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
 	if err != nil {
 		return nil, err
@@ -794,7 +739,7 @@ func (n *NativeRepoTarget) RunListSecretStore(ctx context.Context, opts *types.S
 		return nil, err
 	}
 
-	var secretStores []types.SecretStoreDetail
+	var secretStores []esv1beta1.SecretStore
 
 	for _, file := range matches {
 		log.G().WithField("file", file).Debug("Found secret store")
@@ -816,31 +761,14 @@ func (n *NativeRepoTarget) RunListSecretStore(ctx context.Context, opts *types.S
 			"provider": "vault",
 		}).Debug("Found secret store")
 
-		detail := types.SecretStoreDetail{
-			ID:          secretStore.Annotations["squidflow.github.io/id"],
-			Name:        secretStore.Name,
-			Provider:    "vault",
-			Type:        "SecretStore",
-			Status:      "Active",
-			Path:        *secretStore.Spec.Provider.Vault.Path,
-			LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
-			CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
-			LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
-			Environment: []string{"sit", "uat", "prod"},
-			Health: types.SecretStoreHealth{
-				Status:  "Healthy",
-				Message: "Secret store is operating normally",
-			},
-		}
-
-		secretStores = append(secretStores, detail)
+		secretStores = append(secretStores, *secretStore)
 	}
 
 	return secretStores, nil
 }
 
 // WriteSecretStore2Repo the external secret to gitOps repo
-func (n *NativeRepoTarget) WriteSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
+func (n *NativeRepoTarget) SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
 	log.G().WithFields(log.Fields{
 		"name":      ss.Name,
 		"id":        ss.Annotations["squidflow.github.io/id"],
@@ -898,7 +826,7 @@ func (n *NativeRepoTarget) WriteSecretStore2Repo(ctx context.Context, ss *esv1be
 	return nil
 }
 
-func (n *NativeRepoTarget) UpdateSecretStore(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
+func (n *NativeRepoTarget) SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
 	_, repofs, err := prepareRepo(ctx, cloneOpts, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare repo: %w", err)
@@ -932,14 +860,14 @@ func (n *NativeRepoTarget) UpdateSecretStore(ctx context.Context, id string, req
 
 	secretStore.Annotations["squidflow.github.io/updated-at"] = time.Now().Format(time.RFC3339)
 
-	if err := n.WriteSecretStore2Repo(ctx, secretStore, cloneOpts, true); err != nil {
+	if err := n.SecretStoreCreate(ctx, secretStore, cloneOpts, true); err != nil {
 		return nil, fmt.Errorf("failed to write secret store to repo: %w", err)
 	}
 
 	return secretStore, nil
 }
 
-func (n *NativeRepoTarget) RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
+func (n *NativeRepoTarget) SecretStoreDelete(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
 	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
 	if err != nil {
 		return err
@@ -972,7 +900,7 @@ func (n *NativeRepoTarget) RunDeleteSecretStore(ctx context.Context, secretStore
 	return nil
 }
 
-func (n *NativeRepoTarget) GetSecretStoreFromRepo(ctx context.Context, opts *types.SecretStoreGetOptions) (*types.SecretStoreDetail, error) {
+func (n *NativeRepoTarget) SecretStoreGet(ctx context.Context, opts *types.SecretStoreGetOptions) (*esv1beta1.SecretStore, error) {
 	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
 	if err != nil {
 		return nil, err
@@ -994,22 +922,7 @@ func (n *NativeRepoTarget) GetSecretStoreFromRepo(ctx context.Context, opts *typ
 		return nil, fmt.Errorf("invalid secret store kind: %s", secretStore.Kind)
 	}
 
-	return &types.SecretStoreDetail{
-		ID:          secretStore.Annotations["squidflow.github.io/id"],
-		Name:        secretStore.Name,
-		Provider:    "vault",
-		Status:      "Active",
-		Path:        *secretStore.Spec.Provider.Vault.Path,
-		Type:        "SecretStore",
-		Environment: []string{"sit", "uat", "prod"},
-		LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],
-		CreatedAt:   secretStore.Annotations["squidflow.github.io/created-at"],
-		LastUpdated: secretStore.Annotations["squidflow.github.io/updated-at"],
-		Health: types.SecretStoreHealth{
-			Status:  "Healthy", // 可以根据实际状态判断
-			Message: "Secret store is operating normally",
-		},
-	}, nil
+	return secretStore, nil
 }
 
 var getProjectInfoFromFile = func(repofs fs.FS, name string) (*argocdv1alpha1.AppProject, *argocdv1alpha1.ApplicationSet, error) {

@@ -48,7 +48,7 @@ func ApplicationCreate(c *gin.Context) {
 	if createReq.IsDryRun {
 		result, err := performDryRun(c.Request.Context(), &createReq)
 		if err != nil {
-			c.JSON(400, gin.H{"error": fmt.Sprintf("Dry run failed: %v", err)})
+			c.JSON(400, gin.H{"error": fmt.Sprintf("dry run failed: %v", err)})
 			return
 		}
 		c.JSON(200, result)
@@ -103,7 +103,7 @@ func ApplicationCreate(c *gin.Context) {
 	// 	}
 	// }
 
-	if err := repowriter.GetRepoWriter().RunAppCreate(context.Background(), &opt); err != nil {
+	if err := repowriter.Repo().RunAppCreate(context.Background(), &opt); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
 		return
 	}
@@ -199,22 +199,22 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 			envResult.IsValid = false
 			envResult.Error = err.Error()
 			result.Success = false
-			log.G().WithError(err).Error("Failed to generate manifest")
+			log.G().WithError(err).Error("failed to generate manifest")
 		} else {
 			envResult.Manifest = string(manifests)
-			log.G().Debug("Successfully generated manifest")
+			log.G().Debug("successfully generated manifest")
 		}
 
 		result.Environments = append(result.Environments, envResult)
 	}
 
 	if result.Success {
-		result.Message = "Successfully generated manifests for all environments"
+		result.Message = "successfully generated manifests for all environments"
 	} else {
-		result.Message = "Failed to generate manifests for some environments"
+		result.Message = "failed to generate manifests for some environments"
 	}
 
-	log.G().WithField("success", result.Success).Info("Completed application dry run")
+	log.G().WithField("success", result.Success).Info("completed application dry run")
 	return result, nil
 }
 
@@ -253,7 +253,7 @@ func ApplicationDelete(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	if err := repowriter.GetRepoWriter().RunAppDelete(context.Background(), &types.AppDeleteOptions{
+	if err := repowriter.Repo().RunAppDelete(context.Background(), &types.AppDeleteOptions{
 		CloneOpts:   cloneOpts,
 		ProjectName: tenant,
 		AppName:     appName,
@@ -290,12 +290,27 @@ func ApplicationGet(c *gin.Context) {
 		return
 	}
 
-	// TODO: add target repo detection
-	app, err := repowriter.GetRepoWriter().RunAppGet(context.Background(), &types.AppListOptions{
+	app, err := repowriter.Repo().RunAppGet(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  tenant,
 		ArgoCDClient: argoClient,
 	}, appName)
+
+	log.G().WithFields(log.Fields{
+		"application namespace": app.ApplicationInstantiation.TenantName,
+		"application name":      app.ApplicationInstantiation.ApplicationName,
+	}).Debug("get application status")
+
+	//TODO: opt with list method
+	applicationRuntime, err := argoClient.Applications(app.ApplicationInstantiation.TenantName).
+		Get(context.Background(), app.ApplicationInstantiation.ApplicationName, metav1.GetOptions{})
+	if err != nil {
+		log.G().WithError(err).Error("Failed to get application")
+	} else {
+		app.ApplicationRuntime.Status = getAppStatus(applicationRuntime)
+		app.ApplicationRuntime.Health = getAppHealth(applicationRuntime)
+		app.ApplicationRuntime.SyncStatus = getAppSyncStatus(applicationRuntime)
+	}
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get application detail: %v", err)})
@@ -330,7 +345,7 @@ func ApplicationsList(c *gin.Context) {
 		return
 	}
 
-	apps, err := repowriter.GetRepoWriter().RunAppList(context.Background(), &types.AppListOptions{
+	apps, err := repowriter.Repo().RunAppList(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  project,
 		ArgoCDClient: argoClient,
@@ -338,6 +353,26 @@ func ApplicationsList(c *gin.Context) {
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list applications: %v", err)})
 		return
+	}
+
+	// update application runtime status
+	for i, app := range apps {
+		log.G().WithFields(log.Fields{
+			"application namespace": app.ApplicationInstantiation.TenantName,
+			"application name":      app.ApplicationInstantiation.ApplicationName,
+		}).Debug("get application status")
+
+		//TODO: opt with client-go list method
+		argoApp, err := argoClient.Applications(app.ApplicationInstantiation.TenantName).
+			Get(context.Background(), app.ApplicationInstantiation.ApplicationName, metav1.GetOptions{})
+		if err != nil {
+			log.G().WithError(err).Error("Failed to get application")
+			continue
+		} else {
+			apps[i].ApplicationRuntime.Status = getAppStatus(argoApp)
+			apps[i].ApplicationRuntime.Health = getAppHealth(argoApp)
+			apps[i].ApplicationRuntime.SyncStatus = getAppSyncStatus(argoApp)
+		}
 	}
 
 	c.JSON(200, apps)
@@ -462,7 +497,7 @@ func ApplicationUpdate(c *gin.Context) {
 		Annotations: annotations,
 	}
 
-	if err := repowriter.GetRepoWriter().RunAppUpdate(context.Background(), updateOpts); err != nil {
+	if err := repowriter.Repo().RunAppUpdate(context.Background(), updateOpts); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update application: %v", err)})
 		return
 	}
@@ -473,7 +508,7 @@ func ApplicationUpdate(c *gin.Context) {
 		return
 	}
 
-	app, err := repowriter.GetRepoWriter().RunAppGet(context.Background(), &types.AppListOptions{
+	app, err := repowriter.Repo().RunAppGet(context.Background(), &types.AppListOptions{
 		CloneOpts:    cloneOpts,
 		ProjectName:  tenant,
 		ArgoCDClient: argoClient,
@@ -515,7 +550,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 		"repo":     req.Repo,
 		"path":     req.Path,
 		"revision": req.TargetRevision,
-	}).Info("Starting application source validation")
+	}).Info("starting application source validation")
 
 	// Clone repository
 	cloneOpts := &git.CloneOptions{
@@ -525,17 +560,14 @@ func ApplicationSourceValidate(c *gin.Context) {
 		Submodules:    req.Submodules,
 	}
 	cloneOpts.Parse()
-
-	if req.TargetRevision != "" {
-		cloneOpts.SetRevision(req.TargetRevision)
-	}
+	cloneOpts.SetRevision(req.TargetRevision)
 
 	_, repofs, err := cloneOpts.GetRepo(context.Background())
 	if err != nil {
-		log.G().WithError(err).Error("Failed to clone repository")
+		log.G().WithError(err).Error("failed to clone repository")
 		c.JSON(400, gin.H{
 			"success": false,
-			"message": fmt.Sprintf("Failed to clone repository: %v", err),
+			"message": fmt.Sprintf("failed to clone repository: %v", err),
 		})
 		return
 	}
@@ -543,7 +575,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 	// Detect application type and validate structure
 	appType, environments, err := reporeader.ValidateApplicationStructure(repofs, req)
 	if err != nil {
-		log.G().WithError(err).Error("Failed to validate application structure")
+		log.G().WithError(err).Error("failed to validate application structure")
 		c.JSON(400, gin.H{
 			"success": false,
 			"message": err.Error(),
@@ -557,7 +589,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 		"revision":     req.TargetRevision,
 		"type":         appType,
 		"environments": environments,
-	}).Info("Detected application structure")
+	}).Info("detected application structure")
 
 	memFS := memfs.New()
 	suiteableEnv := []types.AppSourceWithEnvironment{}
@@ -566,11 +598,12 @@ func ApplicationSourceValidate(c *gin.Context) {
 		log.G().WithFields(log.Fields{
 			"type": appType,
 			"env":  env,
-		}).Debug("Validating environment")
+		}).Debug("validating environment")
 
 		envResult := types.AppSourceWithEnvironment{
 			Environments: env,
 			Valid:        true,
+			Error:        "",
 		}
 
 		// generate manifest
@@ -580,7 +613,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 		case reporeader.SourceHelmMultiEnv:
 			manifests, err = dryrun.GenerateHelmManifest(repofs, req, env, "application1", "default")
 			if err != nil {
-				log.G().WithError(err).Error("Failed to generate helm manifest")
+				log.G().WithError(err).Error("failed to generate helm manifest")
 				envResult.Valid = false
 				envResult.Error = err.Error()
 				continue
@@ -590,7 +623,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 		case reporeader.SourceKustomizeMultiEnv:
 			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req, env, "application1", "default")
 			if err != nil {
-				log.G().WithError(err).Error("Failed to generate kustomize manifest")
+				log.G().WithError(err).Error("failed to generate kustomize manifest")
 				envResult.Valid = false
 				envResult.Error = err.Error()
 				continue
@@ -598,14 +631,14 @@ func ApplicationSourceValidate(c *gin.Context) {
 		}
 
 		if err != nil {
-			log.G().WithError(err).WithField("env", env).Error("Failed to generate manifest")
+			log.G().WithError(err).WithField("env", env).Error("failed to generate manifest")
 			envResult.Valid = false
 			envResult.Error = err.Error()
 		} else {
 			// write manifest to memory file system
 			manifestPath := fmt.Sprintf("/manifests/%s.yaml", env)
 			if err := memFS.MkdirAll("/manifests", 0755); err != nil {
-				log.G().WithError(err).Error("Failed to create manifests directory")
+				log.G().WithError(err).Error("failed to create manifests directory")
 				envResult.Valid = false
 				envResult.Error = err.Error()
 				continue
@@ -613,7 +646,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 
 			f, err := memFS.Create(manifestPath)
 			if err != nil {
-				log.G().WithError(err).Error("Failed to create manifest file")
+				log.G().WithError(err).Error("failed to create manifest file")
 				envResult.Valid = false
 				envResult.Error = err.Error()
 				continue
@@ -621,7 +654,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 
 			if _, err := f.Write(manifests); err != nil {
 				f.Close()
-				log.G().WithError(err).Error("Failed to write manifest")
+				log.G().WithError(err).Error("failed to write manifest")
 				envResult.Valid = false
 				envResult.Error = err.Error()
 				continue
@@ -640,7 +673,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 			})
 
 			if err != nil {
-				log.G().WithError(err).Error("Failed to create validator")
+				log.G().WithError(err).Error("failed to create validator")
 				envResult.Valid = false
 				envResult.Error = err.Error()
 				continue
@@ -648,7 +681,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 
 			f, err = memFS.Open(manifestPath)
 			if err != nil {
-				log.G().WithError(err).Error("Failed to open manifest for validation")
+				log.G().WithError(err).Error("failed to open manifest for validation")
 				envResult.Valid = false
 				envResult.Error = err.Error()
 				continue
@@ -664,7 +697,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 					log.G().WithFields(log.Fields{
 						"env":   env,
 						"error": res.Err.Error(),
-					}).Error("Manifest validation failed")
+					}).Error("manifest validation failed")
 					break
 				}
 			}

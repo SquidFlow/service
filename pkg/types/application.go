@@ -4,10 +4,11 @@ import (
 	"time"
 
 	argocdv1alpha1client "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
-	"k8s.io/client-go/kubernetes"
 )
 
 // ActionType is the type of action
