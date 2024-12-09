@@ -177,6 +177,185 @@ spec:
 			env:     "default",
 			wantErr: false,
 		},
+		"helm chart with environment values override": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				// Base chart
+				_ = billyUtils.WriteFile(memFS, "Chart.yaml", []byte(`
+apiVersion: v2
+name: test-chart
+version: 0.1.0
+`), 0666)
+				// Default values
+				_ = billyUtils.WriteFile(memFS, "values.yaml", []byte(`
+image:
+  repository: nginx
+  tag: latest
+replicaCount: 1
+`), 0666)
+				// Environment specific values
+				_ = memFS.MkdirAll("environments/prod", 0666)
+				_ = billyUtils.WriteFile(memFS, "environments/prod/values.yaml", []byte(`
+image:
+  tag: stable
+replicaCount: 3
+`), 0666)
+				// Templates
+				_ = memFS.MkdirAll("templates", 0666)
+				_ = billyUtils.WriteFile(memFS, "templates/deployment.yaml", []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    spec:
+      containers:
+      - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			env:     "prod",
+			wantErr: false,
+		},
+		"missing environment values file": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = billyUtils.WriteFile(memFS, "Chart.yaml", []byte(`
+apiVersion: v2
+name: test-chart
+version: 0.1.0
+`), 0666)
+				_ = memFS.MkdirAll("environments/missing", 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			env:       "missing",
+			wantErr:   true,
+			errString: "failed to read values file",
+		},
+		"invalid values.yaml syntax": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = billyUtils.WriteFile(memFS, "Chart.yaml", []byte(`
+apiVersion: v2
+name: test-chart
+version: 0.1.0
+`), 0666)
+				_ = billyUtils.WriteFile(memFS, "values.yaml", []byte(`
+invalid: yaml: content:
+  - missing colon
+  unclosed quote"
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			env:       "default",
+			wantErr:   true,
+			errString: "failed to parse values.yaml",
+		},
+		"invalid template syntax": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = billyUtils.WriteFile(memFS, "Chart.yaml", []byte(`
+apiVersion: v2
+name: test-chart
+version: 0.1.0
+`), 0666)
+				_ = billyUtils.WriteFile(memFS, "values.yaml", []byte(`
+image:
+  repository: nginx
+`), 0666)
+				_ = memFS.MkdirAll("templates", 0666)
+				_ = billyUtils.WriteFile(memFS, "templates/deployment.yaml", []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			env:       "default",
+			wantErr:   true,
+			errString: "failed to render templates",
+		},
+		"custom helm manifest path with subcharts": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				// Main chart
+				_ = memFS.MkdirAll("charts/main/charts/subchart", 0666)
+				// Main chart files
+				_ = billyUtils.WriteFile(memFS, "charts/main/Chart.yaml", []byte(`
+apiVersion: v2
+name: main-chart
+version: 0.1.0
+dependencies:
+- name: subchart
+  version: 0.1.0
+`), 0666)
+				// add main chart values.yaml
+				_ = billyUtils.WriteFile(memFS, "charts/main/values.yaml", []byte(`
+subchart:
+  enabled: true
+  config:
+    key: value
+`), 0666)
+				// add main chart templates
+				_ = memFS.MkdirAll("charts/main/templates", 0666)
+				_ = billyUtils.WriteFile(memFS, "charts/main/templates/configmap.yaml", []byte(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  key: {{ .Values.subchart.config.key }}
+`), 0666)
+
+				// Subchart files
+				_ = billyUtils.WriteFile(memFS, "charts/main/charts/subchart/Chart.yaml", []byte(`
+apiVersion: v2
+name: subchart
+version: 0.1.0
+`), 0666)
+				// add subchart values.yaml
+				_ = billyUtils.WriteFile(memFS, "charts/main/charts/subchart/values.yaml", []byte(`
+config:
+  key: default-value
+`), 0666)
+				// add subchart templates
+				_ = memFS.MkdirAll("charts/main/charts/subchart/templates", 0666)
+				_ = billyUtils.WriteFile(memFS, "charts/main/charts/subchart/templates/service.yaml", []byte(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-subchart
+spec:
+  ports:
+  - port: 80
+`), 0666)
+
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+				ApplicationSpecifier: &types.ApplicationSpecifier{
+					HelmManifestPath: "charts/main",
+				},
+			},
+			env:     "default",
+			wantErr: false,
+		},
 	}
 
 	for name, tt := range tests {

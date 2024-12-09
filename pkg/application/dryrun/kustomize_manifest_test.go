@@ -130,6 +130,98 @@ namePrefix: staging-
 			wantErr:   true,
 			errString: "kustomization.yaml not found in overlay invalid",
 		},
+		"multi-env kustomize with patches": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				// Create base kustomization
+				_ = memFS.MkdirAll("base", 0666)
+				_ = billyUtils.WriteFile(memFS, "base/kustomization.yaml", []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment.yaml
+- service.yaml
+`), 0666)
+				_ = billyUtils.WriteFile(memFS, "base/deployment.yaml", []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-app
+spec:
+  replicas: 1
+`), 0666)
+				_ = billyUtils.WriteFile(memFS, "base/service.yaml", []byte(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-service
+spec:
+  ports:
+  - port: 80
+`), 0666)
+
+				// Create prod overlay with patches
+				_ = memFS.MkdirAll("overlays/prod", 0666)
+				_ = billyUtils.WriteFile(memFS, "overlays/prod/kustomization.yaml", []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+- ../../base
+patches:
+- path: replica-patch.yaml
+`), 0666)
+				_ = billyUtils.WriteFile(memFS, "overlays/prod/replica-patch.yaml", []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-app
+spec:
+  replicas: 3
+`), 0666)
+
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			env:     "prod",
+			wantErr: false,
+		},
+		"overlay with invalid kustomization": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("overlays/invalid", 0666)
+				_ = billyUtils.WriteFile(memFS, "overlays/invalid/kustomization.yaml", []byte(`
+invalid yaml content
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			env:       "invalid",
+			wantErr:   true,
+			errString: "failed to build kustomize",
+		},
+		"overlay with missing base": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("overlays/dev", 0666)
+				_ = billyUtils.WriteFile(memFS, "overlays/dev/kustomization.yaml", []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+- ../../base
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			env:       "dev",
+			wantErr:   true,
+			errString: "failed to build kustomize",
+		},
 	}
 
 	for name, tt := range tests {

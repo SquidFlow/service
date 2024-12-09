@@ -165,6 +165,56 @@ version: 0.1.0
 			},
 			wantErr: true,
 		},
+		"kustomize with base and overlays but no kustomization files": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("base", 0666)
+				_ = memFS.MkdirAll("overlays/dev", 0666)
+				_ = memFS.MkdirAll("overlays/prod", 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantSourceType: SourceKustomizeMultiEnv,
+			wantEnvs:       []string{"default"},
+			wantErr:        false,
+		},
+		"kustomize with kustomization.yml": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = billyUtils.WriteFile(memFS, "kustomization.yml", []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantSourceType: SourceKustomize,
+			wantEnvs:       []string{"default"},
+			wantErr:        false,
+		},
+		"helm with environments but no values files": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("manifests", 0666)
+				_ = billyUtils.WriteFile(memFS, "manifests/Chart.yaml", []byte(`
+apiVersion: v2
+name: test-chart
+`), 0666)
+				_ = memFS.MkdirAll("environments/dev", 0666)
+				_ = memFS.MkdirAll("environments/prod", 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantSourceType: SourceHelmMultiEnv,
+			wantEnvs:       []string{"default"},
+			wantErr:        false,
+		},
 	}
 
 	for name, tt := range tests {

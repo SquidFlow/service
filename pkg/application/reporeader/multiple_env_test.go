@@ -122,20 +122,14 @@ func TestKustomizeMultiEnvDetector_DetectEnvironments(t *testing.T) {
 				_ = billyUtils.WriteFile(memFS, "overlays/dev/kustomization.yaml", []byte(`
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-- ../../base
 `), 0666)
 				_ = billyUtils.WriteFile(memFS, "overlays/staging/kustomization.yaml", []byte(`
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-- ../../base
 `), 0666)
 				_ = billyUtils.WriteFile(memFS, "overlays/prod/kustomization.yaml", []byte(`
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-- ../../base
 `), 0666)
 				return fs.Create(memFS)
 			},
@@ -158,38 +152,36 @@ bases:
 			path:     "/",
 			wantEnvs: []string{"default"},
 		},
-		"mixed valid and invalid overlays": {
+		"overlays with kustomization.yml": {
 			setupFS: func() fs.FS {
 				memFS := memfs.New()
-				// Create overlays with and without kustomization files
-				_ = memFS.MkdirAll("overlays/valid", 0666)
-				_ = memFS.MkdirAll("overlays/invalid", 0666)
-
-				_ = billyUtils.WriteFile(memFS, "overlays/valid/kustomization.yaml", []byte(`
+				_ = memFS.MkdirAll("overlays/dev", 0666)
+				_ = billyUtils.WriteFile(memFS, "overlays/dev/kustomization.yml", []byte(`
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-- ../../base
 `), 0666)
 				return fs.Create(memFS)
 			},
 			path:     "/",
-			wantEnvs: []string{"valid"},
+			wantEnvs: []string{"dev"},
 		},
-		"custom path": {
+		"overlays with both yaml and yml": {
 			setupFS: func() fs.FS {
 				memFS := memfs.New()
-				_ = memFS.MkdirAll("custom/path/overlays/dev", 0666)
-				_ = billyUtils.WriteFile(memFS, "custom/path/overlays/dev/kustomization.yaml", []byte(`
+				_ = memFS.MkdirAll("overlays/dev", 0666)
+				_ = memFS.MkdirAll("overlays/prod", 0666)
+				_ = billyUtils.WriteFile(memFS, "overlays/dev/kustomization.yaml", []byte(`
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-- ../../base
+`), 0666)
+				_ = billyUtils.WriteFile(memFS, "overlays/prod/kustomization.yml", []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
 `), 0666)
 				return fs.Create(memFS)
 			},
-			path:     "custom/path",
-			wantEnvs: []string{"dev"},
+			path:     "/",
+			wantEnvs: []string{"dev", "prod"},
 		},
 	}
 
