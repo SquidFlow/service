@@ -23,44 +23,6 @@ import (
 	"github.com/squidflow/service/pkg/middleware"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/types"
-	"github.com/squidflow/service/pkg/util"
-)
-
-var (
-	prepareRepo = func(ctx context.Context, cloneOpts *git.CloneOptions, projectName string) (git.Repository, fs.FS, error) {
-		log.G().WithFields(log.Fields{
-			"repo-url":      cloneOpts.URL(),
-			"repo-revision": cloneOpts.Revision(),
-			"repo-path":     cloneOpts.Path(),
-		}).Debugf("starting with options:")
-
-		log.G().Infof("cloning git repository: %s", cloneOpts.URL())
-		r, repofs, err := getRepo(ctx, cloneOpts)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed cloning the repository: %w", err)
-		}
-
-		root := repofs.Root()
-		log.G().Infof("using revision: \"%s\", installation path: \"%s\"", cloneOpts.Revision(), root)
-		if !repofs.ExistsOrDie(store.Default.BootsrtrapDir) {
-			return nil, nil, fmt.Errorf("bootstrap directory not found, please execute `repo bootstrap` command")
-		}
-
-		if projectName != "" {
-			projExists := repofs.ExistsOrDie(repofs.Join(store.Default.ProjectsDir, projectName+".yaml"))
-			if !projExists {
-				return nil, nil, fmt.Errorf(util.Doc(fmt.Sprintf("project '%[1]s' not found, please execute `<BIN> project create %[1]s`", projectName)))
-			}
-		}
-
-		log.G().Debug("repository is ok")
-
-		return r, repofs, nil
-	}
-
-	getRepo = func(ctx context.Context, cloneOpts *git.CloneOptions) (git.Repository, fs.FS, error) {
-		return cloneOpts.GetRepo(ctx)
-	}
 )
 
 func ApplicationCreate(c *gin.Context) {

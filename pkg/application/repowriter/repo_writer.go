@@ -25,6 +25,7 @@ var (
 // ├── apps
 // ├── bootstrap
 // └── projects
+//
 // this is vendor1 repo layout
 // tree -L 1
 // .
@@ -102,6 +103,7 @@ type ProjectWriter interface {
 
 type SecretStoreWriter interface {
 	WriteSecretStore2Repo(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error
+	UpdateSecretStore(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error)
 	RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error
 	GetSecretStoreFromRepo(ctx context.Context, opts *types.SecretStoreGetOptions) (*types.SecretStoreDetail, error)
 	RunListSecretStore(ctx context.Context, opts *types.SecretStoreListOptions) ([]types.SecretStoreDetail, error)

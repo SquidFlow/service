@@ -15,7 +15,6 @@ import (
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
-	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/types"
 )
 
@@ -222,52 +221,18 @@ func SecretStoreUpdate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	_, repofs, err := prepareRepo(context.Background(), cloneOpts, "")
+	secretStore, err := repowriter.GetRepoWriter().UpdateSecretStore(context.Background(), secretStoreID, &req, cloneOpts)
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to prepare repo: %v", err)})
-		return
-	}
-
-	secretStorePath := repofs.Join(
-		store.Default.BootsrtrapDir,
-		store.Default.ClusterResourcesDir,
-		store.Default.ClusterContextName,
-		fmt.Sprintf("ss-%s.yaml", secretStoreID),
-	)
-
-	secretStore := &esv1beta1.SecretStore{}
-	if err := repofs.ReadYamls(secretStorePath, secretStore); err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to read secret store: %v", err)})
-		return
-	}
-
-	if req.Name != "" {
-		secretStore.Name = req.Name
-	}
-	if req.Path != "" {
-		secretStore.Spec.Provider.Vault.Path = &req.Path
-	}
-	if req.Auth != nil {
-		secretStore.Spec.Provider.Vault.Auth = *req.Auth
-	}
-	if req.Server != "" {
-		secretStore.Spec.Provider.Vault.Server = req.Server
-	}
-
-	secretStore.Annotations["squidflow.github.io/updated-at"] = time.Now().Format(time.RFC3339)
-
-	if err := repowriter.GetRepoWriter().WriteSecretStore2Repo(context.Background(), secretStore, cloneOpts, true); err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to write secret store to repo: %v", err)})
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update secret store: %v", err)})
 		return
 	}
 
 	c.JSON(200, types.SecretStoreUpdateResponse{
 		Item: types.SecretStoreDetail{
-			ID:       secretStore.Annotations["squidflow.github.io/id"],
-			Name:     secretStore.Name,
-			Provider: "vault",
-			Type:     "SecretStore",
-
+			ID:          secretStore.Annotations["squidflow.github.io/id"],
+			Name:        secretStore.Name,
+			Provider:    "vault",
+			Type:        "SecretStore",
 			Status:      "Active",
 			Path:        *secretStore.Spec.Provider.Vault.Path,
 			LastSynced:  secretStore.Annotations["squidflow.github.io/last-synced"],

@@ -87,6 +87,11 @@ func (v *Vendor1RepoTarget) WriteSecretStore2Repo(ctx context.Context, ss *esv1b
 	return nil
 }
 
+// UpdateSecretStore updates a secret store in the vendor1 GitOps repository structure
+func (v *Vendor1RepoTarget) UpdateSecretStore(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
+	return nil, nil
+}
+
 // RunDeleteSecretStore deletes a secret store from the vendor1 GitOps repository structure
 func (v *Vendor1RepoTarget) RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
 	return nil

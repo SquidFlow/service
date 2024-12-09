@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"path"
 	"strings"
+	"time"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -895,6 +896,47 @@ func (n *NativeRepoTarget) WriteSecretStore2Repo(ctx context.Context, ss *esv1be
 	log.G().Infof("secret store created: '%s'", ss.GetName())
 
 	return nil
+}
+
+func (n *NativeRepoTarget) UpdateSecretStore(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
+	_, repofs, err := prepareRepo(ctx, cloneOpts, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare repo: %w", err)
+	}
+
+	secretStorePath := repofs.Join(
+		store.Default.BootsrtrapDir,
+		store.Default.ClusterResourcesDir,
+		store.Default.ClusterContextName,
+		fmt.Sprintf("ss-%s.yaml", id),
+	)
+
+	secretStore := &esv1beta1.SecretStore{}
+	if err := repofs.ReadYamls(secretStorePath, secretStore); err != nil {
+		return nil, fmt.Errorf("failed to read secret store: %w", err)
+	}
+
+	// Update fields
+	if req.Name != "" {
+		secretStore.Name = req.Name
+	}
+	if req.Path != "" {
+		secretStore.Spec.Provider.Vault.Path = &req.Path
+	}
+	if req.Auth != nil {
+		secretStore.Spec.Provider.Vault.Auth = *req.Auth
+	}
+	if req.Server != "" {
+		secretStore.Spec.Provider.Vault.Server = req.Server
+	}
+
+	secretStore.Annotations["squidflow.github.io/updated-at"] = time.Now().Format(time.RFC3339)
+
+	if err := n.WriteSecretStore2Repo(ctx, secretStore, cloneOpts, true); err != nil {
+		return nil, fmt.Errorf("failed to write secret store to repo: %w", err)
+	}
+
+	return secretStore, nil
 }
 
 func (n *NativeRepoTarget) RunDeleteSecretStore(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
