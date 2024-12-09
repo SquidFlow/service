@@ -65,7 +65,7 @@ kind: Deployment
 			req: types.ApplicationSourceRequest{
 				Path: "/",
 			},
-			wantSourceType: SourceKustomizeMultiEnv,
+			wantSourceType: SourceKustomize,
 			wantEnvs:       []string{"default"},
 			wantErr:        false,
 		},
@@ -180,6 +180,143 @@ version: 0.1.0
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantSourceType, sourceType)
 			assert.ElementsMatch(t, tt.wantEnvs, envs)
+		})
+	}
+}
+
+func TestDetectApplicationType(t *testing.T) {
+	tests := map[string]struct {
+		setupFS        func() fs.FS
+		req            types.ApplicationSourceRequest
+		wantSourceType AppSourceType
+		wantErr        bool
+	}{
+		"helm with application specifier": {
+			setupFS: func() fs.FS {
+				return fs.Create(memfs.New())
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+				ApplicationSpecifier: &types.ApplicationSpecifier{
+					HelmManifestPath: "manifests/helm",
+				},
+			},
+			wantSourceType: SourceHelmMultiEnv,
+			wantErr:        false,
+		},
+		"kustomize with kustomization.yaml": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = billyUtils.WriteFile(memFS, "kustomization.yaml", []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantSourceType: SourceKustomize,
+			wantErr:        false,
+		},
+		"helm with Chart.yaml": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = billyUtils.WriteFile(memFS, "Chart.yaml", []byte(`
+apiVersion: v2
+name: test-chart
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantSourceType: SourceHelm,
+			wantErr:        false,
+		},
+		"helm multi-env with manifests and environments": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("manifests", 0666)
+				_ = memFS.MkdirAll("environments", 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantSourceType: SourceHelmMultiEnv,
+			wantErr:        false,
+		},
+		"kustomize multi-env with base and overlays": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("base", 0666)
+				_ = memFS.MkdirAll("overlays", 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantSourceType: SourceKustomizeMultiEnv,
+			wantErr:        false,
+		},
+		"unsupported structure": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("random", 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "/",
+			},
+			wantErr: true,
+		},
+		"nested path with kustomization": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("nested/path", 0666)
+				_ = billyUtils.WriteFile(memFS, "nested/path/kustomization.yaml", []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "nested/path",
+			},
+			wantSourceType: SourceKustomize,
+			wantErr:        false,
+		},
+		"nested path with Chart.yaml": {
+			setupFS: func() fs.FS {
+				memFS := memfs.New()
+				_ = memFS.MkdirAll("nested/path", 0666)
+				_ = billyUtils.WriteFile(memFS, "nested/path/Chart.yaml", []byte(`
+apiVersion: v2
+name: test-chart
+`), 0666)
+				return fs.Create(memFS)
+			},
+			req: types.ApplicationSourceRequest{
+				Path: "nested/path",
+			},
+			wantSourceType: SourceHelm,
+			wantErr:        false,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			repofs := tt.setupFS()
+			sourceType, err := detectApplicationType(repofs, tt.req)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantSourceType, sourceType)
 		})
 	}
 }

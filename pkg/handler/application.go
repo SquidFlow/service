@@ -609,24 +609,20 @@ func ApplicationSourceValidate(c *gin.Context) {
 		// generate manifest
 		var manifests []byte
 		switch appType {
-		case reporeader.SourceHelm:
-		case reporeader.SourceHelmMultiEnv:
+		case reporeader.SourceHelm, reporeader.SourceHelmMultiEnv:
 			manifests, err = dryrun.GenerateHelmManifest(repofs, req, env, "application1", "default")
 			if err != nil {
 				log.G().WithError(err).Error("failed to generate helm manifest")
 				envResult.Valid = false
 				envResult.Error = err.Error()
-				continue
 			}
 
-		case reporeader.SourceKustomize:
-		case reporeader.SourceKustomizeMultiEnv:
+		case reporeader.SourceKustomize, reporeader.SourceKustomizeMultiEnv:
 			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req, env, "application1", "default")
 			if err != nil {
 				log.G().WithError(err).Error("failed to generate kustomize manifest")
 				envResult.Valid = false
 				envResult.Error = err.Error()
-				continue
 			}
 		}
 
@@ -635,6 +631,10 @@ func ApplicationSourceValidate(c *gin.Context) {
 			envResult.Valid = false
 			envResult.Error = err.Error()
 		} else {
+			log.G().WithFields(log.Fields{
+				"env": env,
+			}).Debug("writing manifest to memory file system")
+
 			// write manifest to memory file system
 			manifestPath := fmt.Sprintf("/manifests/%s.yaml", env)
 			if err := memFS.MkdirAll("/manifests", 0755); err != nil {
@@ -708,7 +708,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 
 	c.JSON(200, types.ValidateAppSourceResponse{
 		Success:      true,
-		Message:      fmt.Sprintf("Valid %s application source", appType),
+		Message:      fmt.Sprintf("valid %s application source", appType),
 		Type:         string(appType),
 		SuiteableEnv: suiteableEnv,
 	})

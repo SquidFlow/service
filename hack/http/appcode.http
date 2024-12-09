@@ -1,4 +1,4 @@
-### List all Application Templates
+### List all appcodes
 GET http://{{host}}:{{port}}/api/v1/appcode
 Accept: application/json
 Content-Type: application/json
