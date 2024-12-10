@@ -56,22 +56,37 @@ export function ApplicationDetail({ name }: ApplicationDetailProps) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">
-          {app.application_instantiation.application_name}
-        </h1>
-        <Button variant="outline" onClick={() => router.push('/dashboard/deploy/application')}>
+    <div className="container mx-auto px-4 py-6 space-y-8">
+      <div className="flex justify-between items-center">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {app.application_instantiation.application_name}
+          </h1>
+          <p className="text-muted-foreground">
+            Application details and deployment status
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => router.push('/dashboard/deploy/application')}
+          className="hover:bg-muted/80"
+        >
           <ChevronLeft className="mr-2 h-4 w-4" />
           Back to List
         </Button>
       </div>
 
-      <DeploymentStatus app={app} />
+      <div className="rounded-lg border bg-card p-6 shadow-sm">
+        <DeploymentStatus app={app} />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        <GeneralInfo app={app} />
-        <ResourceMetrics app={app} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="col-span-2">
+          <GeneralInfo app={app} />
+        </div>
+        <div>
+          <ResourceMetrics app={app} />
+        </div>
       </div>
     </div>
   );

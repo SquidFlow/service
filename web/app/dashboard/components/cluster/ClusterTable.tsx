@@ -98,6 +98,14 @@ export function ClusterTable({
   selectedClusters,
   onSelectedChange
 }: ClusterTableProps) {
+  const getEnvironmentDisplay = (environment: string | undefined | null): string => {
+    return environment?.trim() || 'default';
+  };
+
+  const getProviderDisplay = (provider: string | undefined | null): string => {
+    return provider?.trim() || 'unknown';
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -166,10 +174,10 @@ export function ClusterTable({
                 </div>
               </div>
             </TableCell>
-            <TableCell>{cluster.environment}</TableCell>
+            <TableCell>{getEnvironmentDisplay(cluster.environment)}</TableCell>
             <TableCell>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getProviderBadgeColor(cluster.provider)}`}>
-                {cluster.provider}
+                {getProviderDisplay(cluster.provider)}
               </span>
             </TableCell>
             <TableCell>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { ClusterInfo } from '@/types/cluster';
 
 interface IngressRule {
@@ -33,19 +33,50 @@ interface DeployFormState {
   setSelectedClusters: (clusters: string[] | ((prev: string[]) => string[])) => void;
   clusterDetails: ClusterInfo[];
   setClusterDetails: (clusters: ClusterInfo[]) => void;
+  clearSavedData: () => void;
 }
 
 const DeployFormContext = createContext<DeployFormState | undefined>(undefined);
 
+const FORM_STORAGE_KEY = 'deploy-form-draft';
+
 export function DeployFormProvider({ children }: { children: ReactNode }) {
-  const [source, setSource] = useState<ApplicationSource>({
-    url: "",
-    path: "",
-    targetRevision: "",
-    name: "",
+  const [source, setSource] = useState<ApplicationSource>(() => {
+    // 尝试从 localStorage 恢复数据
+    const saved = localStorage.getItem(FORM_STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved form data:', e);
+      }
+    }
+    return {
+      url: "",
+      path: "",
+      targetRevision: "",
+      name: "",
+    };
   });
+
   const [selectedClusters, setSelectedClusters] = useState<string[]>([]);
   const [clusterDetails, setClusterDetails] = useState<ClusterInfo[]>([]);
+
+  // 自动保存表单数据
+  useEffect(() => {
+    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(source));
+  }, [source]);
+
+  // 清除保存的数据
+  const clearSavedData = () => {
+    localStorage.removeItem(FORM_STORAGE_KEY);
+    setSource({
+      url: "",
+      path: "",
+      targetRevision: "",
+      name: "",
+    });
+  };
 
   return (
     <DeployFormContext.Provider
@@ -56,6 +87,7 @@ export function DeployFormProvider({ children }: { children: ReactNode }) {
         setSelectedClusters,
         clusterDetails,
         setClusterDetails,
+        clearSavedData, // 导出清除方法
       }}
     >
       {children}

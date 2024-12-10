@@ -23,7 +23,7 @@ func GenerateHelmManifest(repofs fs.FS, req types.ApplicationSourceRequest, env 
 		"env":       env,
 		"name":      applicationName,
 		"namespace": applicationNamespace,
-	}).Debug("Preparing helm template")
+	}).Debug("preparing helm template")
 
 	// determine chart path
 	chartPath := req.Path

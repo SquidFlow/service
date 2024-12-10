@@ -15,25 +15,28 @@ export default function NewApplicationPage() {
 
   return (
     <PageContainer title="New Application">
-      <div className="space-y-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink onClick={() => router.push("/dashboard/deploy/application")}>
-                Applications
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbItem>
-              <BreadcrumbLink>
-                New Application
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <div className="w-full max-w-4xl mx-auto">
-          <DeployForm
-            onCancel={() => router.push('/dashboard/deploy/application')}
-          />
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="rounded-lg border bg-card shadow-sm">
+          <Breadcrumb className="p-4 border-b bg-muted/30">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink onClick={() => router.push("/dashboard/deploy/application")}>
+                  Applications
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbItem>
+                <BreadcrumbLink>
+                  New Application
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+
+          <div className="p-6">
+            <DeployForm
+              onCancel={() => router.push('/dashboard/deploy/application')}
+            />
+          </div>
         </div>
       </div>
     </PageContainer>

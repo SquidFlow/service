@@ -31,12 +31,16 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 
 		// check if kustomization.yaml exists
 		if !repofs.ExistsOrDie(repofs.Join(buildPath, "kustomization.yaml")) {
+			log.G().WithFields(log.Fields{
+				"path": buildPath,
+			}).Error("kustomization.yaml not found")
 			return nil, fmt.Errorf("kustomization.yaml not found in %s", buildPath)
 		}
 
 		// copy the whole directory to memory filesystem
 		err := copyToMemFS(repofs, "/", "/", memFS)
 		if err != nil {
+			log.G().WithError(err).Error("failed to copy files")
 			return nil, fmt.Errorf("failed to copy files: %w", err)
 		}
 
@@ -44,17 +48,24 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 	default:
 		overlayPath := repofs.Join(req.Path, "overlays", env)
 		if !repofs.ExistsOrDie(overlayPath) {
+			log.G().WithFields(log.Fields{
+				"path": overlayPath,
+			}).Error("overlay directory for environment not found")
 			return nil, fmt.Errorf("overlay directory for environment %s not found", env)
 		}
 
 		// check if kustomization.yaml exists in overlay
 		if !repofs.ExistsOrDie(repofs.Join(overlayPath, "kustomization.yaml")) {
+			log.G().WithFields(log.Fields{
+				"path": overlayPath,
+			}).Error("kustomization.yaml not found in overlay")
 			return nil, fmt.Errorf("kustomization.yaml not found in overlay %s", env)
 		}
 
 		// copy the whole application directory (including base and overlays) to memory filesystem
 		err := copyToMemFS(repofs, req.Path, "/", memFS)
 		if err != nil {
+			log.G().WithError(err).Error("failed to copy files")
 			return nil, fmt.Errorf("failed to copy files: %w", err)
 		}
 		buildPath = repofs.Join("/overlays", env)
@@ -90,6 +101,10 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 	// Get YAML output
 	yaml, err := m.AsYaml()
 	if err != nil {
+		log.G().WithFields(log.Fields{
+			"error": err,
+			"path":  buildPath,
+		}).Error("failed to generate yaml")
 		return nil, fmt.Errorf("failed to generate yaml: %w", err)
 	}
 

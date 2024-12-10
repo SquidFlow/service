@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -15,7 +16,16 @@ import (
 	"github.com/squidflow/service/pkg/log"
 )
 
-func RegisterCluster2ArgoCd(name, env, kubeconfig string, labels map[string]string) (*argoappv1.Cluster, error) {
+const (
+	AnnotationKeyEnvironment = "squidflow.github.io/cluster-env"
+	AnnotationKeyVendor      = "squidflow.github.io/cluster-vendor"
+	AnnotationKeyName        = "squidflow.github.io/cluster-name"
+	AnnotationKeyManaged     = "squidflow.github.io/managed"
+	AnnotationKeyRegisterBy  = "squidflow.github.io/register-by"
+	AnnotationKeyRegisterAt  = "squidflow.github.io/register-at"
+)
+
+func RegisterCluster2ArgoCd(name, env, kubeconfig string, ann map[string]string) (*argoappv1.Cluster, error) {
 	// parse the kubeConfig
 	kubconfigWithoutBase64, err := base64.StdEncoding.DecodeString(kubeconfig)
 	if err != nil {
@@ -30,11 +40,19 @@ func RegisterCluster2ArgoCd(name, env, kubeconfig string, labels map[string]stri
 		return nil, err
 	}
 
-	annotations := map[string]string{
-		"squidflow.github.io/cluster-env":    env,
-		"squidflow.github.io/cluster-vendor": "aliyun",
-		"squidflow.github.io/cluster-name":   name,
+	if ann == nil {
+		ann = map[string]string{}
+	} else {
+		ann[AnnotationKeyEnvironment] = env
+		ann[AnnotationKeyVendor] = "aliyun"
+		ann[AnnotationKeyName] = name
+		ann[AnnotationKeyManaged] = "true"
+		ann[AnnotationKeyRegisterBy] = "squidflow"
+		ann[AnnotationKeyRegisterAt] = time.Now().Format(time.RFC3339)
 	}
+
+	labels := map[string]string{}
+	labels[AnnotationKeyManaged] = "true"
 
 	// detect the vendor
 	createClusterReq := NewArgoCdClusterCreateReq(
@@ -46,7 +64,7 @@ func RegisterCluster2ArgoCd(name, env, kubeconfig string, labels map[string]stri
 		nil,
 		nil,
 		labels,
-		annotations,
+		ann,
 	)
 	log.G().WithFields(log.Fields{
 		"cluster":           createClusterReq.Name,
@@ -120,27 +138,13 @@ func DeregisterCluster2ArgoCd(name string) error {
 	return nil
 }
 
-func GetCluster(name string) (*argoappv1.Cluster, error) {
-	// Get ArgoCD client
-	argocdClient := GetArgoServerClient()
-	closer, clusterClient := argocdClient.NewClusterClientOrDie()
-	defer func(closer io.Closer) {
-		err := closer.Close()
-		if err != nil {
-			log.G().Errorf(err.Error())
-		}
-	}(closer)
-
-	// Get cluster from ArgoCD
-	cluster, err := clusterClient.Get(context.Background(), &clusterpkg.ClusterQuery{
-		Name: name,
-	})
-	if err != nil {
-		log.G().Errorf("Failed to get cluster %s: %v", name, err)
-		return nil, fmt.Errorf("cluster %s not found", name)
+func getClusterInfoFromAnnotations(annotations map[string]string) (environment, vendor string) {
+	if annotations == nil {
+		return "", ""
 	}
-
-	return cluster, nil
+	environment = annotations[AnnotationKeyEnvironment]
+	vendor = annotations[AnnotationKeyVendor]
+	return
 }
 
 func ListClusters() (*argoappv1.ClusterList, error) {
@@ -159,11 +163,65 @@ func ListClusters() (*argoappv1.ClusterList, error) {
 		return nil, fmt.Errorf("failed to list clusters: %v", err)
 	}
 
+	for i := range clusterList.Items {
+		cluster := &clusterList.Items[i]
+		env, vendor := getClusterInfoFromAnnotations(cluster.Annotations)
+
+		if env != "" {
+			if cluster.Annotations == nil {
+				cluster.Annotations = make(map[string]string)
+			}
+			cluster.Annotations[AnnotationKeyEnvironment] = env
+		}
+		if vendor != "" {
+			if cluster.Annotations == nil {
+				cluster.Annotations = make(map[string]string)
+			}
+			cluster.Annotations[AnnotationKeyVendor] = vendor
+		}
+	}
+
 	log.G().WithFields(log.Fields{
 		"cluster count": len(clusterList.Items),
 	}).Debug("list destination cluster found clusters count")
 
 	return clusterList, nil
+}
+
+func GetCluster(name string) (*argoappv1.Cluster, error) {
+	argocdClient := GetArgoServerClient()
+	closer, clusterClient := argocdClient.NewClusterClientOrDie()
+	defer func(closer io.Closer) {
+		err := closer.Close()
+		if err != nil {
+			log.G().Errorf(err.Error())
+		}
+	}(closer)
+
+	cluster, err := clusterClient.Get(context.Background(), &clusterpkg.ClusterQuery{
+		Name: name,
+	})
+	if err != nil {
+		log.G().Errorf("Failed to get cluster %s: %v", name, err)
+		return nil, fmt.Errorf("cluster %s not found", name)
+	}
+
+	env, vendor := getClusterInfoFromAnnotations(cluster.Annotations)
+
+	if env != "" {
+		if cluster.Annotations == nil {
+			cluster.Annotations = make(map[string]string)
+		}
+		cluster.Annotations[AnnotationKeyEnvironment] = env
+	}
+	if vendor != "" {
+		if cluster.Annotations == nil {
+			cluster.Annotations = make(map[string]string)
+		}
+		cluster.Annotations[AnnotationKeyVendor] = vendor
+	}
+
+	return cluster, nil
 }
 
 func NewArgoCdClusterCreateReq(name string,

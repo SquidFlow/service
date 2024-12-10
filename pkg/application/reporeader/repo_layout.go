@@ -45,9 +45,6 @@ func ValidateApplicationStructure(repofs fs.FS, req types.ApplicationSourceReque
 
 	switch appSourceType {
 	case SourceHelm, SourceKustomize:
-		log.G().WithFields(log.Fields{
-			"app_source_type": appSourceType,
-		}).Warn("not support multiple environments for helm or kustomize")
 		return appSourceType, []string{"default"}, nil
 	case SourceHelmMultiEnv, SourceKustomizeMultiEnv:
 		detector := NewEnvironmentDetector(appSourceType, repofs, req.Path)

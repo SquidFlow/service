@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Layout, HelpCircle, Plus, X } from "lucide-react";
+import { Layout, HelpCircle, Plus, X, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { useDeployForm } from './DeployFormContext';
@@ -15,6 +15,17 @@ interface IngressRule {
   name: string;
   service: string;
   port: string;
+}
+
+interface ValidationState {
+  name: {
+    isValid: boolean;
+    message?: string;
+  };
+  namespace: {
+    isValid: boolean;
+    message?: string;
+  };
 }
 
 export function ApplicationSection() {
@@ -28,6 +39,10 @@ export function ApplicationSection() {
   } = useTenantStore();
   const { data: secretStoreList } = useSecretStore();
   const { source, setSource } = useDeployForm();
+  const [validation, setValidation] = useState<ValidationState>({
+    name: { isValid: true },
+    namespace: { isValid: true }
+  });
 
   useEffect(() => {
     fetchTenants();
@@ -64,6 +79,57 @@ export function ApplicationSection() {
     }));
   };
 
+  // 验证应用名称
+  const validateName = (name: string) => {
+    if (!name) {
+      return { isValid: false, message: "Application name is required" };
+    }
+    if (name.toLowerCase() === 'new') {
+      return { isValid: false, message: "Application name cannot be 'new'" };
+    }
+    if (name.startsWith('_') || name.startsWith('-')) {
+      return { isValid: false, message: "Application name cannot start with '_' or '-'" };
+    }
+    // 可以添加更多验证规则，如：只允许字母数字和中横线
+    if (!/^[a-zA-Z0-9][-a-zA-Z0-9]*$/.test(name)) {
+      return { isValid: false, message: "Application name must start with a letter or number and can only contain letters, numbers, and hyphens" };
+    }
+    return { isValid: true };
+  };
+
+  // 验证命名空间
+  const validateNamespace = (namespace: string) => {
+    if (!namespace) {
+      return { isValid: false, message: "Namespace is required" };
+    }
+    if (namespace.toLowerCase().startsWith('kube')) {
+      return { isValid: false, message: "Namespace cannot start with 'kube'" };
+    }
+    // 可以添加更多验证规则，如：只允许字母数字和中横线
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(namespace)) {
+      return { isValid: false, message: "Namespace must start with a letter or number and can only contain lowercase letters, numbers, and hyphens" };
+    }
+    return { isValid: true };
+  };
+
+  const handleNameChange = (value: string) => {
+    const nameValidation = validateName(value);
+    setValidation(prev => ({
+      ...prev,
+      name: nameValidation
+    }));
+    setSource(prev => ({ ...prev, name: value }));
+  };
+
+  const handleNamespaceChange = (value: string) => {
+    const namespaceValidation = validateNamespace(value);
+    setValidation(prev => ({
+      ...prev,
+      namespace: namespaceValidation
+    }));
+    setSource(prev => ({ ...prev, namespace: value }));
+  };
+
   return (
     <Card>
       <CardHeader className="pb-6">
@@ -90,12 +156,33 @@ export function ApplicationSection() {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <Input
-            value={source.name}
-            onChange={(e) => setSource(prev => ({ ...prev, name: e.target.value }))}
-            placeholder="Enter ArgoCD application name"
-            className="mt-1.5"
-          />
+          <div className="relative">
+            <Input
+              value={source.name || ''}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Enter ArgoCD application name"
+              className={`${
+                !validation.name.isValid && source.name
+                  ? 'border-red-500 focus:ring-red-500'
+                  : validation.name.isValid && source.name
+                  ? 'border-green-500 focus:ring-green-500'
+                  : ''
+              }`}
+            />
+            {!validation.name.isValid && source.name && (
+              <div className="flex items-center mt-1 text-sm text-red-500">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                <span>{validation.name.message}</span>
+              </div>
+            )}
+            {validation.name.isValid && source.name && (
+              <div className="absolute right-3 top-2.5 h-5 w-5 text-green-500">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-8">
@@ -179,11 +266,33 @@ export function ApplicationSection() {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <Input
-            value={source.namespace || ''}
-            onChange={(e) => setSource(prev => ({ ...prev, namespace: e.target.value }))}
-            placeholder="Enter namespace"
-          />
+          <div className="relative">
+            <Input
+              value={source.namespace || ''}
+              onChange={(e) => handleNamespaceChange(e.target.value)}
+              placeholder="Enter namespace"
+              className={`${
+                !validation.namespace.isValid && source.namespace
+                  ? 'border-red-500 focus:ring-red-500'
+                  : validation.namespace.isValid && source.namespace
+                  ? 'border-green-500 focus:ring-green-500'
+                  : ''
+              }`}
+            />
+            {!validation.namespace.isValid && source.namespace && (
+              <div className="flex items-center mt-1 text-sm text-red-500">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                <span>{validation.namespace.message}</span>
+              </div>
+            )}
+            {validation.namespace.isValid && source.namespace && (
+              <div className="absolute right-3 top-2.5 h-5 w-5 text-green-500">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
         </div>
 
         <div>

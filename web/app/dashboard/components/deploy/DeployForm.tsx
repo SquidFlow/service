@@ -7,7 +7,7 @@ import { ApplicationSection } from "./ApplicationSection";
 import { CreateApplicationPayload } from '@/types/application';
 import { DeployFormProvider, useDeployForm } from './DeployFormContext';
 import { useToast } from "@/components/ui/use-toast";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Save, Trash2 } from "lucide-react";
 import { useApplicationStore } from '@/store';
 import { ClusterSelector } from './ClusterSelector';
 import { useRouter } from 'next/navigation';
@@ -23,7 +23,7 @@ interface DryRunEnvironment {
 }
 
 function DeployFormContent({ onCancel }: DeployFormProps) {
-  const { source, selectedClusters } = useDeployForm();
+  const { source, selectedClusters, clearSavedData } = useDeployForm();
   const [isDryRunOpen, setIsDryRunOpen] = useState(false);
   const [dryRunYaml, setDryRunYaml] = useState<DryRunEnvironment[]>([]);
   const formRef = useRef<HTMLDivElement>(null);
@@ -67,6 +67,7 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
         description: "Application created successfully",
       });
 
+      clearSavedData();
       router.push('/dashboard/deploy/application');
     } catch (error) {
       console.error('Failed to create application:', error);
@@ -129,6 +130,29 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
         style={{ width: isDryRunOpen ? "80%" : "100%" }}
       >
         <div className="flex flex-col space-y-6 w-full max-w-[2400px] mx-auto">
+          {source.url && (
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <Save className="h-4 w-4" />
+                <span>Form data is automatically saved</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  clearSavedData();
+                  toast({
+                    title: "Draft cleared",
+                    description: "Your saved form data has been cleared.",
+                  });
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear saved data
+              </Button>
+            </div>
+          )}
+
           <SourceSection />
           <ApplicationSection />
           <ClusterSelector />
@@ -137,7 +161,10 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
               <div className="flex items-center justify-end space-x-4">
                 <Button
                   variant="outline"
-                  onClick={onCancel}
+                  onClick={() => {
+                    clearSavedData();
+                    onCancel();
+                  }}
                   className="hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   Cancel

@@ -29,7 +29,6 @@ export function Application() {
       onSelectApp={(app: ApplicationTemplate) => {
         router.push(`/dashboard/deploy/application/${app.application_instantiation.application_name}`);
       }}
-      onCreateNew={() => router.push('/dashboard/deploy/application/new')}
     />
   );
 }

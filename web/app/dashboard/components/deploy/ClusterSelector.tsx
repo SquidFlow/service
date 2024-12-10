@@ -176,9 +176,6 @@ export function ClusterSelector() {
                   <span className={`text-xs px-2 py-0.5 rounded-full ${getEnvironmentStyle(cluster.environment)}`}>
                     {cluster.environment || 'Default'}
                   </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                    {cluster.provider || 'Default'}
-                  </span>
                 </div>
               </Button>
             ))}

@@ -126,9 +126,9 @@ func ClusterGet(c *gin.Context) {
 	// Build response
 	response := &types.ClusterResponse{
 		Name:        cluster.Name,
-		Environment: cluster.Labels["environment"],
+		Environment: cluster.Labels["squidflow.github.io/cluster-env"],
 		Status:      getClusterStatus(destK8sClient),
-		Provider:    cluster.Labels["vendor"],
+		Provider:    cluster.Labels["squidflow.github.io/cluster-vendor"],
 		Version: types.VersionInfo{
 			Kubernetes: version.GitVersion,
 			Platform:   getPlatformVersion(version, cluster.Labels["vendor"]),
@@ -402,8 +402,11 @@ func countReadyNodes(destCluster kubernetes.Interface) (total, ready int) {
 	}
 	readyNodes := 0
 	for _, node := range nodes.Items {
-		if node.Status.Conditions[0].Status == corev1.ConditionTrue {
-			readyNodes++
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+				readyNodes++
+				break
+			}
 		}
 	}
 	return len(nodes.Items), readyNodes

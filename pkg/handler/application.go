@@ -144,13 +144,14 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 	// Detect application type and validate structure
 	appType, environments, err := reporeader.ValidateApplicationStructure(repofs, req.ApplicationSource)
 	if err != nil {
+		log.G().WithError(err).Error("failed to validate application structure")
 		return nil, err
 	}
 
 	log.G().WithFields(log.Fields{
 		"type":         appType,
 		"environments": environments,
-	}).Debug("Detected application structure")
+	}).Debug("detected application structure")
 
 	// Initialize dry run result
 	result := &types.ApplicationDryRunResult{
@@ -162,19 +163,25 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 	// For each environment, render and validate the templates
 	for _, env := range environments {
 		log.G().WithFields(log.Fields{
-			"environment": env,
-			"type":        appType,
-		}).Debug("Processing environment")
+			"environment":      env,
+			"appliction type":  appType,
+			"source repo":      req.ApplicationSource.Repo,
+			"source path":      req.ApplicationSource.Path,
+			"target namespace": req.ApplicationTarget[0].Namespace,
+			"target app name":  req.ApplicationInstantiation.ApplicationName,
+		}).Debug("processing dry run parameters")
 
 		envResult := types.ApplicationDryRunEnv{
 			Environment: env,
 			IsValid:     true,
+			Manifest:    ``,
+			Error:       "",
 		}
 
 		var manifests []byte
 		switch appType {
-		case reporeader.SourceHelm:
-		case reporeader.SourceHelmMultiEnv:
+		case reporeader.SourceHelm, reporeader.SourceHelmMultiEnv:
+			log.G().Debug("generating helm manifest")
 			manifests, err = dryrun.GenerateHelmManifest(
 				repofs,
 				req.ApplicationSource,
@@ -182,8 +189,8 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 				req.ApplicationInstantiation.ApplicationName,
 				req.ApplicationTarget[0].Namespace,
 			)
-		case reporeader.SourceKustomize:
-		case reporeader.SourceKustomizeMultiEnv:
+		case reporeader.SourceKustomize, reporeader.SourceKustomizeMultiEnv:
+			log.G().Debug("generating kustomize manifest")
 			manifests, err = dryrun.GenerateKustomizeManifest(
 				repofs,
 				req.ApplicationSource,
@@ -191,18 +198,19 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 				req.ApplicationInstantiation.ApplicationName,
 				req.ApplicationTarget[0].Namespace,
 			)
-
 		default:
 			err = fmt.Errorf("unsupported application type: %s", appType)
 		}
 
 		if err != nil {
+			result.Success = false
 			envResult.IsValid = false
 			envResult.Error = err.Error()
-			result.Success = false
 			log.G().WithError(err).Error("failed to generate manifest")
 		} else {
+			envResult.IsValid = true
 			envResult.Manifest = string(manifests)
+			envResult.Error = ""
 			log.G().Debug("successfully generated manifest")
 		}
 
