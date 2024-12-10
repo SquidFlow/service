@@ -19,6 +19,7 @@ import { DeleteDialog } from './DeleteDialog';
 import { useApplicationStore } from '@/store';
 import type { ApplicationTemplate } from '@/types';
 import { getStatusIcon } from './utils';
+import { useRouter } from 'next/navigation';
 
 interface ApplicationListProps {
   onSelectApp: (app: ApplicationTemplate) => void;
@@ -40,6 +41,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     fetchApplications();
@@ -90,7 +92,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
             </Button>
           </>
         )}
-        <Button onClick={onCreateNew} className="ml-auto">
+        <Button onClick={() => router.push('/dashboard/deploy/application/new')} className="ml-auto">
           <Plus className="h-4 w-4 mr-2" />
           New Application
         </Button>
