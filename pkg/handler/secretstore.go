@@ -231,6 +231,7 @@ func SecretStoreList(c *gin.Context) {
 		Total:   len(secretStores),
 		Items:   items,
 		Message: "secret stores retrieved successfully",
+		Error:   "",
 	})
 }
 

@@ -150,7 +150,6 @@ type (
 		ApplicationSource        ApplicationSourceRequest `json:"application_source" binding:"required"`
 		ApplicationInstantiation ApplicationInstantiation `json:"application_instantiation" binding:"required"`
 		ApplicationTarget        []ApplicationTarget      `json:"application_target" binding:"required"`
-		DryrunResult             ApplicationDryRunResult  `json:"dryrun_result,omitempty"`
 		ApplicationRuntime       ApplicationRuntime       `json:"application_runtime,omitempty"`
 	}
 
@@ -179,6 +178,11 @@ type (
 		SyncStatus      string              `json:"sync_status"`
 		GitInfo         []GitInfo           `json:"git_info"`
 		ResourceMetrics ResourceMetricsInfo `json:"resource_metrics"`
+		ArgoCDUrl       string              `json:"argocd_url"`
+		CreatedAt       time.Time           `json:"created_at"`
+		CreatedBy       string              `json:"created_by"`
+		LastUpdatedAt   time.Time           `json:"last_updated_at"`
+		LastUpdatedBy   string              `json:"last_updated_by"`
 	}
 
 	ResourceMetricsInfo struct {
@@ -190,10 +194,11 @@ type (
 
 	// ApplicationListResponse represents the response body for listing applications
 	ApplicationListResponse struct {
-		Total        int64         `json:"total"`
-		Success      bool          `json:"success"`
-		Message      string        `json:"message"`
-		Applications []Application `json:"applications"`
+		Total   int64         `json:"total"`
+		Success bool          `json:"success"`
+		Message string        `json:"message"`
+		Error   string        `json:"error,omitempty"`
+		Items   []Application `json:"items"`
 	}
 )
 

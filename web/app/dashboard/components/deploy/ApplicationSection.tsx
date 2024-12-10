@@ -66,19 +66,19 @@ export function ApplicationSection() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-3">
+      <CardHeader className="pb-6">
+        <CardTitle className="flex items-center space-x-3 text-xl">
           <Layout className="h-6 w-6 text-blue-500" />
           <span>ArgoCD Application Instantiation</span>
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mt-2">
           Configure the ArgoCD Application parameters to instantiate your selected template
         </p>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
+      <CardContent className="space-y-8">
+        <div className="space-y-3">
           <div className="flex items-center space-x-2">
-            <Label>ArgoCD Application Name</Label>
+            <Label className="text-sm font-medium">ArgoCD Application Name</Label>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
@@ -94,10 +94,11 @@ export function ApplicationSection() {
             value={source.name}
             onChange={(e) => setSource(prev => ({ ...prev, name: e.target.value }))}
             placeholder="Enter ArgoCD application name"
+            className="mt-1.5"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-8">
           <div>
             <div className="flex items-center space-x-2">
               <Label>Tenant Name</Label>

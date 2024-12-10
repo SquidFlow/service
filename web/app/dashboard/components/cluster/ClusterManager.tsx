@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { StatCards } from './StatCards';
 import { ClusterList } from './ClusterList';
 import { ResourceQuotaDialog } from './ResourceQuotaDialog';
@@ -8,19 +6,19 @@ import { ClusterInfo } from '@/types/cluster';
 import { UIResourceQuota, toClusterQuota } from '@/types/quota';
 import { useClusterStore } from '@/store';
 
-export function DestinationCluster() {
+export function ClusterManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const {
     data: clusters,
     selectedCluster,
     setSelectedCluster,
-    fetch: fetchClusters,
+    getClusterList,
     updateClusterQuota
   } = useClusterStore();
 
   useEffect(() => {
-    fetchClusters();
-  }, [fetchClusters]);
+    getClusterList();
+  }, [getClusterList]);
 
   const handleResourceQuota = (cluster: ClusterInfo) => {
     setSelectedCluster(cluster);

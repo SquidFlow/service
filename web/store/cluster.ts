@@ -1,27 +1,29 @@
 import { create } from 'zustand';
-import type { ClusterInfo } from '@/types';
-import type { BaseState, BaseActions } from '@/types/store';
 import requestor from '@/requestor';
-import { CLUSTER } from '@/app/api';
+import { API_PATHS } from './api';
+import { ClusterInfo } from '@/types/cluster';
 
-interface ClusterState extends BaseState<ClusterInfo> {
+interface ClusterStore {
+  data: ClusterInfo[];
+  isLoading: boolean;
+  error: Error | null;
   searchTerm: string;
   selectedEnvironment: string;
   selectedProvider: string;
   selectedCluster: ClusterInfo | null;
-}
 
-interface ClusterActions extends BaseActions<ClusterInfo> {
   setSearchTerm: (term: string) => void;
   setSelectedEnvironment: (env: string) => void;
   setSelectedProvider: (provider: string) => void;
   setSelectedCluster: (cluster: ClusterInfo | null) => void;
-  getClusterList: () => Promise<ClusterInfo[]>;
+
+  getClusterList: () => Promise<void>;
   getFilteredClusters: () => ClusterInfo[];
   updateClusterQuota: (clusterName: string, quota: any) => Promise<void>;
+  reset: () => void;
 }
 
-export const useClusterStore = create<ClusterState & ClusterActions>((set, get) => ({
+export const useClusterStore = create<ClusterStore>((set, get) => ({
   data: [],
   isLoading: false,
   error: null,
@@ -35,21 +37,17 @@ export const useClusterStore = create<ClusterState & ClusterActions>((set, get) 
   setSelectedProvider: (provider) => set({ selectedProvider: provider }),
   setSelectedCluster: (cluster) => set({ selectedCluster: cluster }),
 
-  fetch: async () => {
+  getClusterList: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await requestor.get(CLUSTER);
+      const response = await requestor.get(API_PATHS.clusters.list);
       set({ data: response.data.items || [] });
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to fetch clusters') });
+      console.error('Failed to fetch clusters:', error);
     } finally {
       set({ isLoading: false });
     }
-  },
-
-  getClusterList: async () => {
-    const response = await requestor.get(CLUSTER);
-    return response.data.items || [];
   },
 
   getFilteredClusters: () => {
@@ -71,8 +69,8 @@ export const useClusterStore = create<ClusterState & ClusterActions>((set, get) 
   updateClusterQuota: async (clusterName, quota) => {
     set({ isLoading: true, error: null });
     try {
-      await requestor.put(`${CLUSTER}/${clusterName}/quota`, quota);
-      await get().fetch();
+      await requestor.put(API_PATHS.clusters.quota(clusterName), quota);
+      await get().getClusterList();
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to update cluster quota') });
       throw error;

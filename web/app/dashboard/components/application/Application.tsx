@@ -14,7 +14,6 @@ export function Application() {
   const pathname = usePathname();
   const { fetch: fetchApplications } = useApplicationStore();
 
-  // 从 URL 中提取应用名称
   const appName = pathname.startsWith('/dashboard/deploy/application/')
     ? pathname.split('/').pop()
     : null;
@@ -31,16 +30,14 @@ export function Application() {
     );
   }
 
-  // 如果 URL 包含应用名称，显示详情页
   if (appName && appName !== 'application') {
     return <ApplicationDetail name={appName} />;
   }
 
-  // 否则显示列表页
   return (
     <ApplicationList
       onSelectApp={(app: ApplicationTemplate) => {
-        router.push(`/dashboard/deploy/application/${app.name}`);
+        router.push(`/dashboard/deploy/application/${app.application_instantiation.application_name}`);
       }}
       onCreateNew={() => setIsCreating(true)}
     />

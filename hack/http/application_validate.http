@@ -1,5 +1,5 @@
 ### standard structure for kustomize with git protocol
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -12,7 +12,7 @@ Authorization: Bearer username@tenant1
 }
 
 ### standard structure for kustomize with https protocol
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -25,7 +25,7 @@ Authorization: Bearer username@tenant1
 }
 
 ### standard structure for helm with git protocol
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -38,7 +38,7 @@ Authorization: Bearer username@tenant1
 
 
 ### standard structure for helm with https protocol
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -51,7 +51,7 @@ Authorization: Bearer username@tenant1
 
 
 ### validate application source with multiple environments with kustomize
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -63,7 +63,7 @@ Authorization: Bearer username@tenant1
 }
 
 ### validate application source with multiple environments with kustomize with https protocol
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -75,7 +75,7 @@ Authorization: Bearer username@tenant1
 }
 
 ### validate application source with multiple environments with helm with git protocol
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
@@ -90,7 +90,7 @@ Authorization: Bearer username@tenant1
 }
 
 ### validate application source with multiple environments with helm with https protocol
-PUT http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1

@@ -24,8 +24,8 @@ const menuItems: MenuItem[] = [
         href: '/dashboard/deploy/application'
       },
       {
-        label: 'Destination Clusters',
-        href: '/dashboard/deploy/destinationcluster'
+        label: 'Clusters',
+        href: '/dashboard/deploy/cluster'
       }
     ]
   },

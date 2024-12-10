@@ -120,8 +120,10 @@ type ComponentStatus struct {
 }
 
 type ClusterListResponse struct {
+	Success bool              `json:"success"`
 	Total   int               `json:"total"`
 	Message string            `json:"message"`
+	Error   string            `json:"error,omitempty"`
 	Items   []ClusterResponse `json:"items"`
 }
 

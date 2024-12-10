@@ -875,7 +875,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /deploy/applications/validate:
-    put:
+    post:
       tags: [Application]
       summary: Validate application source
       operationId: ApplicationSourceValidate

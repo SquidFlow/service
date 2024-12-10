@@ -1,16 +1,21 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { useState, useEffect } from "react";
 import { useClusterStore } from '@/store';
 import { ClusterTable } from './ClusterTable';
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ClusterInfo } from '@/types/cluster';
 
 interface ClusterListProps {
-  onResourceQuota: (cluster: any) => void;
+  onResourceQuota: (cluster: ClusterInfo) => void;
 }
 
 export function ClusterList({ onResourceQuota }: ClusterListProps) {
@@ -22,7 +27,7 @@ export function ClusterList({ onResourceQuota }: ClusterListProps) {
     setSelectedEnvironment,
     setSelectedProvider,
     getFilteredClusters,
-    fetch: refreshClusters
+    getClusterList
   } = useClusterStore();
 
   const [selectedClusters, setSelectedClusters] = useState<string[]>([]);
@@ -30,43 +35,20 @@ export function ClusterList({ onResourceQuota }: ClusterListProps) {
 
   const handleRefresh = async () => {
     try {
-      await refreshClusters();
+      await getClusterList();
     } catch (error) {
       console.error('Failed to refresh clusters:', error);
     }
   };
 
+  useEffect(() => {
+    handleRefresh();
+  }, []);
+
   return (
-    <Card>
-      <div className="flex items-center justify-between p-4 border-b bg-muted/50">
-        <div className="flex items-center space-x-4 flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search clusters..."
-              className="w-[300px] pl-9 bg-background"
-              type="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Button variant="outline" size="icon" onClick={handleRefresh}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          {selectedClusters.length > 0 && (
-            <Button
-              variant="outline"
-              className="text-red-600"
-              onClick={() => {
-                // 处理删除逻辑
-                setSelectedClusters([]);
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Selected
-            </Button>
-          )}
-        </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Clusters</h2>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Select value={selectedEnvironment} onValueChange={setSelectedEnvironment}>
@@ -99,14 +81,13 @@ export function ClusterList({ onResourceQuota }: ClusterListProps) {
           </Button>
         </div>
       </div>
-      <div className="p-4">
-        <ClusterTable
-          clusters={filteredClusters}
-          onResourceQuota={onResourceQuota}
-          selectedClusters={selectedClusters}
-          onSelectedChange={setSelectedClusters}
-        />
-      </div>
-    </Card>
+
+      <ClusterTable
+        clusters={filteredClusters}
+        onResourceQuota={onResourceQuota}
+        selectedClusters={selectedClusters}
+        onSelectedChange={setSelectedClusters}
+      />
+    </div>
   );
 }

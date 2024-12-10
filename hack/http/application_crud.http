@@ -1,3 +1,9 @@
+### get app with project
+GET http://{{host}}:{{port}}/api/v1/deploy/applications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
 ### create app with simple kustomize ref
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
@@ -26,15 +32,8 @@ Authorization: Bearer username@tenant1
     "is_dryrun": false
 }
 
-
-### get app with project
-GET http://{{host}}:{{port}}/api/v1/deploy/applications
-Accept: application/json
-Content-Type: application/json
-Authorization: Bearer username@tenant1
-
 ### argocdapplications/abcs
-GET http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook2
+GET http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1

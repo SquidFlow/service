@@ -1,74 +1,65 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
-import yaml from "react-syntax-highlighter/dist/esm/languages/hljs/yaml";
-import { vs2015 } from "react-syntax-highlighter/dist/esm/styles/hljs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-SyntaxHighlighter.registerLanguage("yaml", yaml);
 
 interface DryRunProps {
   isOpen: boolean;
-  yamls: { cluster: string; content: string }[];
   onClose: () => void;
+  yamls: Array<{
+    environment: string;
+    manifest: string;
+    is_valid: boolean;
+  }>;
 }
 
-export function DryRun({ isOpen, yamls, onClose }: DryRunProps) {
-  const [selectedCluster, setSelectedCluster] = useState(yamls[0]?.cluster || '');
-  const selectedYaml = yamls.find(y => y.cluster === selectedCluster)?.content || '';
+export function DryRun({ isOpen, onClose, yamls }: DryRunProps) {
+  const [selectedEnv, setSelectedEnv] = useState(yamls[0]?.environment || '');
+
+  const currentYaml = yamls.find(y => y.environment === selectedEnv);
+  const manifest = currentYaml?.manifest || '';
 
   return (
-    <div
-      className={`fixed top-0 right-0 w-[600px] h-screen bg-background border-l border-border transform transition-transform duration-300 ease-in-out ${
-        isOpen ? "translate-x-0" : "translate-x-full"
-      }`}
-    >
-      <div className="h-full flex flex-col p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Dry Run Results</h2>
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-[90vw] sm:max-w-[1200px] p-0">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium">Environment:</span>
+              <Select value={selectedEnv} onValueChange={setSelectedEnv}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select environment" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yamls.map(yaml => (
+                    <SelectItem key={yaml.environment} value={yaml.environment}>
+                      {yaml.environment}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {currentYaml && (
+                <span className={`text-sm ${currentYaml.is_valid ? 'text-green-500' : 'text-red-500'}`}>
+                  {currentYaml.is_valid ? 'Valid' : 'Invalid'}
+                </span>
+              )}
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-        <div className="mb-4">
-          <Select value={selectedCluster} onValueChange={setSelectedCluster}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select cluster" />
-            </SelectTrigger>
-            <SelectContent>
-              {yamls.map(({ cluster }) => (
-                <SelectItem key={cluster} value={cluster}>
-                  {cluster}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Content */}
+          <ScrollArea className="flex-1 p-6">
+            <pre className="text-sm whitespace-pre-wrap font-mono">
+              {manifest}
+            </pre>
+          </ScrollArea>
         </div>
-
-        <div className="flex-1 relative rounded-md overflow-hidden">
-          <SyntaxHighlighter
-            language="yaml"
-            style={vs2015}
-            customStyle={{
-              margin: 0,
-              padding: '1rem',
-              fontSize: '0.875rem',
-              borderRadius: '0.375rem',
-              height: '100%',
-              overflow: 'auto'
-            }}
-          >
-            {selectedYaml}
-          </SyntaxHighlighter>
-        </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

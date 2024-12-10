@@ -2,6 +2,7 @@ export interface ClusterInfo {
   name: string;
   environment: string;
   provider: string;
+  isAvailable?: boolean;
   version: {
     kubernetes: string;
     platform: string;

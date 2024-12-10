@@ -4,12 +4,12 @@ import type { ApplicationTemplate } from '@/types';
 
 export const renderResourceValue = (app: ApplicationTemplate, env: string, field: 'cpu' | 'memory' | 'storage' | 'pods') => {
   if (field === 'cpu') {
-    return app.runtime_status.resource_metrics.cpu_cores || '0';
+    return app.application_runtime.resource_metrics.cpu || 'N/A';
   }
   if (field === 'memory') {
-    return app.runtime_status.resource_metrics.memory_usage || '0';
+    return app.application_runtime.resource_metrics.memory || 'N/A';
   }
-  return '0';
+  return 'N/A';
 };
 
 export const getStatusIcon = (status: string): ReactNode => {

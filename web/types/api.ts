@@ -6,6 +6,7 @@ import type { TenantInfo } from './tenant';
 export interface BaseResponse<T> {
   success: boolean;
   total: number;
+  error: string;
   items: T[];
 }
 

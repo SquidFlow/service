@@ -207,7 +207,7 @@ func setupRouter() *gin.Engine {
 		applications.POST("", handler.ApplicationCreate)
 		applications.GET("", handler.ApplicationsList)
 		applications.POST("/sync", handler.ApplicationSync)
-		applications.PUT("/validate", handler.ApplicationSourceValidate)
+		applications.POST("/validate", handler.ApplicationSourceValidate)
 
 		app := applications.Group("/:name")
 		{

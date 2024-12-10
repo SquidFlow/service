@@ -36,7 +36,7 @@ const formatDate = (dateString?: string) => {
 };
 
 export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListProps) {
-  const { data: applications, fetch: fetchApplications, deleteApplications } = useApplicationStore();
+  const { data: applications, fetch: fetchApplications } = useApplicationStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -45,12 +45,10 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
     fetchApplications();
   }, [fetchApplications]);
 
-  const filteredApps = applications.filter((app: ApplicationTemplate) => {
-    const appName = (app.name || '').toLowerCase();
-    const appOwner = (app.created_by || '').toLowerCase();
+  const filteredApps = applications.filter((app) => {
+    const appName = (app.application_instantiation?.application_name || '').toLowerCase();
     const searchLower = searchTerm.toLowerCase();
-
-    return appName.includes(searchLower) || appOwner.includes(searchLower);
+    return appName.includes(searchLower);
   });
 
   const handleRefresh = async () => {
@@ -107,7 +105,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   checked={selectedApps.length === filteredApps.length && filteredApps.length > 0}
                   onCheckedChange={(checked) => {
                     if (checked) {
-                      setSelectedApps(filteredApps.map(app => app.name));
+                      setSelectedApps(filteredApps.map(app => app.application_instantiation.application_name));
                     } else {
                       setSelectedApps([]);
                     }
@@ -119,25 +117,25 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
             <TableHead>Status</TableHead>
             <TableHead>Health</TableHead>
             <TableHead>Repository</TableHead>
-            <TableHead>Environments</TableHead>
+            <TableHead>Clusters</TableHead>
             <TableHead>Last Updated</TableHead>
             <TableHead className="text-right">ArgoCD</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredApps.map((app: ApplicationTemplate) => (
+          {filteredApps.map((app) => (
             <TableRow
-              key={`${app.id || ''}-${app.name}`}
+              key={app.application_instantiation.application_name}
               className="border-b data-[state=selected]:bg-muted hover:bg-muted/50 transition-colors duration-200"
             >
               <TableCell>
                 <Checkbox
-                  checked={selectedApps.includes(app.name)}
+                  checked={selectedApps.includes(app.application_instantiation.application_name)}
                   onCheckedChange={(checked) => {
                     if (checked) {
-                      setSelectedApps([...selectedApps, app.name]);
+                      setSelectedApps([...selectedApps, app.application_instantiation.application_name]);
                     } else {
-                      setSelectedApps(selectedApps.filter(name => name !== app.name));
+                      setSelectedApps(selectedApps.filter(name => name !== app.application_instantiation.application_name));
                     }
                   }}
                 />
@@ -148,13 +146,13 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   onClick={() => onSelectApp(app)}
                   className="p-0 h-auto text-sm font-semibold hover:text-blue-600"
                 >
-                  {app.name}
+                  {app.application_instantiation.application_name || 'N/A'}
                 </Button>
               </TableCell>
               <TableCell>
                 <div className="flex items-center space-x-2">
-                  {getStatusIcon(app.runtime_status.status)}
-                  <span className="text-sm">{app.runtime_status.status}</span>
+                  {getStatusIcon(app.application_runtime?.status || 'Unknown')}
+                  <span className="text-sm">{app.application_runtime?.status || 'N/A'}</span>
                 </div>
               </TableCell>
               <TableCell>
@@ -163,7 +161,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                 >
                   <div className="flex items-center space-x-2">
                     <CheckCircle2 className="h-4 w-4 mr-1 text-green-500" />
-                    <span>{app.runtime_status.health}</span>
+                    <span>{app.application_runtime?.health || 'N/A'}</span>
                   </div>
                 </Badge>
               </TableCell>
@@ -171,31 +169,31 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                 <div className="flex items-center space-x-2">
                   <code className="px-3 py-1.5 bg-muted rounded text-sm">main</code>
                   <a
-                    href={app.template?.source?.url}
+                    href={app.application_source?.repo}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-muted-foreground hover:text-primary"
                   >
-                    {app.template?.source?.url?.replace('https://github.com/', '')}
+                    {app.application_source?.repo?.replace('https://github.com/', '') || 'N/A'}
                   </a>
                 </div>
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1.5">
-                  {app.deployed_environments?.map((env: string) => (
+                  {app.application_target?.map((target) => (
                     <Badge
-                      key={`${app.id || app.name}-${env}`}
+                      key={`${app.application_instantiation.application_name}-${target.cluster}`}
                       variant="outline"
                       className="text-sm px-3 py-1"
                     >
-                      {env}
+                      {target.cluster}
                     </Badge>
-                  ))}
+                  )) || <span>N/A</span>}
                 </div>
               </TableCell>
               <TableCell>
                 <time className="text-sm text-muted-foreground">
-                  {formatDate(app.runtime_status.last_update)}
+                  {formatDate(app.application_runtime?.last_updated_at) || 'N/A'}
                 </time>
               </TableCell>
               <TableCell>
@@ -206,7 +204,7 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
                   className="inline-flex items-center px-3 py-2 rounded-md text-base font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors duration-200 group"
                 >
                   <a
-                    href={app.argocd_url}
+                    href="#" // TODO: 需要添加实际的 ArgoCD URL
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -225,7 +223,6 @@ export function ApplicationList({ onSelectApp, onCreateNew }: ApplicationListPro
         onOpenChange={setIsDeleteDialogOpen}
         selectedApps={selectedApps}
         onDelete={async () => {
-          await deleteApplications(selectedApps);
           setSelectedApps([]);
           setIsDeleteDialogOpen(false);
         }}

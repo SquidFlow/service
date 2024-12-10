@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/yannh/kubeconform/pkg/validator"
@@ -296,20 +297,26 @@ func ApplicationGet(c *gin.Context) {
 		ArgoCDClient: argoClient,
 	}, appName)
 
+	var argocdappname = fmt.Sprintf("%s-%s", app.ApplicationInstantiation.TenantName, app.ApplicationInstantiation.ApplicationName)
 	log.G().WithFields(log.Fields{
 		"application namespace": app.ApplicationInstantiation.TenantName,
-		"application name":      app.ApplicationInstantiation.ApplicationName,
+		"application name":      store.Default.ArgoCDNamespace,
 	}).Debug("get application status")
 
 	//TODO: opt with list method
-	applicationRuntime, err := argoClient.Applications(app.ApplicationInstantiation.TenantName).
-		Get(context.Background(), app.ApplicationInstantiation.ApplicationName, metav1.GetOptions{})
+	applicationRuntime, err := argoClient.Applications(store.Default.ArgoCDNamespace).
+		Get(context.Background(), argocdappname, metav1.GetOptions{})
 	if err != nil {
 		log.G().WithError(err).Error("Failed to get application")
 	} else {
 		app.ApplicationRuntime.Status = getAppStatus(applicationRuntime)
 		app.ApplicationRuntime.Health = getAppHealth(applicationRuntime)
 		app.ApplicationRuntime.SyncStatus = getAppSyncStatus(applicationRuntime)
+		app.ApplicationRuntime.ArgoCDUrl = fmt.Sprintf("https://argocd.squidflow.io/applications/%s", argocdappname)
+		app.ApplicationRuntime.CreatedAt = applicationRuntime.CreationTimestamp.Time
+		app.ApplicationRuntime.CreatedBy = applicationRuntime.Annotations["squidflow.github.io/created-by"]
+		app.ApplicationRuntime.LastUpdatedAt = time.Now() // TODO: fix this
+		app.ApplicationRuntime.LastUpdatedBy = applicationRuntime.Annotations["squidflow.github.io/last-modified-by"]
 	}
 
 	if err != nil {
@@ -357,14 +364,15 @@ func ApplicationsList(c *gin.Context) {
 
 	// update application runtime status
 	for i, app := range apps {
+		var argocdappname = fmt.Sprintf("%s-%s", app.ApplicationInstantiation.TenantName, app.ApplicationInstantiation.ApplicationName)
 		log.G().WithFields(log.Fields{
 			"application namespace": app.ApplicationInstantiation.TenantName,
-			"application name":      app.ApplicationInstantiation.ApplicationName,
+			"application name":      store.Default.ArgoCDNamespace,
 		}).Debug("get application status")
 
 		//TODO: opt with client-go list method
-		argoApp, err := argoClient.Applications(app.ApplicationInstantiation.TenantName).
-			Get(context.Background(), app.ApplicationInstantiation.ApplicationName, metav1.GetOptions{})
+		argoApp, err := argoClient.Applications(store.Default.ArgoCDNamespace).
+			Get(context.Background(), argocdappname, metav1.GetOptions{})
 		if err != nil {
 			log.G().WithError(err).Error("Failed to get application")
 			continue
@@ -372,10 +380,21 @@ func ApplicationsList(c *gin.Context) {
 			apps[i].ApplicationRuntime.Status = getAppStatus(argoApp)
 			apps[i].ApplicationRuntime.Health = getAppHealth(argoApp)
 			apps[i].ApplicationRuntime.SyncStatus = getAppSyncStatus(argoApp)
+			apps[i].ApplicationRuntime.ArgoCDUrl = fmt.Sprintf("https://argocd.squidflow.io/applications/%s", argocdappname)
+			apps[i].ApplicationRuntime.CreatedAt = argoApp.CreationTimestamp.Time
+			apps[i].ApplicationRuntime.CreatedBy = argoApp.Annotations["squidflow.github.io/created-by"]
+			apps[i].ApplicationRuntime.LastUpdatedAt = time.Now() // TODO: fix this
+			apps[i].ApplicationRuntime.LastUpdatedBy = argoApp.Annotations["squidflow.github.io/last-modified-by"]
 		}
 	}
 
-	c.JSON(200, apps)
+	c.JSON(200, types.ApplicationListResponse{
+		Total:   int64(len(apps)),
+		Success: true,
+		Message: "applications listed successfully",
+		Items:   apps,
+		Error:   "",
+	})
 }
 
 // ApplicationSync handles the synchronization of one or more Argo CD applications
@@ -706,10 +725,27 @@ func ApplicationSourceValidate(c *gin.Context) {
 		suiteableEnv = append(suiteableEnv, envResult)
 	}
 
-	c.JSON(200, types.ValidateAppSourceResponse{
-		Success:      true,
-		Message:      fmt.Sprintf("valid %s application source", appType),
-		Type:         string(appType),
-		SuiteableEnv: suiteableEnv,
-	})
+	var allValid = true
+	for _, env := range suiteableEnv {
+		if !env.Valid {
+			allValid = false
+			break
+		}
+	}
+
+	if allValid {
+		c.JSON(200, types.ValidateAppSourceResponse{
+			Success:      true,
+			Message:      fmt.Sprintf("valid %s application source", appType),
+			Type:         string(appType),
+			SuiteableEnv: suiteableEnv,
+		})
+	} else {
+		c.JSON(400, types.ValidateAppSourceResponse{
+			Success:      false,
+			Message:      fmt.Sprintf("valid %s application source", appType),
+			Type:         string(appType),
+			SuiteableEnv: suiteableEnv,
+		})
+	}
 }

@@ -36,10 +36,10 @@ export function GeneralInfo({ app }: GeneralInfoProps) {
               <div className="flex items-center space-x-2 mt-1">
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="bg-blue-100 text-blue-600">
-                    {app.created_by?.split(" ").map((n: string) => n[0]).join("") || app.created_by?.[0] || 'U'}
+                    {app.application_runtime.created_by?.split(" ").map((n: string) => n[0]).join("") || app.application_runtime.created_by?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="font-medium">{app.created_by}</span>
+                <span className="font-medium">{app.application_runtime.created_by}</span>
               </div>
             </div>
             <div>
@@ -47,7 +47,7 @@ export function GeneralInfo({ app }: GeneralInfoProps) {
                 Last Update
               </p>
               <p className="mt-1">
-                {formatDate(app.runtime_status.last_update)}
+                {formatDate(app.application_runtime.last_updated_at)}
               </p>
             </div>
           </div>
@@ -61,12 +61,12 @@ export function GeneralInfo({ app }: GeneralInfoProps) {
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">Repository URL</span>
               <a
-                href={app.template?.source?.url}
+                href={app.application_source.repo}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-blue-500 hover:text-blue-600 font-mono"
               >
-                {app.template?.source?.url}
+                {app.application_source.repo}
               </a>
             </div>
           </div>

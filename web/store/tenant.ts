@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { TenantInfo, TenantResponse, AppCodeResponse } from '@/types';
 import requestor from '@/requestor';
 import type { BaseState, BaseActions } from '@/types/store';
+import { API_PATHS } from './api';
 
 interface TenantState extends BaseState<TenantInfo> {
   appCodes: string[];
@@ -23,7 +24,7 @@ export const useTenantStore = create<TenantState & TenantActions>((set) => ({
   fetch: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await requestor.get<TenantResponse>('/api/v1/tenants');
+      const response = await requestor.get<TenantResponse>(API_PATHS.tenants.list);
       set({ data: response.data.items || [] });
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to fetch tenants') });
@@ -35,7 +36,7 @@ export const useTenantStore = create<TenantState & TenantActions>((set) => ({
   fetchAppCodes: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await requestor.get<AppCodeResponse>('/api/v1/appcode');
+      const response = await requestor.get<AppCodeResponse>(API_PATHS.appCodes.list);
       const appCodes = Array.isArray(response.data.appCodes) ? response.data.appCodes : [];
       console.log('Raw API response:', response.data);
       console.log('Processed app codes:', appCodes);

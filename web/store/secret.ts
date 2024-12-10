@@ -3,6 +3,7 @@ import type { SecretStore, SecretStoreResponse } from '@/types';
 import requestor from '@/requestor';
 import type { BaseState, BaseActions } from '@/types/store';
 import { load as yamlLoad } from 'js-yaml';
+import { API_PATHS } from './api';
 
 interface SecretState extends BaseState<SecretStore> {
   selectedStore: SecretStore | null;
@@ -28,7 +29,7 @@ export const useSecretStore = create<SecretState & SecretActions>((set, get) => 
   fetch: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await requestor.get<SecretStoreResponse>('/api/v1/security/externalsecrets/secretstore');
+      const response = await requestor.get<SecretStoreResponse>(API_PATHS.secretStores.list);
       set({ data: response.data.items || [] });
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to fetch secret stores') });
@@ -41,7 +42,7 @@ export const useSecretStore = create<SecretState & SecretActions>((set, get) => 
     set({ isLoading: true, error: null });
     try {
       const data = yamlLoad(yaml);
-      await requestor.post('/api/v1/security/externalsecrets/secretstore', data);
+      await requestor.post(API_PATHS.secretStores.create, data);
       await get().fetch();
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to create secret store') });
@@ -55,7 +56,7 @@ export const useSecretStore = create<SecretState & SecretActions>((set, get) => 
     set({ isLoading: true, error: null });
     try {
       const data = yamlLoad(yaml);
-      await requestor.put(`/api/v1/security/externalsecrets/secretstore/${name}`, data);
+      await requestor.put(API_PATHS.secretStores.update(name), data);
       await get().fetch();
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to update secret store') });
@@ -68,7 +69,7 @@ export const useSecretStore = create<SecretState & SecretActions>((set, get) => 
   remove: async (name: string) => {
     set({ isLoading: true, error: null });
     try {
-      await requestor.delete(`/api/v1/security/externalsecrets/secretstore/${name}`);
+      await requestor.delete(API_PATHS.secretStores.delete(name));
       await get().fetch();
     } catch (error) {
       set({ error: error instanceof Error ? error : new Error('Failed to delete secret store') });

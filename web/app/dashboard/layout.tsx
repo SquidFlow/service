@@ -14,7 +14,7 @@ const menuItems: MenuItem[] = [
   {
     title: 'Deploy',
     icon: Workflow,
-    subItems: ['Application', 'DestinationCluster']
+    subItems: ['Application', 'Clusters']
   },
   {
     title: 'Security',
@@ -230,8 +230,8 @@ export default function DashboardLayout({
                               if (item.title === 'Deploy') {
                                 if (subItem === 'Application') {
                                   router.push('/dashboard/deploy/application');
-                                } else if (subItem === 'DestinationCluster') {
-                                  router.push('/dashboard/deploy/destinationcluster');
+                                } else if (subItem === 'Clusters') {
+                                  router.push('/dashboard/deploy/cluster');
                                 }
                               } else if (item.title === 'Security') {
                                 if (subItem === 'ExternalSecrets') {

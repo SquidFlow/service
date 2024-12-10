@@ -60,6 +60,7 @@ type ListSecretStoreResponse struct {
 	Total   int                 `json:"total"`
 	Items   []SecretStoreDetail `json:"items"`
 	Message string              `json:"message"`
+	Error   string              `json:"error,omitempty"`
 }
 
 type SecretStoreUpdateRequest struct {

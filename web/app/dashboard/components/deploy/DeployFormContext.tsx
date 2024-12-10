@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { ClusterInfo } from '@/types/cluster';
 
 interface IngressRule {
   name: string;
@@ -15,6 +16,9 @@ interface ApplicationSource {
   tenant?: string;
   appCode?: string;
   namespace?: string;
+  application_specifier?: {
+    helm_manifest_path?: string;
+  };
   ingress?: IngressRule[];
   externalSecrets?: {
     enabled: boolean;
@@ -27,6 +31,8 @@ interface DeployFormState {
   setSource: (source: ApplicationSource | ((prev: ApplicationSource) => ApplicationSource)) => void;
   selectedClusters: string[];
   setSelectedClusters: (clusters: string[] | ((prev: string[]) => string[])) => void;
+  clusterDetails: ClusterInfo[];
+  setClusterDetails: (clusters: ClusterInfo[]) => void;
 }
 
 const DeployFormContext = createContext<DeployFormState | undefined>(undefined);
@@ -39,6 +45,7 @@ export function DeployFormProvider({ children }: { children: ReactNode }) {
     name: "",
   });
   const [selectedClusters, setSelectedClusters] = useState<string[]>([]);
+  const [clusterDetails, setClusterDetails] = useState<ClusterInfo[]>([]);
 
   return (
     <DeployFormContext.Provider
@@ -47,6 +54,8 @@ export function DeployFormProvider({ children }: { children: ReactNode }) {
         setSource,
         selectedClusters,
         setSelectedClusters,
+        clusterDetails,
+        setClusterDetails,
       }}
     >
       {children}

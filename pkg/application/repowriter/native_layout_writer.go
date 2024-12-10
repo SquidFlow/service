@@ -232,12 +232,18 @@ func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOp
 					Namespace: conf.DestNamespace,
 				},
 			},
+			// note: will update later
 			ApplicationRuntime: types.ApplicationRuntime{
 				GitInfo:         []types.GitInfo{},
 				ResourceMetrics: types.ResourceMetricsInfo{},
 				Status:          "unknown",
 				Health:          "unknown",
 				SyncStatus:      "unknown",
+				ArgoCDUrl:       "",
+				CreatedAt:       time.Now(),
+				CreatedBy:       "",
+				LastUpdatedAt:   time.Now(),
+				LastUpdatedBy:   "",
 			},
 		})
 	}
@@ -296,6 +302,11 @@ func (n *NativeRepoTarget) RunAppGet(ctx context.Context, opts *types.AppListOpt
 			Status:          "unknown",
 			Health:          "unknown",
 			SyncStatus:      "unknown",
+			ArgoCDUrl:       "",
+			CreatedAt:       time.Now(),
+			CreatedBy:       "",
+			LastUpdatedAt:   time.Now(),
+			LastUpdatedBy:   "",
 		},
 	}, nil
 }

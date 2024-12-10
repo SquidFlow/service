@@ -1,3 +1,59 @@
+### create app for dryrun for kustomize
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "is_dryrun": true,
+    "application_source": {
+        "repo":"git@github.com:SquidFlow/platform.git",
+        "target_revision": "main",
+        "path":"overlays/app/fluent-operator",
+        "submodules": true
+    },
+    "application_instantiation": {
+        "application_name": "operator-fluent-operator1",
+        "tenant_name": "tenant1",
+        "appcode": "edsf",
+        "description": "this application description"
+    },
+   "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ]
+}
+
+### create app for dryrun for kustomize
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "is_dryrun": true,
+    "application_source": {
+        "repo":"https://github.com/argoproj/argocd-example-apps.git",
+        "target_revision": "master",
+        "path":"kustomize-guestbook",
+        "submodules": true
+    },
+    "application_instantiation": {
+        "application_name": "kustomize-guestbook2",
+        "tenant_name": "tenant1",
+        "appcode": "edsf",
+        "description": "this application description"
+    },
+   "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ]
+}
+
 ### create app for dryrun for helm
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json

@@ -166,9 +166,11 @@ func ClusterList(c *gin.Context) {
 	}
 
 	response := &types.ClusterListResponse{
+		Success: true,
 		Total:   len(clusterList.Items),
 		Message: "success",
 		Items:   []types.ClusterResponse{},
+		Error:   "",
 	}
 
 	for _, cluster := range clusterList.Items {
