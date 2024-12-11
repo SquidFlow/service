@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SecretStoreList } from './SecretStoreList';
 import { YamlDialog } from './CreateSecretStoreDialog';
@@ -28,6 +28,7 @@ export function ExternalSecrets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const secretStore = useSecretStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleCreateStore = async (yaml: string) => {
     try {
@@ -35,6 +36,17 @@ export function ExternalSecrets() {
       setIsDialogOpen(false);
     } catch (error) {
       console.error('Failed to create secret store:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await secretStore.fetch();
+    } catch (error) {
+      console.error('Failed to refresh secret stores:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -52,14 +64,25 @@ export function ExternalSecrets() {
 
       <div className="flex items-center justify-between p-4 border-b bg-muted/50 rounded-lg">
         <div className="flex items-center space-x-4 flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search secret stores..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-[300px] pl-9 bg-background"
-            />
+          <div className="relative flex items-center space-x-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search secret stores..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-[300px] pl-9 bg-background"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="hover:bg-muted/80"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </div>
       </div>
