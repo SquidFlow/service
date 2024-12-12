@@ -1,4 +1,4 @@
-### standard structure for kustomize with git protocol
+### standard structure for kustomize with git protocol with error
 POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
@@ -11,7 +11,7 @@ Authorization: Bearer username@tenant1
     "submodules": true
 }
 
-### standard structure for kustomize with https protocol
+### standard structure for kustomize with https protocol with error
 POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
 Accept: application/json
 Content-Type: application/json
@@ -21,6 +21,19 @@ Authorization: Bearer username@tenant1
     "repo":"https://github.com/SquidFlow/platform.git",
     "target_revision": "main",
     "path":"overlays/app/fluent-operator",
+    "submodules": true
+}
+
+### standard structure for kustomize with https protocol with correct
+POST http://{{host}}:{{port}}/api/v1/deploy/applications/validate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "repo":"https://github.com/argoproj/argocd-example-apps.git",
+    "target_revision": "master",
+    "path":"kustomize-guestbook",
     "submodules": true
 }
 

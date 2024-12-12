@@ -18,7 +18,7 @@ Authorization: Bearer username@tenant1
         "submodules": true
     },
     "application_instantiation": {
-        "application_name": "kustomize-guestbook2",
+        "application_name": "kustomize-guestbook1",
         "tenant_name": "tenant1",
         "appcode": "edsf",
         "description": "this application description"

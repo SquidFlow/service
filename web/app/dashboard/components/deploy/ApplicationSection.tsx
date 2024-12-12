@@ -30,6 +30,12 @@ interface ValidationState {
 
 export function ApplicationSection() {
   const {
+    source,
+    setSource,
+    availableServices
+  } = useDeployForm();
+
+  const {
     data: tenants,
     appCodes,
     fetch: fetchTenants,
@@ -37,8 +43,9 @@ export function ApplicationSection() {
     isLoading,
     error
   } = useTenantStore();
+
   const { data: secretStoreList } = useSecretStore();
-  const { source, setSource } = useDeployForm();
+
   const [validation, setValidation] = useState<ValidationState>({
     name: { isValid: true },
     namespace: { isValid: true }
@@ -52,6 +59,15 @@ export function ApplicationSection() {
   useEffect(() => {
     console.log('Current app codes:', appCodes);
   }, [appCodes]);
+
+  useEffect(() => {
+    if (!source.tenant && tenants.length > 0) {
+      setSource(prev => ({ ...prev, tenant: tenants[0].name }));
+    }
+    if (!source.appCode && appCodes.length > 0) {
+      setSource(prev => ({ ...prev, appCode: appCodes[0] }));
+    }
+  }, [tenants, appCodes]);
 
   const addIngressRule = () => {
     setSource(prev => ({
@@ -75,6 +91,15 @@ export function ApplicationSection() {
       ...prev,
       ingress: prev.ingress?.map((rule, i) =>
         i === index ? { ...rule, [field]: value } : rule
+      )
+    }));
+  };
+
+  const handleServiceChange = (index: number, value: string) => {
+    setSource(prev => ({
+      ...prev,
+      ingress: prev.ingress?.map((rule, i) =>
+        i === index ? { ...rule, service: value } : rule
       )
     }));
   };
@@ -144,7 +169,10 @@ export function ApplicationSection() {
       <CardContent className="space-y-8">
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
-            <Label className="text-sm font-medium">ArgoCD Application Name</Label>
+            <Label className="text-sm font-medium">
+              ArgoCD Application Name
+              <span className="text-red-500 ml-1">*</span>
+            </Label>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
@@ -158,7 +186,8 @@ export function ApplicationSection() {
           </div>
           <div className="relative">
             <Input
-              value={source.name || ''}
+              required
+              value={source.name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Enter ArgoCD application name"
               className={`${
@@ -188,7 +217,10 @@ export function ApplicationSection() {
         <div className="grid grid-cols-2 gap-8">
           <div>
             <div className="flex items-center space-x-2">
-              <Label>Tenant Name</Label>
+              <Label>
+                Tenant Name
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
@@ -201,6 +233,7 @@ export function ApplicationSection() {
               </TooltipProvider>
             </div>
             <Select
+              required
               value={source.tenant || ''}
               onValueChange={(value) => setSource(prev => ({ ...prev, tenant: value }))}
             >
@@ -219,7 +252,10 @@ export function ApplicationSection() {
 
           <div>
             <div className="flex items-center space-x-2">
-              <Label>App Code</Label>
+              <Label>
+                App Code
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
@@ -232,6 +268,7 @@ export function ApplicationSection() {
               </TooltipProvider>
             </div>
             <Select
+              required
               value={source.appCode || ''}
               onValueChange={(value) => {
                 console.log('Selected app code:', value);
@@ -254,7 +291,10 @@ export function ApplicationSection() {
 
         <div>
           <div className="flex items-center space-x-2">
-            <Label>Namespace</Label>
+            <Label>
+              Namespace
+              <span className="text-red-500 ml-1">*</span>
+            </Label>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
@@ -268,7 +308,8 @@ export function ApplicationSection() {
           </div>
           <div className="relative">
             <Input
-              value={source.namespace || ''}
+              required
+              value={source.namespace}
               onChange={(e) => handleNamespaceChange(e.target.value)}
               placeholder="Enter namespace"
               className={`${
@@ -312,7 +353,7 @@ export function ApplicationSection() {
           <Textarea
             value={source.description || ''}
             onChange={(e) => setSource(prev => ({ ...prev, description: e.target.value }))}
-            placeholder="Enter description"
+            placeholder="Optional: Enter description for your application"
             className="h-24"
           />
         </div>
@@ -433,13 +474,32 @@ export function ApplicationSection() {
               </div>
               <div>
                 <Label>Service</Label>
-                <Input
-                  value={rule.service}
-                  onChange={(e) => updateIngressRule(index, 'service', e.target.value)}
-                  placeholder="Enter service"
-                />
+                {availableServices.length > 0 ? (
+                  <Select
+                    value={rule.service}
+                    onValueChange={(value) => handleServiceChange(index, value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableServices.map((service) => (
+                        <SelectItem key={service} value={service}>
+                          {service}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={rule.service}
+                    onChange={(e) => updateIngressRule(index, 'service', e.target.value)}
+                    placeholder="Enter service"
+                    className="text-muted-foreground"
+                  />
+                )}
               </div>
-              <div className="flex space-x-2">
+              <div className="flex items-end space-x-2">
                 <div className="flex-1">
                   <Label>Port</Label>
                   <Input
@@ -452,7 +512,7 @@ export function ApplicationSection() {
                   variant="ghost"
                   size="icon"
                   onClick={() => removeIngressRule(index)}
-                  className="mt-6"
+                  className="mb-[2px] hover:bg-destructive/10 hover:text-destructive"
                 >
                   <X className="h-4 w-4" />
                 </Button>

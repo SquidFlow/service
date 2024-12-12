@@ -33,6 +33,8 @@ interface DeployFormState {
   setSelectedClusters: (clusters: string[] | ((prev: string[]) => string[])) => void;
   clusterDetails: ClusterInfo[];
   setClusterDetails: (clusters: ClusterInfo[]) => void;
+  availableServices: string[];
+  setAvailableServices: (services: string[]) => void;
   clearSavedData: () => void;
 }
 
@@ -42,7 +44,6 @@ const FORM_STORAGE_KEY = 'deploy-form-draft';
 
 export function DeployFormProvider({ children }: { children: ReactNode }) {
   const [source, setSource] = useState<ApplicationSource>(() => {
-    // 尝试从 localStorage 恢复数据
     const saved = localStorage.getItem(FORM_STORAGE_KEY);
     if (saved) {
       try {
@@ -53,14 +54,15 @@ export function DeployFormProvider({ children }: { children: ReactNode }) {
     }
     return {
       url: "",
-      path: "",
-      targetRevision: "",
+      path: "/",
+      targetRevision: "master",
       name: "",
     };
   });
 
   const [selectedClusters, setSelectedClusters] = useState<string[]>([]);
   const [clusterDetails, setClusterDetails] = useState<ClusterInfo[]>([]);
+  const [availableServices, setAvailableServices] = useState<string[]>([]);
 
   // 自动保存表单数据
   useEffect(() => {
@@ -72,8 +74,8 @@ export function DeployFormProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(FORM_STORAGE_KEY);
     setSource({
       url: "",
-      path: "",
-      targetRevision: "",
+      path: "/",
+      targetRevision: "master",
       name: "",
     });
   };
@@ -87,6 +89,8 @@ export function DeployFormProvider({ children }: { children: ReactNode }) {
         setSelectedClusters,
         clusterDetails,
         setClusterDetails,
+        availableServices,
+        setAvailableServices,
         clearSavedData, // 导出清除方法
       }}
     >

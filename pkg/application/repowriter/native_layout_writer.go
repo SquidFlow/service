@@ -99,14 +99,19 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *types.AppCrea
 		}
 	}
 
-	log.G(ctx).Info("committing changes to gitops repo...")
+	commitMsg := genCommitMsg("chore: "+types.ActionTypeCreate, types.ResourceNameApp, opts.AppOpts.AppName, opts.ProjectName, repofs)
+	log.G(ctx).WithFields(log.Fields{
+		"commit msg": commitMsg,
+	}).Debug("native layout commit msg")
+
 	revision, err := r.Persist(ctx, &git.PushOptions{
-		CommitMsg: genCommitMsg("chore: "+types.ActionTypeCreate, types.ResourceNameApp, opts.AppOpts.AppName, opts.ProjectName, repofs),
+		CommitMsg: commitMsg,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to push to gitops repo: %w", err)
 	}
 
+	// TODO: remove this
 	if opts.Timeout > 0 {
 		namespace, err := getInstallationNamespace(repofs)
 		if err != nil {

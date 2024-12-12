@@ -35,6 +35,21 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
+// CreatePR mocks base method.
+func (m *MockRepository) CreatePR(ctx context.Context, opts *git.PullRequestOptions) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreatePR", ctx, opts)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreatePR indicates an expected call of CreatePR.
+func (mr *MockRepositoryMockRecorder) CreatePR(ctx, opts interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreatePR", reflect.TypeOf((*MockRepository)(nil).CreatePR), ctx, opts)
+}
+
 // CurrentBranch mocks base method.
 func (m *MockRepository) CurrentBranch() (string, error) {
 	m.ctrl.T.Helper()

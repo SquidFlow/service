@@ -8,18 +8,18 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/squidflow/service/pkg/fs"
-	"github.com/squidflow/service/pkg/kube"
-	"github.com/squidflow/service/pkg/log"
-	"github.com/squidflow/service/pkg/store"
-	"github.com/squidflow/service/pkg/util"
-
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
+
+	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/kube"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 )
 
 //go:generate mockgen -destination=./mocks/application.go -package=mocks -source=./application.go Application

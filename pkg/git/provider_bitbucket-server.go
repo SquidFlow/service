@@ -69,8 +69,17 @@ type (
 		DisplayName  string `json:"displayName"`
 		EmailAddress string `json:"emailAddress"`
 	}
+	refBody struct {
+		Id string `json:"id"`
+	}
+
+	pullRequestResponse struct {
+		ID    int   `json:"id"`
+		Links Links `json:"links"`
+	}
 )
 
+// Some tranditional company use self hosted bitbucket-server (atlassian tech stack)
 const BitbucketServer = "bitbucket-server"
 
 var (
@@ -237,6 +246,198 @@ func (bbs *bitbucketServer) request(ctx context.Context, method, urlPath string,
 	}
 
 	return data, nil
+}
+
+type bitbucketServerPullRequestResponse struct {
+	ID          int    `json:"id"`
+	Version     int    `json:"version"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	State       string `json:"state"`
+	Open        bool   `json:"open"`
+	Closed      bool   `json:"closed"`
+	CreatedDate int    `json:"createdDate"`
+	UpdatedDate int    `json:"updatedDate"`
+	FromRef     struct {
+		ID           string `json:"id"`
+		DisplayID    string `json:"displayId"`
+		LatestCommit string `json:"latestCommit"`
+		Type         string `json:"type"`
+		Repository   struct {
+			Slug          string `json:"slug"`
+			ID            int    `json:"id"`
+			Name          string `json:"name"`
+			Description   string `json:"description"`
+			HierarchyID   string `json:"hierarchyId"`
+			ScmID         string `json:"scmId"`
+			State         string `json:"state"`
+			StatusMessage string `json:"statusMessage"`
+			Forkable      bool   `json:"forkable"`
+			Project       struct {
+				Key         string `json:"key"`
+				ID          int    `json:"id"`
+				Name        string `json:"name"`
+				Description string `json:"description"`
+				Public      bool   `json:"public"`
+				Type        string `json:"type"`
+				Links       struct {
+					Self []struct {
+						Href string `json:"href"`
+					} `json:"self"`
+				} `json:"links"`
+			} `json:"project"`
+			Public bool `json:"public"`
+			Links  struct {
+				Clone []struct {
+					Href string `json:"href"`
+					Name string `json:"name"`
+				} `json:"clone"`
+				Self []struct {
+					Href string `json:"href"`
+				} `json:"self"`
+			} `json:"links"`
+		} `json:"repository"`
+	} `json:"fromRef"`
+	ToRef struct {
+		ID           string `json:"id"`
+		DisplayID    string `json:"displayId"`
+		LatestCommit string `json:"latestCommit"`
+		Type         string `json:"type"`
+		Repository   struct {
+			Slug          string `json:"slug"`
+			ID            int    `json:"id"`
+			Name          string `json:"name"`
+			Description   string `json:"description"`
+			HierarchyID   string `json:"hierarchyId"`
+			ScmID         string `json:"scmId"`
+			State         string `json:"state"`
+			StatusMessage string `json:"statusMessage"`
+			Forkable      bool   `json:"forkable"`
+			Project       struct {
+				Key         string `json:"key"`
+				ID          int    `json:"id"`
+				Name        string `json:"name"`
+				Description string `json:"description"`
+				Public      bool   `json:"public"`
+				Type        string `json:"type"`
+				Links       struct {
+					Self []struct {
+						Href string `json:"href"`
+					} `json:"self"`
+				} `json:"links"`
+			} `json:"project"`
+			Public bool `json:"public"`
+			Links  struct {
+				Clone []struct {
+					Href string `json:"href"`
+					Name string `json:"name"`
+				} `json:"clone"`
+				Self []struct {
+					Href string `json:"href"`
+				} `json:"self"`
+			} `json:"links"`
+		} `json:"repository"`
+	} `json:"toRef"`
+	Locked bool `json:"locked"`
+	Author struct {
+		User struct {
+			Name         string `json:"name"`
+			EmailAddress string `json:"emailAddress"`
+			ID           int    `json:"id"`
+			DisplayName  string `json:"displayName"`
+			Active       bool   `json:"active"`
+			Slug         string `json:"slug"`
+			Type         string `json:"type"`
+		} `json:"user"`
+		Role     string `json:"role"`
+		Approved bool   `json:"approved"`
+		Status   string `json:"status"`
+	} `json:"author"`
+	Reviewers []struct {
+		User struct {
+			Name         string `json:"name"`
+			EmailAddress string `json:"emailAddress"`
+			ID           int    `json:"id"`
+			DisplayName  string `json:"displayName"`
+			Active       bool   `json:"active"`
+			Slug         string `json:"slug"`
+			Type         string `json:"type"`
+		} `json:"user"`
+		LastReviewedCommit string `json:"lastReviewedCommit"`
+		Role               string `json:"role"`
+		Approved           bool   `json:"approved"`
+		Status             string `json:"status"`
+	} `json:"reviewers"`
+	Participants []any `json:"participants"`
+	Links        struct {
+		Self []struct {
+			Href string `json:"href"`
+		} `json:"self"`
+	} `json:"links"`
+}
+
+// for more details, see:
+// https://docs.atlassian.com/bitbucket-server/rest/7.21.0/bitbucket-rest.html#idp301
+func (bbs *bitbucketServer) CreatePullRequest(ctx context.Context, opts *PullRequestOptions) (string, error) {
+	// construct the request body
+	prRequest := struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		State       string `json:"state"`
+		Open        bool   `json:"open"`
+		Closed      bool   `json:"closed"`
+		FromRef     struct {
+			ID         string `json:"id"`
+			Repository struct {
+				Slug    string `json:"slug"`
+				Project struct {
+					Key string `json:"key"`
+				} `json:"project"`
+			} `json:"repository"`
+		} `json:"fromRef"`
+		ToRef struct {
+			ID         string `json:"id"`
+			Repository struct {
+				Slug    string `json:"slug"`
+				Project struct {
+					Key string `json:"key"`
+				} `json:"project"`
+			} `json:"repository"`
+		} `json:"toRef"`
+		Locked bool `json:"locked"`
+	}{
+		Title:       opts.Title,
+		Description: opts.Description,
+		State:       "OPEN",
+		Open:        true,
+		Closed:      false,
+		Locked:      false,
+	}
+
+	// set the source branch information
+	prRequest.FromRef.ID = fmt.Sprintf("refs/heads/%s", opts.Head)
+	prRequest.FromRef.Repository.Slug = opts.Repo
+	prRequest.FromRef.Repository.Project.Key = opts.Owner
+
+	// set the target branch information
+	prRequest.ToRef.ID = fmt.Sprintf("refs/heads/%s", opts.Base)
+	prRequest.ToRef.Repository.Slug = opts.Repo
+	prRequest.ToRef.Repository.Project.Key = opts.Owner
+
+	// send the request
+	path := fmt.Sprintf("projects/%s/repos/%s/pull-requests", opts.Owner, opts.Repo)
+	var prResponse bitbucketServerPullRequestResponse
+
+	if err := bbs.requestRest(ctx, http.MethodPost, path, prRequest, &prResponse); err != nil {
+		return "", fmt.Errorf("failed to create pull request: %w", err)
+	}
+
+	// return the PR URL
+	if len(prResponse.Links.Self) > 0 {
+		return prResponse.Links.Self[0].Href, nil
+	}
+
+	return "", fmt.Errorf("no pull request URL found in response")
 }
 
 func splitOrgRepo(orgRepo string) (noun, owner, name string, err error) {

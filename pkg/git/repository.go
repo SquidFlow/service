@@ -118,7 +118,7 @@ var (
 
 			log.G().Warnf("--provider not specified, assuming provider from url: %s", providerType)
 		}
-
+		log.G().WithField("provider", providerType).Debug("pick provider")
 		return newProvider(&ProviderOptions{
 			Type:    providerType,
 			Auth:    auth,
@@ -228,10 +228,10 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 		"repo":       o.Repo,
 		"path":       o.path,
 		"write_mode": o.CloneForWrite,
-	}).Debug("Trying to get repo from cache")
+	}).Debug("trying to get repo from cache")
 
 	// Try to get from cache first
-	cachedRepo, filesystem, exists := getRepositoryCache().get(o.url, o.CloneForWrite)
+	cachedRepo, filesystem, exists := getRepositoryCache().get(o.url, true)
 	if exists {
 		log.G().WithField("url", o.url).Debug("Cache hit")
 		// Create a new repo instance with the cached repository
@@ -321,6 +321,8 @@ var validateRepoWritePermission = func(ctx context.Context, r *repo) error {
 	return nil
 }
 
+// if opts.CreatePR is true, it will create a pull request to the main branch
+// if opts.CreatePR is false, it will append the commit to the main branch and push to remote
 func (r *repo) Persist(ctx context.Context, opts *PushOptions) (string, error) {
 	if opts == nil {
 		return "", ErrNilOpts
@@ -336,30 +338,36 @@ func (r *repo) Persist(ctx context.Context, opts *PushOptions) (string, error) {
 		return "", fmt.Errorf("failed reading git certificate file: %w", err)
 	}
 
-	h, err := r.commit(ctx, opts)
-	if err != nil {
-		return "", err
-	}
-
-	for try := 0; try < pushRetries; try++ {
-		err = r.PushContext(ctx, &gg.PushOptions{
-			Auth:     getAuth(r.auth),
-			Progress: progress,
-			CABundle: cert,
-		})
-		if err == nil || !errors.Is(err, transport.ErrRepositoryNotFound) {
-			break
+	switch viper.GetString("gitops.mode") {
+	case "pull_request":
+		// create pull request to main branch
+		return r.createPullRequest(ctx, opts)
+	default:
+		// direct merge mode
+		h, err := r.commit(ctx, opts)
+		if err != nil {
+			return "", err
 		}
 
-		log.G().WithFields(log.Fields{
-			"retry": try,
-			"err":   err.Error(),
-		}).Warn("Failed to push to repository, trying again in 3 seconds...")
+		for try := 0; try < pushRetries; try++ {
+			err = r.PushContext(ctx, &gg.PushOptions{
+				Auth:     getAuth(r.auth),
+				Progress: progress,
+				CABundle: cert,
+			})
+			if err == nil || !errors.Is(err, transport.ErrRepositoryNotFound) {
+				break
+			}
 
-		time.Sleep(failureBackoffTime)
+			log.G().WithFields(log.Fields{
+				"retry": try,
+				"err":   err.Error(),
+			}).Warn("Failed to push to repository, trying again in 3 seconds...")
+
+			time.Sleep(failureBackoffTime)
+		}
+		return h.String(), err
 	}
-
-	return h.String(), err
 }
 
 func (r *repo) CurrentBranch() (string, error) {
@@ -399,7 +407,7 @@ func (r *repo) commit(ctx context.Context, opts *PushOptions) (*plumbing.Hash, e
 	h, err = w.Commit(opts.CommitMsg, &gg.CommitOptions{
 		All:               true,
 		Author:            author,
-		AllowEmptyCommits: true,
+		AllowEmptyCommits: false,
 	})
 	if err != nil {
 		return nil, err
@@ -824,4 +832,114 @@ func (r *repo) cloneSubmodules(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *repo) createPullRequest(ctx context.Context, opts *PushOptions) (string, error) {
+	// 1. get reference of remote main branch
+	remote, err := r.Remote("origin")
+	if err != nil {
+		return "", fmt.Errorf("failed to get remote: %w", err)
+	}
+
+	refs, err := remote.List(&gg.ListOptions{
+		Auth: getAuth(r.auth),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to list remote refs: %w", err)
+	}
+
+	var mainRef *plumbing.Reference
+	for _, ref := range refs {
+		if ref.Name().String() == "refs/heads/main" {
+			mainRef = ref
+			break
+		}
+	}
+
+	if mainRef == nil {
+		return "", fmt.Errorf("could not find main branch in remote")
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return "", fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	// use branch_prefix
+	branchPrefix := viper.GetString("gitops.branch_prefix")
+	if branchPrefix == "" {
+		branchPrefix = "feature"
+	}
+	newBranch := fmt.Sprintf("%s/%s", branchPrefix, time.Now().Format("20060102-150405"))
+
+	log.G().WithFields(log.Fields{
+		"branch": newBranch,
+		"base":   mainRef.Hash().String(),
+	}).Debug("creating new branch from remote main")
+
+	err = w.Checkout(&gg.CheckoutOptions{
+		Hash:   mainRef.Hash(), // use main branch's commit hash
+		Branch: plumbing.NewBranchReferenceName(newBranch),
+		Keep:   true,
+		Create: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create new branch: %w", err)
+	}
+
+	// 3. commit changes on new branch
+	h, err := r.commit(ctx, opts)
+	if err != nil {
+		return "", err
+	}
+	log.G().WithField("hash", h).Debug("committed changes")
+
+	// 4. push new branch to remote
+	cert, err := r.auth.GetCertificate()
+	if err != nil {
+		return "", fmt.Errorf("failed to get certificate: %w", err)
+	}
+
+	err = r.PushContext(ctx, &gg.PushOptions{
+		Auth:     getAuth(r.auth),
+		Progress: opts.Progress,
+		CABundle: cert,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", newBranch, newBranch)),
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to push new branch: %w", err)
+	}
+
+	// 5. create pull request
+	_, orgRepo, _, _, _, _, _ := util.ParseGitUrl(r.repoURL)
+	split := strings.Split(orgRepo, "/")
+	if len(split) < 2 {
+		return "", fmt.Errorf("failed to parse repo url: %s", r.repoURL)
+	}
+
+	owner, repo := split[0], split[1]
+	log.G().WithFields(log.Fields{
+		"owner": owner,
+		"repo":  repo,
+		"head":  newBranch,
+		"base":  "main",
+		"title": opts.CommitMsg,
+	}).Debug("creating pull request")
+
+	provider, err := getProvider(r.providerType, r.repoURL, &r.auth)
+	if err != nil {
+		return "", fmt.Errorf("failed to get provider: %w", err)
+	}
+
+	pr, err := provider.CreatePullRequest(ctx, &PullRequestOptions{
+		Owner: owner,
+		Repo:  repo,
+		Head:  newBranch,
+		Base:  "main",
+		Title: opts.CommitMsg,
+	})
+
+	return pr, err
 }

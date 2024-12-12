@@ -25,6 +25,9 @@ type (
 		// GetAuthor gets the authenticated user's name and email address, for making git commits.
 		// Returns empty strings if not implemented
 		GetAuthor(ctx context.Context) (username, email string, err error)
+
+		// CreatePullRequest creates a pull request in the remote provider
+		CreatePullRequest(ctx context.Context, opts *PullRequestOptions) (string, error)
 	}
 
 	Auth struct {
@@ -50,6 +53,17 @@ type (
 		Owner string
 		Name  string
 	}
+
+	// PullRequestOptions for creating a pull request
+	PullRequestOptions struct {
+		Owner       string // repo owner
+		Repo        string // repo name
+		Title       string // PR title
+		Description string // PR description
+		Head        string // source branch
+		Base        string // target branch
+		Draft       bool   // is draft PR
+	}
 )
 
 // Errors
@@ -62,12 +76,8 @@ var (
 	}
 
 	supportedProviders = map[string]func(*ProviderOptions) (Provider, error){
-		"bitbucket":     newBitbucket,
 		BitbucketServer: newBitbucketServer,
 		"github":        newGithub,
-		//"gitea":         newGitea,
-		//"gitlab":        newGitlab,
-		//Azure:           newAdo,
 	}
 )
 

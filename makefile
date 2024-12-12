@@ -40,11 +40,12 @@ all: clean build test
 
 .PHONY: codegen
 codegen: $(GOBIN)/mockgen $(GOBIN)/interfacer
-	go generate ./...
 	interfacer -for github.com/go-git/go-git/v5.Repository -as gogit.Repository -o pkg/git/gogit/repo.go
 	interfacer -for github.com/go-git/go-git/v5.Worktree -as gogit.Worktree -o pkg/git/gogit/worktree.go
 	interfacer -for github.com/google/go-github/v43/github.UsersService -as github.Users -o pkg/git/github/users.go
 	interfacer -for github.com/google/go-github/v43/github.RepositoriesService -as github.Repositories -o pkg/git/github/repos.go
+	interfacer -for github.com/google/go-github/v43/github.PullRequestsService -as github.PullRequests -o pkg/git/github/pull_requests.go
+	go generate ./...
 
 $(GOBIN)/mockgen:
 	@go install github.com/golang/mock/mockgen@v1.6.0

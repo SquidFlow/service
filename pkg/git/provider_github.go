@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	g "github.com/squidflow/service/pkg/git/github"
+	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/util"
 
 	gh "github.com/google/go-github/v43/github"
@@ -14,11 +15,13 @@ import (
 
 //go:generate mockgen -destination=./github/mocks/repos.go -package=mocks -source=./github/repos.go Repositories
 //go:generate mockgen -destination=./github/mocks/users.go -package=mocks -source=./github/users.go Users
+//go:generate mockgen -destination=./github/mocks/pull_requests.go -package=mocks -source=./github/pull_requests.go PullRequests
 
 type github struct {
 	opts         *ProviderOptions
 	Repositories g.Repositories
 	Users        g.Users
+	PullRequests g.PullRequests
 }
 
 func newGithub(opts *ProviderOptions) (Provider, error) {
@@ -57,6 +60,7 @@ func newGithub(opts *ProviderOptions) (Provider, error) {
 		opts:         opts,
 		Repositories: c.Repositories,
 		Users:        c.Users,
+		PullRequests: c.PullRequests,
 	}
 
 	return g, nil
@@ -177,4 +181,42 @@ func (g *github) getEmail(ctx context.Context) string {
 	}
 
 	return email.GetEmail()
+}
+
+func (g *github) CreatePullRequest(ctx context.Context, opts *PullRequestOptions) (string, error) {
+	head := opts.Head
+
+	if strings.Contains(opts.Head, ":") {
+		head = fmt.Sprintf("%s:%s", opts.Owner, opts.Head)
+	}
+
+	newPR := &gh.NewPullRequest{
+		Title:               gh.String(opts.Title),
+		Head:                &head,
+		Base:                &opts.Base,
+		Body:                &opts.Description,
+		MaintainerCanModify: gh.Bool(true),
+		Draft:               gh.Bool(false),
+	}
+
+	log.G().WithFields(log.Fields{
+		"owner": opts.Owner,
+		"repo":  opts.Repo,
+		"head":  head,
+		"base":  opts.Base,
+		"body":  opts.Description,
+		"title": opts.Title,
+	}).Debug("creating pull request")
+
+	pr, _, err := g.PullRequests.Create(ctx, opts.Owner, opts.Repo, newPR)
+	if err != nil {
+		return "", fmt.Errorf("failed to create PR (owner=%s, repo=%s, head=%s, base=%s): %w",
+			opts.Owner, opts.Repo, head, opts.Base, err)
+	}
+
+	log.G().WithFields(log.Fields{
+		"pr": pr.GetHTMLURL(),
+	}).Debug("pull request created")
+
+	return pr.GetHTMLURL(), nil
 }

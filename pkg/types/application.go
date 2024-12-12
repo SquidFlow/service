@@ -56,6 +56,7 @@ type (
 	AppSourceWithEnvironment struct {
 		Environments string `json:"environments"`
 		Valid        bool   `json:"valid"`
+		Manifest     string `json:"manifest,omitempty"`
 		Error        string `json:"error,omitempty"`
 	}
 )

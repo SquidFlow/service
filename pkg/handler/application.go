@@ -6,17 +6,17 @@ import (
 	"time"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/yannh/kubeconform/pkg/validator"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
+	"github.com/yannh/kubeconform/pkg/validator"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/application/dryrun"
 	"github.com/squidflow/service/pkg/application/reporeader"
 	"github.com/squidflow/service/pkg/application/repowriter"
+	"github.com/squidflow/service/pkg/argocd"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
@@ -82,10 +82,10 @@ func ApplicationCreate(c *gin.Context) {
 			InstallationMode: application.InstallationModeNormal,
 			DestServer:       "https://kubernetes.default.svc",
 			Annotations: map[string]string{
-				"squidflow.github.io/created-by":  username,
-				"squidflow.github.io/tenant":      tenant,
-				"squidflow.github.io/description": createReq.ApplicationInstantiation.Description,
-				"squidflow.github.io/appcode":     createReq.ApplicationInstantiation.AppCode,
+				argocd.AnnotationKeyEnvironment: username,
+				argocd.AnnotationKeyTenant:      tenant,
+				argocd.AnnotationKeyDescription: createReq.ApplicationInstantiation.Description,
+				argocd.AnnotationKeyAppCode:     createReq.ApplicationInstantiation.AppCode,
 			},
 		},
 		ProjectName: createReq.ApplicationInstantiation.TenantName,
@@ -512,7 +512,8 @@ func ApplicationUpdate(c *gin.Context) {
 		"ingress": updateReq.ApplicationInstantiation.Ingress,
 	}).Debug("TODO support ingress")
 
-	annotations["squidflow.github.io/last-modified-by"] = username
+	annotations[argocd.AnnotationKeyLastModifiedBy] = username
+	annotations[argocd.AnnotationKeyLastModifiedAt] = time.Now().Format(time.RFC3339)
 
 	updateOpts := &types.UpdateOptions{
 		CloneOpts:   cloneOpts,
@@ -547,7 +548,7 @@ func ApplicationUpdate(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"message":     "Application updated successfully",
+		"message":     "application updated successfully",
 		"application": app,
 	})
 }
@@ -629,6 +630,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 
 		envResult := types.AppSourceWithEnvironment{
 			Environments: env,
+			Manifest:     "",
 			Valid:        true,
 			Error:        "",
 		}
@@ -658,6 +660,8 @@ func ApplicationSourceValidate(c *gin.Context) {
 			envResult.Valid = false
 			envResult.Error = err.Error()
 		} else {
+			envResult.Manifest = string(manifests)
+
 			log.G().WithFields(log.Fields{
 				"env": env,
 			}).Debug("writing manifest to memory file system")
@@ -689,6 +693,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 			f.Close()
 
 			// validate manifest with kubeconform
+			// TODO: make this offline
 			v, err := validator.New([]string{
 				"default",
 				"https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json",

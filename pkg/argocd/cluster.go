@@ -17,12 +17,17 @@ import (
 )
 
 const (
-	AnnotationKeyEnvironment = "squidflow.github.io/cluster-env"
-	AnnotationKeyVendor      = "squidflow.github.io/cluster-vendor"
-	AnnotationKeyName        = "squidflow.github.io/cluster-name"
-	AnnotationKeyManaged     = "squidflow.github.io/managed"
-	AnnotationKeyRegisterBy  = "squidflow.github.io/register-by"
-	AnnotationKeyRegisterAt  = "squidflow.github.io/register-at"
+	AnnotationKeyName           = "squidflow.github.io/cluster-name"
+	AnnotationKeyEnvironment    = "squidflow.github.io/cluster-env"
+	AnnotationKeyTenant         = "squidflow.github.io/cluster-tenant"
+	AnnotationKeyVendor         = "squidflow.github.io/cluster-vendor"
+	AnnotationKeyDescription    = "squidflow.github.io/cluster-description"
+	AnnotationKeyAppCode        = "squidflow.github.io/cluster-appcode"
+	AnnotationKeyManaged        = "squidflow.github.io/managed"
+	AnnotationKeyRegisterBy     = "squidflow.github.io/register-by"
+	AnnotationKeyRegisterAt     = "squidflow.github.io/register-at"
+	AnnotationKeyLastModifiedBy = "squidflow.github.io/last-modified-by"
+	AnnotationKeyLastModifiedAt = "squidflow.github.io/last-modified-at"
 )
 
 func RegisterCluster2ArgoCd(name, env, kubeconfig string, ann map[string]string) (*argoappv1.Cluster, error) {
@@ -107,12 +112,10 @@ func RegisterCluster2ArgoCd(name, env, kubeconfig string, ann map[string]string)
 }
 
 func DeregisterCluster2ArgoCd(name string) error {
-	// Get ArgoCD client
 	argocdClient := GetArgoServerClient()
 	closer, clusterClient := argocdClient.NewClusterClientOrDie()
 	defer closer.Close()
 
-	// First check if cluster exists
 	cluster, err := clusterClient.Get(context.Background(), &clusterpkg.ClusterQuery{
 		Name: name,
 	})
@@ -126,7 +129,6 @@ func DeregisterCluster2ArgoCd(name string) error {
 		"server": cluster.Server,
 	}).Debug("found cluster, proceeding with deletion")
 
-	// Delete the cluster
 	_, err = clusterClient.Delete(context.Background(), &clusterpkg.ClusterQuery{
 		Name: name,
 	})

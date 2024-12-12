@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	git "github.com/squidflow/service/pkg/git"
 )
 
 // MockProvider is a mock of Provider interface.
@@ -32,6 +33,21 @@ func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
+}
+
+// CreatePullRequest mocks base method.
+func (m *MockProvider) CreatePullRequest(ctx context.Context, opts *git.PullRequestOptions) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreatePullRequest", ctx, opts)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreatePullRequest indicates an expected call of CreatePullRequest.
+func (mr *MockProviderMockRecorder) CreatePullRequest(ctx, opts interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreatePullRequest", reflect.TypeOf((*MockProvider)(nil).CreatePullRequest), ctx, opts)
 }
 
 // CreateRepository mocks base method.

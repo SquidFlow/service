@@ -373,3 +373,107 @@ func Test_splitOrgRepo(t *testing.T) {
 		})
 	}
 }
+
+func TestBitbucketServer_CreatePullRequest(t *testing.T) {
+	tests := map[string]struct {
+		opts     *PullRequestOptions
+		wantURL  string
+		wantErr  string
+		beforeFn func(t *testing.T, c *mocks.MockHttpClient)
+	}{
+		"success": {
+			opts: &PullRequestOptions{
+				Owner:       "PROJECT",
+				Repo:        "repo",
+				Title:       "test PR",
+				Description: "test description",
+				Head:        "feature-branch",
+				Base:        "main",
+			},
+			wantURL: "http://bitbucket.example.com/projects/PROJECT/repos/repo/pull-requests/1",
+			beforeFn: func(t *testing.T, c *mocks.MockHttpClient) {
+				c.EXPECT().Do(gomock.AssignableToTypeOf(&http.Request{})).Times(1).DoAndReturn(
+					func(req *http.Request) (*http.Response, error) {
+						assert.Equal(t, http.MethodPost, req.Method)
+						assert.Equal(t, "/rest/api/1.0/projects/PROJECT/repos/repo/pull-requests", req.URL.Path)
+
+						// 验证请求体
+						var reqBody map[string]interface{}
+						body, _ := io.ReadAll(req.Body)
+						json.Unmarshal(body, &reqBody)
+
+						assert.Equal(t, "test PR", reqBody["title"])
+						assert.Equal(t, "test description", reqBody["description"])
+						assert.Equal(t, "refs/heads/feature-branch", reqBody["fromRef"].(map[string]interface{})["id"])
+						assert.Equal(t, "refs/heads/main", reqBody["toRef"].(map[string]interface{})["id"])
+
+						// 返回成功响应
+						resp := &bitbucketServerPullRequestResponse{
+							ID:    1,
+							Title: "test PR",
+							Links: struct {
+								Self []struct {
+									Href string `json:"href"`
+								} `json:"self"`
+							}{
+								Self: []struct {
+									Href string `json:"href"`
+								}{
+									{Href: "http://bitbucket.example.com/projects/PROJECT/repos/repo/pull-requests/1"},
+								},
+							},
+						}
+						return &http.Response{
+							StatusCode: http.StatusCreated,
+							Body:       createBody(resp),
+						}, nil
+					})
+			},
+		},
+		"error": {
+			opts: &PullRequestOptions{
+				Owner: "invalid",
+			},
+			wantErr: "failed to create pull request",
+			beforeFn: func(t *testing.T, c *mocks.MockHttpClient) {
+				c.EXPECT().Do(gomock.AssignableToTypeOf(&http.Request{})).Times(1).Return(
+					&http.Response{
+						StatusCode: http.StatusBadRequest,
+						Body: createBody(errorBody{
+							Errors: []bbError{
+								{Message: "failed to create pull request"},
+							},
+						}),
+					}, nil)
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			mockClient := mocks.NewMockHttpClient(ctrl)
+
+			if tt.beforeFn != nil {
+				tt.beforeFn(t, mockClient)
+			}
+
+			bbs := &bitbucketServer{
+				baseURL: baseURL(),
+				c:       mockClient,
+				opts:    providerOptions,
+			}
+
+			gotURL, err := bbs.CreatePullRequest(context.Background(), tt.opts)
+			if tt.wantErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantURL, gotURL)
+		})
+	}
+}

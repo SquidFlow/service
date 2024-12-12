@@ -37,7 +37,65 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
     deploymentStatus
   } = useApplicationStore();
 
+  const isFormValid = () => {
+    const requiredFields = [
+      {
+        field: 'url',
+        value: source.url,
+        message: 'Git Repository URL is required'
+      },
+      {
+        field: 'name',
+        value: source.name,
+        message: 'Application Name is required'
+      },
+      {
+        field: 'tenant',
+        value: source.tenant,
+        message: 'Tenant Name is required'
+      },
+      {
+        field: 'appCode',
+        value: source.appCode,
+        message: 'App Code is required'
+      },
+      {
+        field: 'namespace',
+        value: source.namespace,
+        message: 'Namespace is required'
+      }
+    ];
+
+    const missingFields = requiredFields.filter(field => !field.value?.trim());
+
+    if (missingFields.length > 0) {
+      return {
+        isValid: false,
+        message: `Please fill in all required fields: ${missingFields.map(f => f.field).join(', ')}`
+      };
+    }
+
+    if (selectedClusters.length === 0) {
+      return {
+        isValid: false,
+        message: 'Please select at least one cluster'
+      };
+    }
+
+    return { isValid: true };
+  };
+
   const handleSubmit = async () => {
+    const validation = isFormValid();
+    if (!validation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: validation.message
+      });
+      return;
+    }
+
     try {
       const payload = {
         application_source: {
@@ -80,6 +138,16 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
   };
 
   const handleDryRun = async () => {
+    const validation = isFormValid();
+    if (!validation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: validation.message
+      });
+      return;
+    }
+
     try {
       const payload = {
         application_source: {
@@ -173,14 +241,14 @@ function DeployFormContent({ onCancel }: DeployFormProps) {
                   variant="outline"
                   onClick={handleDryRun}
                   className="hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                  disabled={!selectedClusters.length}
+                  disabled={!isFormValid().isValid}
                 >
                   Dry Run
                 </Button>
                 <Button
                   onClick={handleSubmit}
                   className="bg-green-500 hover:bg-green-600 text-white"
-                  disabled={!selectedClusters.length}
+                  disabled={!isFormValid().isValid}
                 >
                   Submit
                 </Button>

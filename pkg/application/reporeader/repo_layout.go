@@ -70,7 +70,13 @@ func detectApplicationType(repofs fs.FS, req types.ApplicationSourceRequest) (Ap
 		"repo":            req.Repo,
 		"path":            req.Path,
 		"target_revision": req.TargetRevision,
-	}).Debug("Detecting application type")
+	}).Debug("detecting application type")
+
+	files, err := repofs.ReadDir(req.Path)
+	if err != nil {
+		return "", err
+	}
+	log.G().Debugf("repofs: %+v", files)
 
 	// 1. application specifier
 	// indicates that the user has specified the helm manifest path
@@ -85,22 +91,12 @@ func detectApplicationType(repofs fs.FS, req types.ApplicationSourceRequest) (Ap
 	// 2.1 manifests directory with environments directory
 	if repofs.ExistsOrDie(repofs.Join(req.Path, "manifests")) &&
 		repofs.ExistsOrDie(repofs.Join(req.Path, "environments")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("detected helm application from manifests directory")
 		return SourceHelmMultiEnv, nil
 	}
 
 	// 2.2 base and overlays directory
 	if repofs.ExistsOrDie(repofs.Join(req.Path, "base")) &&
 		repofs.ExistsOrDie(repofs.Join(req.Path, "overlays")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("detected kustomize application from directories")
 		return SourceKustomizeMultiEnv, nil
 	}
 
@@ -108,21 +104,11 @@ func detectApplicationType(repofs fs.FS, req types.ApplicationSourceRequest) (Ap
 	// 3.1 kustomization.yaml or kustomization.yml with / directory
 	if repofs.ExistsOrDie(repofs.Join(req.Path, "kustomization.yaml")) ||
 		repofs.ExistsOrDie(repofs.Join(req.Path, "kustomization.yml")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("detected kustomize application from kustomization.yaml")
 		return SourceKustomize, nil
 	}
 
 	// 3.2 Chart.yaml with / directory
 	if repofs.ExistsOrDie(repofs.Join(req.Path, "Chart.yaml")) {
-		log.G().WithFields(log.Fields{
-			"repo":            req.Repo,
-			"path":            req.Path,
-			"target_revision": req.TargetRevision,
-		}).Debug("detected helm application from Chart.yaml")
 		return SourceHelm, nil
 	}
 

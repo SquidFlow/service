@@ -50,6 +50,10 @@ func (p *mockProvider) GetAuthor(ctx context.Context) (username, email string, e
 	return "username", "user@email.com", nil
 }
 
+func (p *mockProvider) CreatePullRequest(_ context.Context, _ *PullRequestOptions) (string, error) {
+	return "http://example.com/pr/1", nil
+}
+
 func Test_repo_addRemote(t *testing.T) {
 	type args struct {
 		name string
@@ -1307,7 +1311,7 @@ func TestAddFlags(t *testing.T) {
 			wantedFlags: []flag{
 				{
 					name:  "provider",
-					usage: "The git provider, one of: bitbucket|bitbucket-server|github",
+					usage: "The git provider, one of: bitbucket-server|github",
 				},
 			},
 		},
