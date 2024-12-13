@@ -10,6 +10,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 	"github.com/yannh/kubeconform/pkg/validator"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/squidflow/service/pkg/application"
@@ -315,7 +316,14 @@ func ApplicationGet(c *gin.Context) {
 	applicationRuntime, err := argoClient.Applications(store.Default.ArgoCDNamespace).
 		Get(context.Background(), argocdappname, metav1.GetOptions{})
 	if err != nil {
-		log.G().WithError(err).Error("Failed to get application")
+		if k8serrors.IsNotFound(err) {
+			log.G().WithFields(log.Fields{
+				"application": appName,
+				"namespace":   store.Default.ArgoCDNamespace,
+			}).Info("application not install in argocd")
+		} else {
+			log.G().WithError(err).Error("failed to get application")
+		}
 	} else {
 		app.ApplicationRuntime.Status = getAppStatus(applicationRuntime)
 		app.ApplicationRuntime.Health = getAppHealth(applicationRuntime)
@@ -328,7 +336,7 @@ func ApplicationGet(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get application detail: %v", err)})
+		c.JSON(500, gin.H{"error": fmt.Sprintf("failed to get application detail: %v", err)})
 		return
 	}
 

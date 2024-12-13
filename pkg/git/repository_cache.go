@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-git/go-billy/v5"
 	gg "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git/gogit"
 	"github.com/squidflow/service/pkg/log"
@@ -49,14 +50,14 @@ func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, b
 		"url":        url,
 		"cache_size": len(c.cache),
 		"pull":       pull,
-	}).Debug("Trying to get from cache")
+	}).Debug("trying to get from cache")
 
 	c.mu.RLock()
 	entry, exists := c.cache[url]
 	c.mu.RUnlock()
 
 	if !exists {
-		log.G().WithField("url", url).Debug("Cache miss - entry not found")
+		log.G().WithField("url", url).Debug("cache miss - entry not found")
 		return nil, nil, false
 	}
 
@@ -67,7 +68,7 @@ func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, b
 		log.G().WithFields(log.Fields{
 			"url": url,
 			"age": time.Since(entry.lastUsed),
-		}).Debug("Cache miss - entry expired")
+		}).Debug("cache miss - entry expired")
 		return nil, nil, false
 	}
 
@@ -77,27 +78,80 @@ func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, b
 			"url":        url,
 			"last_sync":  time.Since(entry.lastSync),
 			"force_sync": true,
-		}).Debug("Syncing cached repository")
+		}).Debug("syncing cached repository")
 
 		w, err := entry.repo.Worktree()
 		if err != nil {
-			log.G().WithError(err).Error("Failed to get worktree")
+			log.G().WithError(err).Error("cache failed to get worktree")
 			return nil, nil, false
 		}
 
+		// Try normal pull first
 		err = w.Pull(&gg.PullOptions{
 			RemoteName: "origin",
 			Force:      true,
 		})
 
-		if err != nil && err != gg.NoErrAlreadyUpToDate {
-			log.G().WithError(err).Error("Failed to sync repository")
-			return nil, nil, false
-		}
+		if err != nil {
+			if err == gg.NoErrAlreadyUpToDate {
+				// Repository is already up to date
+				c.mu.Lock()
+				entry.lastSync = time.Now()
+				c.mu.Unlock()
+			} else if err == gg.ErrNonFastForwardUpdate {
+				// Handle non-fast-forward case
+				log.G().Debug("cache detected non-fast-forward update, trying to resolve")
 
-		c.mu.Lock()
-		entry.lastSync = time.Now()
-		c.mu.Unlock()
+				// Get remote reference
+				remote, err := entry.repo.Remote("origin")
+				if err != nil {
+					log.G().WithError(err).Error("cache failed to get remote")
+					return nil, nil, false
+				}
+
+				refs, err := remote.List(&gg.ListOptions{})
+				if err != nil {
+					log.G().WithError(err).Error("cache failed to list remote refs")
+					return nil, nil, false
+				}
+
+				// Find main branch reference
+				var mainRef *plumbing.Reference
+				for _, ref := range refs {
+					if ref.Name().String() == "refs/heads/main" {
+						mainRef = ref
+						break
+					}
+				}
+
+				if mainRef == nil {
+					log.G().Error("cache could not find main branch in remote")
+					return nil, nil, false
+				}
+
+				// Reset to remote main branch
+				err = w.Reset(&gg.ResetOptions{
+					Commit: mainRef.Hash(),
+					Mode:   gg.HardReset,
+				})
+				if err != nil {
+					log.G().WithError(err).Error("cache failed to reset to remote main")
+					return nil, nil, false
+				}
+
+				log.G().Debug("cache successfully reset to remote main branch")
+				c.mu.Lock()
+				entry.lastSync = time.Now()
+				c.mu.Unlock()
+			} else {
+				log.G().WithError(err).Error("cache failed to sync repository")
+				return nil, nil, false
+			}
+		} else {
+			c.mu.Lock()
+			entry.lastSync = time.Now()
+			c.mu.Unlock()
+		}
 	}
 
 	c.mu.Lock()

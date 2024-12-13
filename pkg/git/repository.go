@@ -39,6 +39,7 @@ type (
 	Repository interface {
 		// Persist runs add, commit and push to the repository default remote
 		Persist(ctx context.Context, opts *PushOptions) (string, error)
+
 		// CurrentBranch returns the name of the current branch
 		CurrentBranch() (string, error)
 	}
@@ -223,15 +224,21 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 	}
 
 	// Add debug logging to check cache key
+	needSync := false
+	if viper.GetString("gitops.mode") == "pull_request" {
+		needSync = true
+	}
+
 	log.G().WithFields(log.Fields{
 		"url":        o.url,
 		"repo":       o.Repo,
 		"path":       o.path,
 		"write_mode": o.CloneForWrite,
+		"need_sync":  needSync,
 	}).Debug("trying to get repo from cache")
 
 	// Try to get from cache first
-	cachedRepo, filesystem, exists := getRepositoryCache().get(o.url, true)
+	cachedRepo, filesystem, exists := getRepositoryCache().get(o.url, needSync)
 	if exists {
 		log.G().WithField("url", o.url).Debug("Cache hit")
 		// Create a new repo instance with the cached repository
