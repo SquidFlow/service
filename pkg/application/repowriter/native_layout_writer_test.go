@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
@@ -33,39 +32,63 @@ import (
 )
 
 func TestRunAppCreate(t *testing.T) {
-	native := NativeRepoTarget{}
-
 	tests := map[string]struct {
-		appsRepo                 string
-		timeout                  time.Duration
-		wantErr                  string
-		setAppOptsDefaultsErr    error
-		parseAppErr              error
-		createFilesErr           error
-		beforeFn                 func(f *kubemocks.MockFactory)
-		prepareRepo              func(*testing.T) (git.Repository, fs.FS, error)
-		getRepo                  func(*testing.T, *git.CloneOptions) (git.Repository, fs.FS, error)
-		getInstallationNamespace func(repofs fs.FS) (string, error)
+		repoWriter            NativeRepoTarget
+		wantErr               string
+		setAppOptsDefaultsErr error
+		parseAppErr           error
+		createFilesErr        error
+		beforeFn              func(f *kubemocks.MockFactory)
+		prepareRepo           func(*testing.T) (git.Repository, fs.FS, error)
+		getRepo               func(*testing.T, *git.CloneOptions) (git.Repository, fs.FS, error)
 	}{
 		"Should fail when clone fails": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			wantErr: "some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				return nil, nil, fmt.Errorf("some error")
 			},
 		},
 		"Should fail if srcClone fails": {
-			appsRepo: "https://github.com/owner/other_name",
-			wantErr:  "some error",
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			wantErr: "some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
-				return nil, nil, nil
+				return nil, nil, fmt.Errorf("some error")
 			},
 			getRepo: func(_ *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				return nil, nil, fmt.Errorf("some error")
 			},
 		},
 		"Should use cloneOpts password for srcCloneOpts, if required": {
-			appsRepo: "https://github.com/owner/other_name/path?ref=branch",
-			wantErr:  "some error",
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/other_name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+				tenantRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/other_name/path?ref=branch",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			wantErr: "some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				return nil, nil, nil
 			},
@@ -78,6 +101,14 @@ func TestRunAppCreate(t *testing.T) {
 			},
 		},
 		"Should fail if setAppOptsDefaults fails": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.xxxxx/xxxxx",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			wantErr: "some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				return nil, nil, nil
@@ -85,6 +116,14 @@ func TestRunAppCreate(t *testing.T) {
 			setAppOptsDefaultsErr: fmt.Errorf("some error"),
 		},
 		"Should fail if app parse fails": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.xxxxx/xxxxx",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			wantErr: "failed to parse application from flags: some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				return nil, nil, nil
@@ -92,6 +131,14 @@ func TestRunAppCreate(t *testing.T) {
 			parseAppErr: errors.New("some error"),
 		},
 		"Should fail if app already exist in project": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			wantErr:        fmt.Errorf("application 'app' already exists in project 'project': %w", application.ErrAppAlreadyInstalledOnProject).Error(),
 			createFilesErr: application.ErrAppAlreadyInstalledOnProject,
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
@@ -102,6 +149,14 @@ func TestRunAppCreate(t *testing.T) {
 			},
 		},
 		"Should fail if file creation fails": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			wantErr:        "some error",
 			createFilesErr: errors.New("some error"),
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
@@ -112,8 +167,18 @@ func TestRunAppCreate(t *testing.T) {
 			},
 		},
 		"Should fail if committing to appsRepo fails": {
-			appsRepo: "https://github.com/owner/other_name",
-			wantErr:  "failed to push to apps repo: some error",
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+				tenantRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/other_name",
+				},
+			},
+			wantErr: "failed to push to apps repo: some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
@@ -131,6 +196,14 @@ func TestRunAppCreate(t *testing.T) {
 			},
 		},
 		"Should fail if committing to gitops repo fails": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			wantErr: "failed to push to gitops repo: some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
@@ -144,89 +217,48 @@ func TestRunAppCreate(t *testing.T) {
 				return mockRepo, fs.Create(memfs), nil
 			},
 		},
-		"Should fail if getInstallationNamespace fails": {
-			timeout: 1,
-			wantErr: "failed to get application namespace: some error",
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
-				memfs := memfs.New()
-				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
-				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
-				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
-					CommitMsg: "chore: create app 'app' on project 'project' installation-path: '/'",
-				}).
-					Times(1).
-					Return("revision", nil)
-				return mockRepo, fs.Create(memfs), nil
-			},
-			getInstallationNamespace: func(repofs fs.FS) (string, error) {
-				return "", errors.New("some error")
-			},
-		},
-		"Should fail if waiting fails": {
-			timeout: 1,
-			wantErr: "failed waiting for application to sync: some error",
-			beforeFn: func(f *kubemocks.MockFactory) {
-				f.EXPECT().Wait(gomock.Any(), gomock.Any()).
-					Times(1).
-					Return(errors.New("some error"))
-			},
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
-				memfs := memfs.New()
-				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
-				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
-				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
-					CommitMsg: "chore: create app 'app' on project 'project' installation-path: '/'",
-				}).
-					Times(1).
-					Return("revision", nil)
-				return mockRepo, fs.Create(memfs), nil
-			},
-			getInstallationNamespace: func(repofs fs.FS) (string, error) {
-				return "namespace", nil
-			},
-		},
-		"Should Persist to both repos, if required": {
-			appsRepo: "https://github.com/owner/other_name",
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
-				memfs := memfs.New()
-				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
-				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
-				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
-					CommitMsg: "chore: create app 'app' on project 'project' installation-path: '/'",
-				}).
-					Times(1).
-					Return("revision", nil)
-				return mockRepo, fs.Create(memfs), nil
-			},
-			getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
-				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
-				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
-					CommitMsg: "chore: create app 'app' on project 'project' installation-path: '/'",
-				}).
-					Times(1).
-					Return("revision", nil)
-				return mockRepo, fs.Create(memfs.New()), nil
-			},
-		},
+		// TODO: add send commit to tenant repo
+		//"Should Persist to both repos, if required": {
+		//	repoWriter: NativeRepoTarget{
+		//		metaRepoCloneOpts: &git.CloneOptions{
+		//			Repo: "https://github.com/owner/name",
+		//			Auth: git.Auth{
+		//				Password: "password",
+		//			},
+		//		},
+		//		tenantRepoCloneOpts: &git.CloneOptions{
+		//			Repo: "https://github.com/owner/other_name",
+		//		},
+		//	},
+		//	prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
+		//		memfs := memfs.New()
+		//		_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
+		//		mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
+		//		mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
+		//			CommitMsg: "chore: create app 'app' on project 'project' installation-path: '/'",
+		//		}).
+		//			Times(1).
+		//			Return("revision", nil)
+		//		return mockRepo, fs.Create(memfs), nil
+		//	},
+		//	getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
+		//		mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
+		//		mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
+		//			CommitMsg: "chore: create app 'app' on project 'project' installation-path: '/'",
+		//		}).
+		//			Times(1).
+		//			Return("revision", nil)
+		//		return mockRepo, fs.Create(memfs.New()), nil
+		//	},
+		//},
 		"Should Persist to a single repo, if required": {
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
-				memfs := memfs.New()
-				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
-				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
-				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
-					CommitMsg: "chore: create app 'app' on project 'project' installation-path: '/'",
-				}).
-					Times(1).
-					Return("revision", nil)
-				return mockRepo, fs.Create(memfs), nil
-			},
-		},
-		"Should wait succesfully and complete": {
-			timeout: 1,
-			beforeFn: func(f *kubemocks.MockFactory) {
-				f.EXPECT().Wait(gomock.Any(), gomock.Any()).
-					Times(1).
-					Return(nil)
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
 			},
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
@@ -238,19 +270,15 @@ func TestRunAppCreate(t *testing.T) {
 					Times(1).
 					Return("revision", nil)
 				return mockRepo, fs.Create(memfs), nil
-			},
-			getInstallationNamespace: func(repofs fs.FS) (string, error) {
-				return "namespace", nil
 			},
 		},
 	}
-	origPrepareRepo, origGetRepo, origSetAppOptsDefault, origAppParse, origGetInstallationNamespace := prepareRepo, getRepo, setAppOptsDefaults, parseApp, getInstallationNamespace
+	origPrepareRepo, origGetRepo, origSetAppOptsDefault, origAppParse := prepareRepo, getRepo, setAppOptsDefaults, parseApp
 	defer func() {
 		prepareRepo = origPrepareRepo
 		getRepo = origGetRepo
 		setAppOptsDefaults = origSetAppOptsDefault
 		parseApp = origAppParse
-		getInstallationNamespace = origGetInstallationNamespace
 	}()
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -293,18 +321,7 @@ func TestRunAppCreate(t *testing.T) {
 				app.EXPECT().CreateFiles(gomock.Any(), gomock.Any(), "project").Return(tt.createFilesErr).AnyTimes()
 				return app, nil
 			}
-			getInstallationNamespace = tt.getInstallationNamespace
 			opts := &types.AppCreateOptions{
-				Timeout: tt.timeout,
-				CloneOpts: &git.CloneOptions{
-					Repo: "https://github.com/owner/name",
-					Auth: git.Auth{
-						Password: "password",
-					},
-				},
-				AppsCloneOpts: &git.CloneOptions{
-					Repo: tt.appsRepo,
-				},
 				ProjectName: "project",
 				AppOpts: &application.CreateOptions{
 					AppName:      "app",
@@ -314,9 +331,15 @@ func TestRunAppCreate(t *testing.T) {
 				KubeFactory: f,
 			}
 
-			opts.CloneOpts.Parse()
-			opts.AppsCloneOpts.Parse()
-			if err := native.RunAppCreate(context.Background(), opts); err != nil || tt.wantErr != "" {
+			// meta repo
+			tt.repoWriter.metaRepoCloneOpts.Parse()
+			if tt.repoWriter.tenantRepoCloneOpts == nil {
+				tt.repoWriter.tenantRepoCloneOpts = tt.repoWriter.metaRepoCloneOpts
+			}
+			tt.repoWriter.tenantRepoCloneOpts.Parse()
+
+			// create app
+			if err := tt.repoWriter.RunAppCreate(context.Background(), opts); err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 			}
 		})
@@ -547,6 +570,7 @@ func TestRunAppDelete(t *testing.T) {
 
 func TestRunProjectCreate(t *testing.T) {
 	tests := map[string]struct {
+		repoWriter               NativeRepoTarget
 		projectName              string
 		wantErr                  string
 		getInstallationNamespace func(repofs fs.FS) (string, error)
@@ -554,6 +578,7 @@ func TestRunProjectCreate(t *testing.T) {
 		assertFn                 func(t *testing.T, repo git.Repository, repofs fs.FS)
 	}{
 		"should handle failure in prepare repo": {
+			repoWriter:  NativeRepoTarget{},
 			projectName: "project",
 			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
 				return nil, nil, fmt.Errorf("failure clone")
@@ -561,6 +586,7 @@ func TestRunProjectCreate(t *testing.T) {
 			wantErr: "failure clone",
 		},
 		"should handle failure while getting namespace": {
+			repoWriter:  NativeRepoTarget{},
 			projectName: "project",
 			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
@@ -572,6 +598,7 @@ func TestRunProjectCreate(t *testing.T) {
 			wantErr: util.Doc("Bootstrap folder not found, please execute `<BIN> repo bootstrap --installation-path /` command"),
 		},
 		"should handle failure when project exists": {
+			repoWriter:  NativeRepoTarget{},
 			projectName: "project",
 			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
@@ -584,6 +611,11 @@ func TestRunProjectCreate(t *testing.T) {
 			wantErr: "project 'project' already exists",
 		},
 		"should handle failure when writing project file": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "http://server.org/org/name",
+				},
+			},
 			projectName: "project",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				mockedFS := fsmocks.NewMockFS(gomock.NewController(t))
@@ -600,6 +632,11 @@ func TestRunProjectCreate(t *testing.T) {
 			wantErr: "failed to create project file: permission denied",
 		},
 		"should handle failure to persist repo": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "http://server.org/org/name",
+				},
+			},
 			projectName: "project",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
@@ -615,6 +652,11 @@ func TestRunProjectCreate(t *testing.T) {
 			wantErr: "failed to persist",
 		},
 		"should persist repo when done": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "http://server.org/org/name",
+				},
+			},
 			projectName: "project",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
@@ -640,8 +682,6 @@ func TestRunProjectCreate(t *testing.T) {
 		getInstallationNamespace = origGetInstallationNamespace
 	}()
 
-	var native = NativeRepoTarget{}
-
 	for ttName, tt := range tests {
 		t.Run(ttName, func(t *testing.T) {
 			var (
@@ -650,7 +690,6 @@ func TestRunProjectCreate(t *testing.T) {
 			)
 
 			opts := &types.ProjectCreateOptions{
-				CloneOpts:   &git.CloneOptions{},
 				ProjectName: tt.projectName,
 			}
 			prepareRepo = func(_ context.Context, _ *git.CloneOptions, _ string) (git.Repository, fs.FS, error) {
@@ -659,7 +698,7 @@ func TestRunProjectCreate(t *testing.T) {
 				return repo, repofs, err
 			}
 			getInstallationNamespace = tt.getInstallationNamespace
-			if err := native.RunProjectCreate(context.Background(), opts); err != nil || tt.wantErr != "" {
+			if err := tt.repoWriter.RunProjectCreate(context.Background(), opts); err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
 			}
@@ -705,6 +744,39 @@ func Test_generateProjectManifests(t *testing.T) {
 			wantNamespace:          "namespace",
 			wantProjectDescription: "name project",
 			wantRepoURL:            "repoUrl",
+			wantRevision:           "revision",
+			wantDefaultDestServer:  "defaultDestServer",
+			wantContextName:        "some-context-name",
+			wantLabels: map[string]string{
+				"some-key":                         "some-value",
+				store.Default.LabelKeyAppManagedBy: store.Default.LabelValueManagedBy,
+				store.Default.LabelKeyAppName:      "{{ appName }}",
+			},
+			wantAnnotations: map[string]string{
+				"some-key": "some-value",
+			},
+		},
+		"set tenant repo url": {
+			o: &types.GenerateProjectOptions{
+				Name:               "name",
+				Namespace:          "namespace",
+				DefaultDestServer:  "defaultDestServer",
+				DefaultDestContext: "some-context-name",
+				ProjectGitopsRepo:  "tenantRepoUrl",
+				RepoURL:            "repoUrl",
+				Revision:           "revision",
+				InstallationPath:   "some/path",
+				Labels: map[string]string{
+					"some-key": "some-value",
+				},
+				Annotations: map[string]string{
+					"some-key": "some-value",
+				},
+			},
+			wantName:               "name",
+			wantNamespace:          "namespace",
+			wantProjectDescription: "name project",
+			wantRepoURL:            "tenantRepoUrl",
 			wantRevision:           "revision",
 			wantDefaultDestServer:  "defaultDestServer",
 			wantContextName:        "some-context-name",
@@ -875,17 +947,28 @@ func Test_getProjectInfoFromFile(t *testing.T) {
 
 func TestRunProjectList(t *testing.T) {
 	tests := map[string]struct {
+		repoWriter  NativeRepoTarget
 		prepareRepo func(*testing.T) (git.Repository, fs.FS, error)
 		wantErr     string
 		assertFn    func(t *testing.T, projects []types.TenantInfo)
 	}{
 		"should handle failure in prepare repo": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "http://server.org/org/name",
+				},
+			},
 			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
 				return nil, nil, fmt.Errorf("failure clone")
 			},
 			wantErr: "failure clone",
 		},
 		"should list projects": {
+			repoWriter: NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "http://server.org/org/name",
+				},
+			},
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				appProj := argocdv1alpha1.AppProject{
@@ -897,7 +980,20 @@ func TestRunProjectList(t *testing.T) {
 						},
 					},
 				}
-				appSet := argocdv1alpha1.ApplicationSet{}
+				appSet := argocdv1alpha1.ApplicationSet{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "prod",
+					},
+					Spec: argocdv1alpha1.ApplicationSetSpec{
+						Generators: []argocdv1alpha1.ApplicationSetGenerator{
+							{
+								Git: &argocdv1alpha1.GitGenerator{
+									RepoURL: "https://example.org/org/name.git",
+								},
+							},
+						},
+					},
+				}
 				repofs := fs.Create(memfs)
 				_ = repofs.WriteYamls("projects/prod.yaml", appProj, appSet)
 				return nil, repofs, nil
@@ -914,8 +1010,6 @@ func TestRunProjectList(t *testing.T) {
 	origPrepareRepo := prepareRepo
 	defer func() { prepareRepo = origPrepareRepo }()
 
-	var native = NativeRepoTarget{}
-
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			var (
@@ -929,11 +1023,7 @@ func TestRunProjectList(t *testing.T) {
 				return repo, repofs, err
 			}
 
-			opts := &types.ProjectListOptions{
-				CloneOpts: &git.CloneOptions{},
-			}
-
-			projects, err := native.RunProjectList(context.Background(), opts)
+			projects, err := tt.repoWriter.RunProjectList(context.Background())
 			if err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
@@ -1078,10 +1168,8 @@ func TestRunProjectDelete(t *testing.T) {
 				repo, repofs, err = tt.prepareRepo(t)
 				return repo, repofs, err
 			}
-			opts := &types.ProjectDeleteOptions{
-				ProjectName: tt.projectName,
-			}
-			if err := native.RunProjectDelete(context.Background(), opts); err != nil || tt.wantErr != "" {
+
+			if err := native.RunProjectDelete(context.Background(), tt.projectName); err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
 			}

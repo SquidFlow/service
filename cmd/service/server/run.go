@@ -126,21 +126,21 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	closer, clsClient, err := argocdClient.NewClusterClient()
 	if err != nil {
-		log.G().Fatalf("Failed to create cluster client: %v", err)
+		log.G().Fatalf("failed to create cluster client: %v", err)
 	}
 	defer closer.Close()
 
+	// 1. list destination clusters
 	err = listDestinationCluster(context.Background(), clsClient)
 	if err != nil {
-		log.G().Fatalf("Failed to list destination clusters: %v", err)
+		log.G().Fatalf("failed to list destination clusters: %v", err)
 	}
 
-	// new repo writer
-	if err := newRepoWriter(); err != nil {
-		log.G().Fatalf("Failed to initialize repo writer: %v", err)
+	// 2. init repo writer
+	if err := buildRepoWriter(); err != nil {
+		log.G().Fatalf("failed to initialize repo writer: %v", err)
 	}
 
-	//TODO: check gitOps repo
 	r := setupRouter()
 
 	srv := &http.Server{
@@ -249,7 +249,8 @@ func setupRouter() *gin.Engine {
 }
 
 // new repo writer
-func newRepoWriter() error {
+func buildRepoWriter() error {
+	// 1. init meta repo
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),
@@ -261,15 +262,20 @@ func newRepoWriter() error {
 	}
 	cloneOpts.Parse()
 
-	_, fs, err := cloneOpts.GetRepo(context.Background())
+	_, repofs, err := cloneOpts.GetRepo(context.Background())
 	if err != nil {
-		log.G().Errorf("failed to get git repo: %v", err)
-		return err
+		log.G().Fatalf("failed to get git repo: %v", err)
 	}
 
-	if err := repowriter.InitRepoWriter(fs); err != nil {
-		log.G().Errorf("failed to initialize repo writer: %v", err)
-		return err
+	err = repowriter.BuildMetaRepoWriter(repofs)
+	if err != nil {
+		log.G().Fatalf("failed to build repo writer: %v", err)
+	}
+
+	// 2. build tenats repo writer
+	err = repowriter.BuildTenantRepo()
+	if err != nil {
+		log.G().Fatal("failed to build tenant repo writer: %v", err)
 	}
 
 	return nil
@@ -284,7 +290,7 @@ func listDestinationCluster(ctx context.Context, clsClient clusterpkg.ClusterSer
 		return err
 	}
 
-	log.G().Info("Available clusters:")
+	log.G().Info("available clusters:")
 	log.G().Info(strings.Repeat("-", 80))
 	log.G().Info(fmt.Sprintf("%-60s\t%-30s\t%-10s", "Name", "Server", "Status"))
 
@@ -346,6 +352,6 @@ func checkRequiredCRDs(discoveryClient *discovery.DiscoveryClient) error {
 		return fmt.Errorf("required CRDs are not installed: %s", strings.Join(missingCRDs, ", "))
 	}
 
-	log.G().Info("All required CRDs are installed")
+	log.G().Info("all required CRDs are installed")
 	return nil
 }

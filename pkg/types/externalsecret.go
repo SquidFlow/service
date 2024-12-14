@@ -2,8 +2,6 @@ package types
 
 import (
 	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
-
-	"github.com/squidflow/service/pkg/git"
 )
 
 type SecretStoreCreateReq struct {
@@ -17,13 +15,8 @@ type SecretStoreCreateResponse struct {
 	Message string `json:"message"`
 }
 
-type SecretStoreDeleteOptions struct {
-	CloneOpts *git.CloneOptions
-}
-
 type SecretStoreGetOptions struct {
-	CloneOpts *git.CloneOptions
-	ID        string
+	ID string
 }
 
 type DescribeSecretStoreResponse struct {
@@ -49,10 +42,6 @@ type SecretStoreDetail struct {
 	CreatedAt   string            `json:"createdAt"`
 	LastUpdated string            `json:"lastUpdated"`
 	Health      SecretStoreHealth `json:"health"`
-}
-
-type SecretStoreListOptions struct {
-	CloneOpts *git.CloneOptions
 }
 
 type ListSecretStoreResponse struct {

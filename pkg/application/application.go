@@ -10,6 +10,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
+	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
@@ -369,8 +370,15 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 		configPath = repofs.Join(appPath, projectName, "config.json")
 	}
 
+	if viper.GetString("gitops.mode") == "pull_request" {
+		if err = appsfs.WriteJson(configPath, app.config); err != nil {
+			return fmt.Errorf("appsfs failed to write app config.json: %w", err)
+		}
+		return nil
+	}
+
 	if err = repofs.WriteJson(configPath, app.config); err != nil {
-		return fmt.Errorf("failed to write app config.json: %w", err)
+		return fmt.Errorf("repofs failed to write app config.json: %w", err)
 	}
 
 	return nil

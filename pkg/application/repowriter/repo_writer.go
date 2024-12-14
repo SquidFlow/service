@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/viper"
 
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
@@ -14,9 +16,10 @@ import (
 )
 
 var (
-	instance RepoWriter
-	once     sync.Once
-	initErr  error
+	metarepo    MetaRepoWriter
+	tenantRepos sync.Map // key: tenant name, value: TenantRepoWriter
+	once        sync.Once
+	initErr     error
 )
 
 // this is native repo layout
@@ -31,17 +34,18 @@ var (
 // .
 // ├── overlays
 // └── manifest
-// InitRepoWriter initializes the RepoWriter based on the repository layout
+// InitMetaRepoWriter initializes the RepoWriter based on the repository layout
 // This should be called once during application startup
-func InitRepoWriter(fs fs.FS) error {
+func BuildMetaRepoWriter(repofs fs.FS) error {
 	once.Do(func() {
 		// Check native layout paths
-		appsExists, appsErr := fs.Exists("apps/")
-		bootstrapExists, bootstrapErr := fs.Exists("bootstrap/")
-		projectsExists, projectsErr := fs.Exists("projects/")
+		appsExists, appsErr := repofs.Exists("apps/")
+		bootstrapExists, bootstrapErr := repofs.Exists("bootstrap/")
+		projectsExists, projectsErr := repofs.Exists("projects/")
+
 		// Check vendor1 layout paths
-		overlaysExists, overlaysErr := fs.Exists("overlays/")
-		manifestExists, manifestErr := fs.Exists("manifest/")
+		overlaysExists, overlaysErr := repofs.Exists("overlays/")
+		manifestExists, manifestErr := repofs.Exists("manifest/")
 
 		// Handle any filesystem errors first
 		if appsErr != nil || bootstrapErr != nil || projectsErr != nil ||
@@ -53,11 +57,34 @@ func InitRepoWriter(fs fs.FS) error {
 
 		switch {
 		case appsExists && bootstrapExists && projectsExists:
-			instance = &NativeRepoTarget{}
+			native := &NativeRepoTarget{
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo:     viper.GetString("application_repo.remote_url"),
+					FS:       fs.Create(memfs.New()),
+					Provider: "github",
+					Auth: git.Auth{
+						Password: viper.GetString("application_repo.access_token"),
+					},
+					CloneForWrite: true,
+				},
+				tenantRepoCloneOpts: &git.CloneOptions{
+					Repo:     viper.GetString("application_repo.remote_url"),
+					FS:       fs.Create(memfs.New()),
+					Provider: "github",
+					Auth: git.Auth{
+						Password: viper.GetString("application_repo.access_token"),
+					},
+					CloneForWrite: true,
+				},
+			}
+			native.metaRepoCloneOpts.Parse()
+			native.tenantRepoCloneOpts.Parse()
+			metarepo = native
 			log.G().Info("using native repo layout")
 		case overlaysExists && manifestExists:
-			instance = &Vendor1RepoTarget{}
+			metarepo = &Vendor1RepoTarget{}
 			log.G().Info("using vendor1 repo layout")
+
 		default:
 			initErr = fmt.Errorf("not supported repo layout")
 		}
@@ -65,47 +92,157 @@ func InitRepoWriter(fs fs.FS) error {
 	return initErr
 }
 
-// Repo returns the initialized RepoWriter instance
-func Repo() RepoWriter {
-	return instance
+func buildTenantRepoWriter(tenant types.TenantInfo) TenantRepoWriter {
+	log.G().WithFields(log.Fields{
+		"tenant": tenant.Name,
+		"repo":   tenant.GitOpsRepo,
+	}).Debug("building tenant repo writer")
+
+	// if tenant.GitOpsRepo is the same as the application repo, we don't need to clone it
+	if tenant.GitOpsRepo == viper.GetString("application_repo.remote_url") {
+		log.G().WithFields(log.Fields{
+			"tenant": tenant.Name,
+			"repo":   tenant.GitOpsRepo,
+		}).Debug("skip building tenant repo writer, use meta repo for tenant")
+		return metarepo
+	}
+
+	tenantRepoCloneOpts := &git.CloneOptions{
+		Repo:     tenant.GitOpsRepo,
+		FS:       fs.Create(memfs.New()),
+		Provider: "github",
+		Auth: git.Auth{
+			Password: viper.GetString("application_repo.access_token"),
+		},
+		CloneForWrite: true,
+	}
+	tenantRepoCloneOpts.Parse()
+
+	_, repofs, err := tenantRepoCloneOpts.GetRepo(context.Background())
+	if err != nil {
+		log.G().Errorf("failed to get git repo: %v", err)
+		return nil
+	}
+
+	// Check native layout paths
+	appsExists, appsErr := repofs.Exists("apps/")
+
+	// Check vendor1 layout paths
+	overlaysExists, overlaysErr := repofs.Exists("overlays/")
+	manifestExists, manifestErr := repofs.Exists("manifest/")
+
+	// Handle any filesystem errors first
+	if appsErr != nil || overlaysErr != nil || manifestErr != nil {
+		initErr = fmt.Errorf("failed to check repository layout: apps(%v), overlays(%v), manifest(%v)",
+			appsErr, overlaysErr, manifestErr)
+		return nil
+	}
+
+	switch {
+	case appsExists:
+		native := &NativeRepoTarget{
+			metaRepoCloneOpts: &git.CloneOptions{
+				Repo:     viper.GetString("application_repo.remote_url"),
+				FS:       fs.Create(memfs.New()),
+				Provider: "github",
+				Auth: git.Auth{
+					Password: viper.GetString("application_repo.access_token"),
+				},
+				CloneForWrite: true,
+			},
+			tenantRepoCloneOpts: tenantRepoCloneOpts,
+		}
+		native.metaRepoCloneOpts.Parse()
+		native.tenantRepoCloneOpts.Parse()
+		return native
+	case overlaysExists && manifestExists:
+		return &Vendor1RepoTarget{}
+	default:
+		initErr = fmt.Errorf("not supported repo layout")
+	}
+
+	log.G().WithFields(log.Fields{
+		"tenant": tenant.Name,
+		"repo":   tenant.GitOpsRepo,
+	}).Warn("failed to build tenant repo writer")
+
+	return nil
 }
 
-// RepoWriter defines how to interact with a GitOps repository
-type RepoWriter interface {
+// MetaRepo returns the initialized RepoWriter instance
+func MetaRepo() MetaRepoWriter {
+	if metarepo == nil {
+		log.G().Fatal("meta repo writer is not initialized")
+	}
+	return metarepo
+}
+
+// BuildTenantRepo creates or gets a TenantRepoWriter for the given tenant
+func BuildTenantRepo() error {
+	tenants, err := metarepo.RunProjectList(context.Background())
+
+	if err != nil {
+		log.G().Errorf("failed to list tenants: %v", err)
+		return nil
+	}
+
+	for _, tenant := range tenants {
+		tenantRepoWriter := buildTenantRepoWriter(tenant)
+		if tenantRepoWriter == nil {
+			log.G().WithFields(log.Fields{
+				"tenant": tenant.Name,
+				"repo":   tenant.GitOpsRepo,
+			}).Warn("invalid tenant repo writer")
+			return nil
+		}
+		log.G().WithField("tenant", tenant.Name).Debug("stored tenant repo writer")
+		tenantRepos.Store(tenant.Name, tenantRepoWriter)
+	}
+	return nil
+}
+
+// ClearTenantRepo removes the TenantRepoWriter for the given tenant
+func TenantRepo(name string) TenantRepoWriter {
+	tenantRepo, ok := tenantRepos.Load(name)
+	if !ok {
+		log.G().WithField("tenant", name).Warn("tenant repo writer not found")
+	}
+	return tenantRepo.(TenantRepoWriter)
+}
+
+// MetaRepoWriter defines how to interact with a GitOps repository
+type MetaRepoWriter interface {
 	ApplicationWriter
 	ProjectWriter
 	SecretStoreWriter
 }
 
+// TenantRepoWriter is a repo writer for tenant
+type TenantRepoWriter interface {
+	ApplicationWriter
+	SecretStoreWriter
+}
+
 type ApplicationWriter interface {
-	// RunAppCreate creates an application
 	RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error
-	// RunAppDelete deletes an application
 	RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error
-	// RunAppUpdate updates an application
 	RunAppUpdate(ctx context.Context, opts *types.UpdateOptions) error
-	// RunAppGet gets a single application
 	RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error)
-	// RunAppList lists all applications
 	RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error)
 }
 
 // ProjectWriter defines how to interact with a GitOps repository
 type ProjectWriter interface {
-	// RunProjectCreate Project methods
 	RunProjectCreate(ctx context.Context, opts *types.ProjectCreateOptions) error
-	// RunProjectGetDetail gets a single project
-	RunProjectGetDetail(ctx context.Context, projectName string, opts *git.CloneOptions) (*types.TenantDetailInfo, error)
-	// RunProjectList lists all projects
-	RunProjectList(ctx context.Context, opts *types.ProjectListOptions) ([]types.TenantInfo, error)
-	// RunProjectDelete deletes a project
-	RunProjectDelete(ctx context.Context, opts *types.ProjectDeleteOptions) error
+	RunProjectGet(ctx context.Context, projectName string) (*types.TenantDetailInfo, error)
+	RunProjectList(ctx context.Context) ([]types.TenantInfo, error)
+	RunProjectDelete(ctx context.Context, name string) error
 }
 
 type SecretStoreWriter interface {
-	SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error
-	SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error)
-	SecretStoreDelete(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error
-	SecretStoreGet(ctx context.Context, opts *types.SecretStoreGetOptions) (*esv1beta1.SecretStore, error)
-	SecretStoreList(ctx context.Context, opts *types.SecretStoreListOptions) ([]esv1beta1.SecretStore, error)
+	SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, force bool) error
+	SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest) (*esv1beta1.SecretStore, error)
+	SecretStoreDelete(ctx context.Context, id string) error
+	SecretStoreGet(ctx context.Context, id string) (*esv1beta1.SecretStore, error)
+	SecretStoreList(ctx context.Context) ([]esv1beta1.SecretStore, error)
 }

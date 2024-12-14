@@ -144,7 +144,7 @@ func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, b
 				entry.lastSync = time.Now()
 				c.mu.Unlock()
 			} else {
-				log.G().WithError(err).Error("cache failed to sync repository")
+				log.G().WithError(err).Warn("cache failed to sync repository")
 				return nil, nil, false
 			}
 		} else {
@@ -163,7 +163,7 @@ func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, b
 	log.G().WithFields(log.Fields{
 		"url":       url,
 		"cache_hit": true,
-	}).Debug("Cache hit")
+	}).Debug("cache hit")
 
 	return entry.repo, filesystem, true
 }

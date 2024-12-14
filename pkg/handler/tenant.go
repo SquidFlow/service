@@ -23,25 +23,25 @@ func TenantCreate(c *gin.Context) {
 		return
 	}
 
-	cloneOpts := &git.CloneOptions{
-		Repo:     viper.GetString("application_repo.remote_url"),
-		FS:       fs.Create(memfs.New()),
-		Provider: "github",
-		Auth: git.Auth{
-			Password: viper.GetString("application_repo.access_token"),
-		},
-		CloneForWrite: true,
+	if req.GitOpsRepo == "" {
+		req.GitOpsRepo = viper.GetString("application_repo.remote_url")
 	}
-	cloneOpts.Parse()
 
 	opts := &types.ProjectCreateOptions{
-		CloneOpts:   cloneOpts,
-		ProjectName: req.ProjectName,
-		Labels:      req.Labels,
-		Annotations: req.Annotations,
+		ProjectName:       req.ProjectName,
+		Labels:            req.Labels,
+		Annotations:       req.Annotations,
+		ProjectGitopsRepo: req.GitOpsRepo,
 	}
 
-	err := repowriter.Repo().RunProjectCreate(context.Background(), opts)
+	log.G().WithFields(log.Fields{
+		"project_name":        opts.ProjectName,
+		"project_gitops_repo": opts.ProjectGitopsRepo,
+		"labels":              opts.Labels,
+		"annotations":         opts.Annotations,
+	}).Info("project create options")
+
+	err := repowriter.MetaRepo().RunProjectCreate(context.Background(), opts)
 	if err != nil {
 		log.G().Errorf("Failed to create project: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create project: %v", err)})
@@ -72,12 +72,7 @@ func TenantDelete(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	opts := &types.ProjectDeleteOptions{
-		CloneOpts:   cloneOpts,
-		ProjectName: projectName,
-	}
-
-	err := repowriter.Repo().RunProjectDelete(context.Background(), opts)
+	err := repowriter.MetaRepo().RunProjectDelete(context.Background(), projectName)
 	if err != nil {
 		log.G().Errorf("Failed to delete project: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete project: %v", err)})
@@ -104,7 +99,7 @@ func TenantGet(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	tenantResp, err := repowriter.Repo().RunProjectGetDetail(context.Background(), projectName, cloneOpts)
+	tenantResp, err := repowriter.MetaRepo().RunProjectGet(context.Background(), projectName)
 	if err != nil {
 		log.G().Errorf("Failed to get project detail: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get project detail: %v", err)})
@@ -115,21 +110,10 @@ func TenantGet(c *gin.Context) {
 }
 
 func TenantsList(c *gin.Context) {
-	cloneOpts := &git.CloneOptions{
-		Repo:     viper.GetString("application_repo.remote_url"),
-		FS:       fs.Create(memfs.New()),
-		Provider: "github",
-		Auth: git.Auth{
-			Password: viper.GetString("application_repo.access_token"),
-		},
-		CloneForWrite: false,
-	}
-	cloneOpts.Parse()
-
-	tenants, err := repowriter.Repo().RunProjectList(context.Background(), &types.ProjectListOptions{CloneOpts: cloneOpts})
+	tenants, err := repowriter.MetaRepo().RunProjectList(context.Background())
 	if err != nil {
-		log.G().Errorf("Failed to list tenants: %v", err)
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list tenants: %v", err)})
+		log.G().Errorf("failed to list tenants: %v", err)
+		c.JSON(500, gin.H{"error": fmt.Sprintf("failed to list tenants: %v", err)})
 		return
 	}
 

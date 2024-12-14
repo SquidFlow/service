@@ -95,10 +95,8 @@ var (
 			url := host + orgRepo + suffix
 			log.G().Infof("cloning repo: '%s', to infer app type from path '%s'", url, p)
 			cloneOpts := &git.CloneOptions{
-				Repo:     opts.AppOpts.AppSpecifier,
-				Auth:     opts.CloneOpts.Auth,
-				Provider: opts.CloneOpts.Provider,
-				FS:       fs.Create(memfs.New()),
+				Repo: opts.AppOpts.AppSpecifier,
+				FS:   fs.Create(memfs.New()),
 			}
 			cloneOpts.Parse()
 			_, fsys, err = getRepo(ctx, cloneOpts)

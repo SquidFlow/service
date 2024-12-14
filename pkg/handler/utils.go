@@ -1,8 +1,17 @@
 package handler
 
 import (
+	"context"
+	"fmt"
+	"sync"
+
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/google/uuid"
+	"github.com/spf13/viper"
+
+	"github.com/squidflow/service/pkg/application/repowriter"
+	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/types"
 )
 
 // getNewId returns a new id for the resource
@@ -49,4 +58,120 @@ func getAppSyncStatus(app *argocdv1alpha1.Application) string {
 		return "Unknown"
 	}
 	return string(app.Status.Sync.Status)
+}
+
+type projectGitOpsCache struct {
+	mu    sync.RWMutex
+	cache map[string]string // key: project name, value: gitops repo url
+}
+
+var (
+	defaultProjectGitOpsCache *projectGitOpsCache
+	projectGitOpsCacheOnce    sync.Once
+)
+
+func getProjectGitOpsCache() *projectGitOpsCache {
+	projectGitOpsCacheOnce.Do(func() {
+		log.G().Debug("Initializing project gitops repo cache")
+		defaultProjectGitOpsCache = &projectGitOpsCache{
+			cache: make(map[string]string),
+		}
+	})
+	return defaultProjectGitOpsCache
+}
+
+func (c *projectGitOpsCache) Get(project string) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if url, exists := c.cache[project]; exists {
+		log.G().WithFields(log.Fields{
+			"project": project,
+			"url":     url,
+		}).Debug("project gitops repo cache hit")
+		return url
+	}
+
+	// Try to refresh cache on miss
+	c.mu.RUnlock()
+	if err := refreshProjectGitOpsCache(); err != nil {
+		log.G().WithError(err).Error("failed to refresh project gitops cache")
+	}
+	c.mu.RLock()
+
+	// Check again after refresh
+	if url, exists := c.cache[project]; exists {
+		log.G().WithFields(log.Fields{
+			"project": project,
+			"url":     url,
+		}).Debug("project gitops repo cache hit after refresh")
+		return url
+	}
+
+	defaultURL := viper.GetString("application_repo.remote_url")
+	log.G().WithFields(log.Fields{
+		"project":     project,
+		"default_url": defaultURL,
+	}).Debug("project gitops repo cache miss, using default")
+	return defaultURL
+}
+
+func (c *projectGitOpsCache) Set(project, url string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	log.G().WithFields(log.Fields{
+		"project": project,
+		"url":     url,
+	}).Debug("Setting project gitops repo cache")
+	c.cache[project] = url
+}
+
+// getGitOpsRepo returns the gitops repo url for the given project
+func getGitOpsRepo(project string) string {
+	return getProjectGitOpsCache().Get(project)
+}
+
+// BuildProjectGitOpsCache builds the cache from project list
+func BuildProjectGitOpsCache(tenants []types.TenantInfo) {
+	cache := getProjectGitOpsCache()
+	for _, tenant := range tenants {
+		if tenant.GitOpsRepo != "" {
+			cache.Set(tenant.Name, tenant.GitOpsRepo)
+			log.G().WithFields(log.Fields{
+				"project":   tenant.Name,
+				"gitopsURL": tenant.GitOpsRepo,
+			}).Debug("cached project gitops repo")
+		}
+	}
+}
+
+// refreshProjectGitOpsCache refreshes the cache from repository
+func refreshProjectGitOpsCache() error {
+	tenants, err := repowriter.MetaRepo().RunProjectList(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to list tenants: %w", err)
+	}
+
+	BuildProjectGitOpsCache(tenants)
+	return nil
+}
+
+func InitProjectGitOpsCache(tenants []types.TenantInfo) {
+	cache := getProjectGitOpsCache()
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	// rebuild cache
+	for _, tenant := range tenants {
+		if tenant.GitOpsRepo != "" {
+			cache.cache[tenant.Name] = tenant.GitOpsRepo
+			log.G().WithFields(log.Fields{
+				"project":   tenant.Name,
+				"gitopsURL": tenant.GitOpsRepo,
+			}).Debug("cached project gitops repo")
+		}
+	}
+
+	log.G().WithField("count", len(cache.cache)).Info("Project gitops cache initialized")
 }

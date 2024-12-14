@@ -32,10 +32,13 @@ var (
 	clusterResReadmeTpl []byte
 )
 
-var _ RepoWriter = &NativeRepoTarget{}
+var _ MetaRepoWriter = &NativeRepoTarget{}
 
 // NativeRepoTarget implements the native GitOps repository structure
-type NativeRepoTarget struct{}
+type NativeRepoTarget struct {
+	metaRepoCloneOpts   *git.CloneOptions
+	tenantRepoCloneOpts *git.CloneOptions
+}
 
 // RunAppCreate creates an application in the native GitOps repository structure
 func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error {
@@ -43,41 +46,37 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *types.AppCrea
 		appsRepo git.Repository
 		appsfs   fs.FS
 	)
+	if n.tenantRepoCloneOpts == nil {
+		n.tenantRepoCloneOpts = n.metaRepoCloneOpts
+	}
 
 	log.G().WithFields(log.Fields{
-		"app-url":      opts.AppsCloneOpts.URL(),
-		"app-revision": opts.AppsCloneOpts.Revision(),
-		"app-path":     opts.AppsCloneOpts.Path(),
+		"app-url":      n.tenantRepoCloneOpts.URL(),
+		"app-revision": n.tenantRepoCloneOpts.Revision(),
+		"app-path":     n.tenantRepoCloneOpts.Path(),
 	}).Debug("starting with options: ")
 
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
+	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
 	if err != nil {
 		return err
 	}
-	log.G().Debugf("repofs: %v", repofs)
 
-	if opts.AppsCloneOpts.Repo != "" {
-		if opts.AppsCloneOpts.Auth.Password == "" {
-			opts.AppsCloneOpts.Auth.Username = opts.CloneOpts.Auth.Username
-			opts.AppsCloneOpts.Auth.Password = opts.CloneOpts.Auth.Password
-			opts.AppsCloneOpts.Auth.CertFile = opts.CloneOpts.Auth.CertFile
-			opts.AppsCloneOpts.Provider = opts.CloneOpts.Provider
-		}
-
-		appsRepo, appsfs, err = getRepo(ctx, opts.AppsCloneOpts)
+	if n.metaRepoCloneOpts.Repo != n.tenantRepoCloneOpts.Repo {
+		appsRepo, appsfs, err = getRepo(ctx, n.tenantRepoCloneOpts)
 		if err != nil {
+			log.G().Errorf("failed to prepare tenant repo: %v", err)
 			return err
 		}
 	} else {
-		opts.AppsCloneOpts = opts.CloneOpts
 		appsRepo, appsfs = r, repofs
 	}
 
 	if err = setAppOptsDefaults(ctx, repofs, opts); err != nil {
+		log.G().Errorf("failed to set app opts defaults: %v", err)
 		return err
 	}
 
-	app, err := parseApp(opts.AppOpts, opts.ProjectName, opts.CloneOpts.URL(), opts.CloneOpts.Revision(), opts.CloneOpts.Path())
+	app, err := parseApp(opts.AppOpts, opts.ProjectName, n.tenantRepoCloneOpts.URL(), n.tenantRepoCloneOpts.Revision(), n.tenantRepoCloneOpts.Path())
 	if err != nil {
 		return fmt.Errorf("failed to parse application from flags: %w", err)
 	}
@@ -90,54 +89,50 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *types.AppCrea
 		return err
 	}
 
-	if opts.AppsCloneOpts != opts.CloneOpts {
-		log.G().Info("committing changes to apps repo...")
-		if _, err = appsRepo.Persist(ctx, &git.PushOptions{
-			CommitMsg: genCommitMsg("chore: "+types.ActionTypeCreate, types.ResourceNameApp, opts.AppOpts.AppName, opts.ProjectName, repofs),
-		}); err != nil {
+	if n.metaRepoCloneOpts.Repo != n.tenantRepoCloneOpts.Repo {
+		commitMsg := genCommitMsg("chore: "+
+			types.ActionTypeCreate,
+			types.ResourceNameApp,
+			opts.AppOpts.AppName,
+			opts.ProjectName,
+			appsfs,
+		)
+		log.G().WithFields(
+			log.Fields{
+				"commit msg": commitMsg,
+				"repo":       n.tenantRepoCloneOpts.Repo,
+				"path":       n.tenantRepoCloneOpts.Path(),
+			}).Debug("push to tenant repo with commit msg")
+		if _, err = appsRepo.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg}); err != nil {
 			return fmt.Errorf("failed to push to apps repo: %w", err)
 		}
+		return nil
 	}
 
-	commitMsg := genCommitMsg("chore: "+types.ActionTypeCreate, types.ResourceNameApp, opts.AppOpts.AppName, opts.ProjectName, repofs)
-	log.G(ctx).WithFields(log.Fields{
+	commitMsg := genCommitMsg("chore: "+
+		types.ActionTypeCreate,
+		types.ResourceNameApp,
+		opts.AppOpts.AppName,
+		opts.ProjectName,
+		repofs,
+	)
+	log.G().WithFields(log.Fields{
 		"commit msg": commitMsg,
-	}).Debug("native layout commit msg")
-
-	revision, err := r.Persist(ctx, &git.PushOptions{
-		CommitMsg: commitMsg,
-	})
+		"repo":       n.metaRepoCloneOpts.Repo,
+		"path":       n.metaRepoCloneOpts.Path(),
+	}).Debug("push to gitops repo with commit msg")
+	_, err = r.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg})
 	if err != nil {
 		return fmt.Errorf("failed to push to gitops repo: %w", err)
 	}
 
-	// TODO: remove this
-	if opts.Timeout > 0 {
-		namespace, err := getInstallationNamespace(repofs)
-		if err != nil {
-			return fmt.Errorf("failed to get application namespace: %w", err)
-		}
-
-		log.G(ctx).WithField("timeout", opts.Timeout).Infof("waiting for '%s' to finish syncing", opts.AppOpts.AppName)
-		fullName := fmt.Sprintf("%s-%s", opts.ProjectName, opts.AppOpts.AppName)
-
-		// wait for argocd to be ready before applying argocd-apps
-		stop := util.WithSpinner(ctx, fmt.Sprintf("waiting for '%s' to be ready", fullName))
-		if err = waitAppSynced(ctx, opts.KubeFactory, opts.Timeout, fullName, namespace, revision, true); err != nil {
-			stop()
-			return fmt.Errorf("failed waiting for application to sync: %w", err)
-		}
-
-		stop()
-	}
-
-	log.G().Infof("installed application: %s and revision: %s", opts.AppOpts.AppName, revision)
+	log.G().Infof("installed application: %s", opts.AppOpts.AppName)
 	return nil
 }
 
 // RunAppDelete deletes an application from the native GitOps repository structure
 func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error {
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
+	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
 	if err != nil {
 		return err
 	}
@@ -193,7 +188,7 @@ func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDele
 
 // RunAppList lists all applications in the native GitOps repository structure
 func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
-	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
+	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +258,7 @@ func (n *NativeRepoTarget) RunAppUpdate(ctx context.Context, opts *types.UpdateO
 
 // RunAppGet gets an application from the native GitOps repository structure
 func (n *NativeRepoTarget) RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error) {
-	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
+	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +318,7 @@ func (n *NativeRepoTarget) RunProjectCreate(ctx context.Context, opts *types.Pro
 		installationNamespace string
 	)
 
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {
 		return err
 	}
@@ -338,8 +333,6 @@ func (n *NativeRepoTarget) RunProjectCreate(ctx context.Context, opts *types.Pro
 		return fmt.Errorf("project '%s' already exists", opts.ProjectName)
 	}
 
-	log.G().Debug("repository is ok")
-
 	if opts.DestKubeServer == "" {
 		opts.DestKubeServer = store.Default.DestServer
 		if opts.DestKubeContext != "" {
@@ -353,9 +346,10 @@ func (n *NativeRepoTarget) RunProjectCreate(ctx context.Context, opts *types.Pro
 	projectYAML, appsetYAML, clusterResReadme, clusterResConf, err := generateProjectManifests(&types.GenerateProjectOptions{
 		Name:               opts.ProjectName,
 		Namespace:          installationNamespace,
-		RepoURL:            opts.CloneOpts.URL(),
-		Revision:           opts.CloneOpts.Revision(),
-		InstallationPath:   opts.CloneOpts.Path(),
+		ProjectGitopsRepo:  opts.ProjectGitopsRepo,
+		RepoURL:            n.metaRepoCloneOpts.URL(),
+		Revision:           n.metaRepoCloneOpts.Revision(),
+		InstallationPath:   n.metaRepoCloneOpts.Path(),
 		DefaultDestServer:  opts.DestKubeServer,
 		DefaultDestContext: opts.DestKubeContext,
 		Labels:             opts.Labels,
@@ -456,6 +450,11 @@ func generateProjectManifests(o *types.GenerateProjectOptions) (projectYAML, app
 		return
 	}
 
+	appsetRepoURL := o.ProjectGitopsRepo
+	if appsetRepoURL == "" {
+		appsetRepoURL = o.RepoURL
+	}
+
 	appSetYAML, err = createAppSet(&createAppSetOptions{
 		name:                        o.Name,
 		namespace:                   o.Namespace,
@@ -474,7 +473,7 @@ func generateProjectManifests(o *types.GenerateProjectOptions) (projectYAML, app
 		generators: []argocdv1alpha1.ApplicationSetGenerator{
 			{
 				Git: &argocdv1alpha1.GitGenerator{
-					RepoURL:  o.RepoURL,
+					RepoURL:  appsetRepoURL, // use tenant's repo url
 					Revision: o.Revision,
 					Files: []argocdv1alpha1.GitFileGeneratorItem{
 						{
@@ -486,7 +485,7 @@ func generateProjectManifests(o *types.GenerateProjectOptions) (projectYAML, app
 			},
 			{
 				Git: &argocdv1alpha1.GitGenerator{
-					RepoURL:  o.RepoURL,
+					RepoURL:  appsetRepoURL, // use tenant's repo url
 					Revision: o.Revision,
 					Files: []argocdv1alpha1.GitFileGeneratorItem{
 						{
@@ -621,8 +620,8 @@ func createAppSet(o *createAppSetOptions) ([]byte, error) {
 	return yaml.Marshal(appSet)
 }
 
-func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, opts *types.ProjectDeleteOptions) error {
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, opts.ProjectName)
+func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, name string) error {
+	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, name)
 	if err != nil {
 		return err
 	}
@@ -633,27 +632,29 @@ func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, opts *types.Pro
 	}
 
 	for _, app := range allApps {
-		err = application.DeleteFromProject(repofs, app.Name(), opts.ProjectName)
+		err = application.DeleteFromProject(repofs, app.Name(), name)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = repofs.Remove(repofs.Join(store.Default.ProjectsDir, opts.ProjectName+".yaml"))
+	err = repofs.Remove(repofs.Join(store.Default.ProjectsDir, name+".yaml"))
 	if err != nil {
-		return fmt.Errorf("failed to delete project '%s': %w", opts.ProjectName, err)
+		return fmt.Errorf("failed to delete project '%s': %w", name, err)
 	}
 
-	log.G().WithFields(log.Fields{"project": opts.ProjectName}).Info("deleting project")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", opts.ProjectName)}); err != nil {
+	log.G().WithFields(log.Fields{"project": name}).Info("deleting project")
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", name)}); err != nil {
 		return fmt.Errorf("failed to push to repo: %w", err)
 	}
 
 	return nil
 }
 
-func (n *NativeRepoTarget) RunProjectList(ctx context.Context, opts *types.ProjectListOptions) ([]types.TenantInfo, error) {
-	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+func (n *NativeRepoTarget) RunProjectList(ctx context.Context) ([]types.TenantInfo, error) {
+	n.metaRepoCloneOpts.Parse()
+
+	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +666,7 @@ func (n *NativeRepoTarget) RunProjectList(ctx context.Context, opts *types.Proje
 
 	var tenants []types.TenantInfo
 	for _, name := range matches {
-		proj, _, err := getProjectInfoFromFile(repofs, name)
+		proj, appset, err := getProjectInfoFromFile(repofs, name)
 		if err != nil {
 			return nil, err
 		}
@@ -674,6 +675,7 @@ func (n *NativeRepoTarget) RunProjectList(ctx context.Context, opts *types.Proje
 			Name:           proj.Name,
 			Namespace:      proj.Namespace,
 			DefaultCluster: proj.Annotations[store.Default.DestServerAnnotation],
+			GitOpsRepo:     appset.Spec.Generators[0].Git.RepoURL,
 		}
 		tenants = append(tenants, tenantInfo)
 	}
@@ -681,8 +683,8 @@ func (n *NativeRepoTarget) RunProjectList(ctx context.Context, opts *types.Proje
 	return tenants, nil
 }
 
-func (n *NativeRepoTarget) RunProjectGetDetail(ctx context.Context, projectName string, opts *git.CloneOptions) (*types.TenantDetailInfo, error) {
-	_, repofs, err := prepareRepo(ctx, opts, projectName)
+func (n *NativeRepoTarget) RunProjectGet(ctx context.Context, projectName string) (*types.TenantDetailInfo, error) {
+	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, projectName)
 	if err != nil {
 		return nil, err
 	}
@@ -692,7 +694,7 @@ func (n *NativeRepoTarget) RunProjectGetDetail(ctx context.Context, projectName 
 		return nil, fmt.Errorf("project %s not found", projectName)
 	}
 
-	proj, _, err := getProjectInfoFromFile(repofs, projectFile)
+	proj, appset, err := getProjectInfoFromFile(repofs, projectFile)
 	if err != nil {
 		return nil, err
 	}
@@ -704,6 +706,7 @@ func (n *NativeRepoTarget) RunProjectGetDetail(ctx context.Context, projectName 
 		DefaultCluster: proj.Annotations[store.Default.DestServerAnnotation],
 		CreatedBy:      proj.Annotations["created-by"],
 		CreatedAt:      proj.CreationTimestamp.String(),
+		GitOpsRepo:     appset.Spec.Generators[0].Git.RepoURL,
 	}
 
 	if len(proj.Spec.SourceRepos) > 0 {
@@ -739,8 +742,8 @@ func (n *NativeRepoTarget) RunProjectGetDetail(ctx context.Context, projectName 
 
 	return detail, nil
 }
-func (n *NativeRepoTarget) SecretStoreList(ctx context.Context, opts *types.SecretStoreListOptions) ([]esv1beta1.SecretStore, error) {
-	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+func (n *NativeRepoTarget) SecretStoreList(ctx context.Context) ([]esv1beta1.SecretStore, error) {
+	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {
 		return nil, err
 	}
@@ -784,15 +787,15 @@ func (n *NativeRepoTarget) SecretStoreList(ctx context.Context, opts *types.Secr
 }
 
 // WriteSecretStore2Repo the external secret to gitOps repo
-func (n *NativeRepoTarget) SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
+func (n *NativeRepoTarget) SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, force bool) error {
 	log.G().WithFields(log.Fields{
 		"name":      ss.Name,
 		"id":        ss.Annotations["squidflow.github.io/id"],
-		"cloneOpts": cloneOpts,
+		"cloneOpts": n.metaRepoCloneOpts,
 		"force":     force,
 	}).Debug("clone options")
 
-	r, repofs, err := prepareRepo(ctx, cloneOpts, "")
+	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {
 		log.G().WithError(err).Error("failed to prepare repo")
 		return err
@@ -842,8 +845,8 @@ func (n *NativeRepoTarget) SecretStoreCreate(ctx context.Context, ss *esv1beta1.
 	return nil
 }
 
-func (n *NativeRepoTarget) SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
-	_, repofs, err := prepareRepo(ctx, cloneOpts, "")
+func (n *NativeRepoTarget) SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest) (*esv1beta1.SecretStore, error) {
+	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare repo: %w", err)
 	}
@@ -876,15 +879,15 @@ func (n *NativeRepoTarget) SecretStoreUpdate(ctx context.Context, id string, req
 
 	secretStore.Annotations["squidflow.github.io/updated-at"] = time.Now().Format(time.RFC3339)
 
-	if err := n.SecretStoreCreate(ctx, secretStore, cloneOpts, true); err != nil {
+	if err := n.SecretStoreCreate(ctx, secretStore, true); err != nil {
 		return nil, fmt.Errorf("failed to write secret store to repo: %w", err)
 	}
 
 	return secretStore, nil
 }
 
-func (n *NativeRepoTarget) SecretStoreDelete(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
-	r, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+func (n *NativeRepoTarget) SecretStoreDelete(ctx context.Context, secretStoreID string) error {
+	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {
 		return err
 	}
@@ -916,8 +919,8 @@ func (n *NativeRepoTarget) SecretStoreDelete(ctx context.Context, secretStoreID 
 	return nil
 }
 
-func (n *NativeRepoTarget) SecretStoreGet(ctx context.Context, opts *types.SecretStoreGetOptions) (*esv1beta1.SecretStore, error) {
-	_, repofs, err := prepareRepo(ctx, opts.CloneOpts, "")
+func (n *NativeRepoTarget) SecretStoreGet(ctx context.Context, id string) (*esv1beta1.SecretStore, error) {
+	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {
 		return nil, err
 	}
@@ -926,12 +929,12 @@ func (n *NativeRepoTarget) SecretStoreGet(ctx context.Context, opts *types.Secre
 		store.Default.BootsrtrapDir,
 		store.Default.ClusterResourcesDir,
 		store.Default.ClusterContextName,
-		fmt.Sprintf("ss-%s.yaml", opts.ID),
+		fmt.Sprintf("ss-%s.yaml", id),
 	)
 
 	secretStore := &esv1beta1.SecretStore{}
 	if err := repofs.ReadYamls(secretStorePath, secretStore); err != nil {
-		return nil, fmt.Errorf("failed to read secret store %s: %v", opts.ID, err)
+		return nil, fmt.Errorf("failed to read secret store %s: %v", id, err)
 	}
 
 	if secretStore.Kind != "SecretStore" {

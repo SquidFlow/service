@@ -2,37 +2,30 @@ package types
 
 import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"io"
 
 	"github.com/squidflow/service/pkg/argocd"
-	"github.com/squidflow/service/pkg/git"
 )
 
 type (
 	ProjectCreateOptions struct {
-		CloneOpts       *git.CloneOptions
-		ProjectName     string
-		DestKubeServer  string
-		DestKubeContext string
-		DryRun          bool
-		AddCmd          argocd.AddClusterCmd
-		Labels          map[string]string
-		Annotations     map[string]string
+		ProjectName       string
+		ProjectGitopsRepo string
+		DestKubeServer    string
+		DestKubeContext   string
+		DryRun            bool
+		AddCmd            argocd.AddClusterCmd
+		Labels            map[string]string
+		Annotations       map[string]string
 	}
 
 	ProjectDeleteOptions struct {
-		CloneOpts   *git.CloneOptions
 		ProjectName string
-	}
-
-	ProjectListOptions struct {
-		CloneOpts *git.CloneOptions
-		Out       io.Writer
 	}
 
 	GenerateProjectOptions struct {
 		Name               string
 		Namespace          string
+		ProjectGitopsRepo  string
 		DefaultDestServer  string
 		DefaultDestContext string
 		RepoURL            string
@@ -65,6 +58,7 @@ type TenantInfo struct {
 	Name           string `json:"name"`
 	Namespace      string `json:"namespace"`
 	DefaultCluster string `json:"default_cluster"`
+	GitOpsRepo     string `json:"gitops_repo"`
 }
 
 type TenantDetailInfo struct {
@@ -73,6 +67,7 @@ type TenantDetailInfo struct {
 	Description                string            `json:"description,omitempty"`
 	DefaultCluster             string            `json:"default_cluster"`
 	SourceRepos                []string          `json:"source_repos,omitempty"`
+	GitOpsRepo                 string            `json:"gitops_repo,omitempty"`
 	Destinations               []ProjectDest     `json:"destinations,omitempty"`
 	ClusterResourceWhitelist   []ProjectResource `json:"cluster_resource_whitelist,omitempty"`
 	NamespaceResourceWhitelist []ProjectResource `json:"namespace_resource_whitelist,omitempty"`
@@ -92,6 +87,7 @@ type ProjectResource struct {
 
 type ProjectCreateRequest struct {
 	ProjectName string            `json:"project-name" binding:"required"`
+	GitOpsRepo  string            `json:"gitops-repo,omitempty"`
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
 }

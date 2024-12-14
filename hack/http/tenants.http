@@ -1,11 +1,28 @@
-### create project
+### create project with self-hosted gitops repo
 POST http://{{host}}:{{port}}/api/v1/tenants
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant1
 
 {
-    "project-name": "tenant1",
+    "project-name": "tenant0",
+    "labels": {
+        "label1": "value1"
+    },
+    "annotations": {
+        "annotation1": "value1"
+    }
+}'
+
+### create project with external gitops repo
+POST http://{{host}}:{{port}}/api/v1/tenants
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant1
+
+{
+    "project-name": "tenant2",
+    "gitops-repo": "https://github.com/squidflow/tenant2-governed.git",
     "labels": {
         "label1": "value1"
     },

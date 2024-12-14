@@ -15,6 +15,7 @@ import (
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/middleware"
 	"github.com/squidflow/service/pkg/types"
 )
 
@@ -22,6 +23,12 @@ func SecretStoreCreate(c *gin.Context) {
 	var req types.SecretStoreCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Invalid request: %v", err)})
+		return
+	}
+
+	tenant := c.GetString(middleware.TenantKey)
+	if tenant == "" {
+		c.JSON(400, gin.H{"error": "Tenant is required"})
 		return
 	}
 
@@ -79,7 +86,7 @@ func SecretStoreCreate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	if err := repowriter.Repo().SecretStoreCreate(context.Background(), &want, cloneOpts, false); err != nil {
+	if err := repowriter.TenantRepo(tenant).SecretStoreCreate(context.Background(), &want, false); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create external secret: %v", err)})
 		return
 	}
@@ -99,6 +106,12 @@ func SecretStoreDelete(c *gin.Context) {
 		return
 	}
 
+	tenant := c.GetString(middleware.TenantKey)
+	if tenant == "" {
+		c.JSON(400, gin.H{"error": "Tenant is required"})
+		return
+	}
+
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),
@@ -110,11 +123,7 @@ func SecretStoreDelete(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	var nativeRepoWrite = repowriter.NativeRepoTarget{}
-
-	if err := nativeRepoWrite.SecretStoreDelete(context.Background(), secretStoreID, &types.SecretStoreDeleteOptions{
-		CloneOpts: cloneOpts,
-	}); err != nil {
+	if err := repowriter.TenantRepo(tenant).SecretStoreDelete(context.Background(), secretStoreID); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete secret store: %v", err)})
 		return
 	}
@@ -134,6 +143,12 @@ func SecretStoreDescribe(c *gin.Context) {
 
 	log.G().WithField("id", id).Debug("describe secret store")
 
+	tenant := c.GetString(middleware.TenantKey)
+	if tenant == "" {
+		c.JSON(400, gin.H{"error": "Tenant is required"})
+		return
+	}
+
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),
@@ -145,11 +160,7 @@ func SecretStoreDescribe(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	secretStore, err := repowriter.Repo().SecretStoreGet(context.Background(),
-		&types.SecretStoreGetOptions{
-			CloneOpts: cloneOpts,
-			ID:        id,
-		})
+	secretStore, err := repowriter.TenantRepo(tenant).SecretStoreGet(context.Background(), id)
 	if err != nil {
 		log.G().Errorf("Failed to get secret store: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get secret store: %v", err)})
@@ -185,6 +196,12 @@ func SecretStoreDescribe(c *gin.Context) {
 
 // SecretStoreList returns a list of secret stores
 func SecretStoreList(c *gin.Context) {
+	tenant := c.GetString(middleware.TenantKey)
+	if tenant == "" {
+		c.JSON(400, gin.H{"error": "Tenant is required"})
+		return
+	}
+
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),
@@ -196,9 +213,7 @@ func SecretStoreList(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	secretStores, err := repowriter.Repo().SecretStoreList(context.Background(), &types.SecretStoreListOptions{
-		CloneOpts: cloneOpts,
-	})
+	secretStores, err := repowriter.TenantRepo(tenant).SecretStoreList(context.Background())
 	if err != nil {
 		log.G().Errorf("Failed to list secret stores: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list secret stores: %v", err)})
@@ -248,6 +263,12 @@ func SecretStoreUpdate(c *gin.Context) {
 		return
 	}
 
+	tenant := c.GetString(middleware.TenantKey)
+	if tenant == "" {
+		c.JSON(400, gin.H{"error": "Tenant is required"})
+		return
+	}
+
 	cloneOpts := &git.CloneOptions{
 		Repo:     viper.GetString("application_repo.remote_url"),
 		FS:       fs.Create(memfs.New()),
@@ -259,7 +280,7 @@ func SecretStoreUpdate(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	secretStore, err := repowriter.Repo().SecretStoreUpdate(context.Background(), secretStoreID, &req, cloneOpts)
+	secretStore, err := repowriter.TenantRepo(tenant).SecretStoreUpdate(context.Background(), secretStoreID, &req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update secret store: %v", err)})
 		return

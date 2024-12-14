@@ -23,81 +23,77 @@ import (
 
 	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 
-	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/types"
 )
 
-var _ RepoWriter = &Vendor1RepoTarget{}
+var _ MetaRepoWriter = &Vendor1RepoTarget{}
 
-// Vendor1RepoTarget implements the vendor1 GitOps repository structure
-type Vendor1RepoTarget struct{}
-
-// RunAppCreate creates an application in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error {
-	return nil
+type Vendor1RepoTarget struct {
+	Vendor1RepoTargetSecretStore
+	Vendor1RepoTargetApp
+	Vendor1RepoTargetProject
+}
+type Vendor1RepoTargetApp struct {
 }
 
-// RunAppDelete deletes an application from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error {
-	return nil
-}
-
-// RunAppList lists all applications in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
+func (v *Vendor1RepoTargetApp) RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error) {
 	return nil, nil
 }
 
-// RunAppUpdate updates an application in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunAppUpdate(ctx context.Context, opts *types.UpdateOptions) error {
+func (v *Vendor1RepoTargetApp) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
+	return nil, nil
+}
+
+func (v *Vendor1RepoTargetApp) RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error {
 	return nil
 }
 
-// RunAppGet gets an application from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error) {
-	return nil, nil
-}
-
-// RunProjectCreate creates a project in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunProjectCreate(ctx context.Context, opts *types.ProjectCreateOptions) error {
+func (v *Vendor1RepoTargetApp) RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error {
 	return nil
 }
 
-// RunProjectDelete deletes a project from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunProjectDelete(ctx context.Context, opts *types.ProjectDeleteOptions) error {
+func (v *Vendor1RepoTargetApp) RunAppUpdate(ctx context.Context, opts *types.UpdateOptions) error {
 	return nil
 }
 
-// RunProjectList lists all projects in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunProjectList(ctx context.Context, opts *types.ProjectListOptions) ([]types.TenantInfo, error) {
-	return nil, nil
+type Vendor1RepoTargetSecretStore struct {
 }
 
-// RunProjectGetDetail gets project details from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) RunProjectGetDetail(ctx context.Context, projectName string, opts *git.CloneOptions) (*types.TenantDetailInfo, error) {
-	return nil, nil
-}
-
-// RunListSecretStore lists all secret stores in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) SecretStoreList(ctx context.Context, opts *types.SecretStoreListOptions) ([]esv1beta1.SecretStore, error) {
-	return nil, nil
-}
-
-// WriteSecretStore2Repo writes a secret store to the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, cloneOpts *git.CloneOptions, force bool) error {
+func (v *Vendor1RepoTargetSecretStore) SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, force bool) error {
 	return nil
 }
 
-// UpdateSecretStore updates a secret store in the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest, cloneOpts *git.CloneOptions) (*esv1beta1.SecretStore, error) {
+func (v *Vendor1RepoTargetSecretStore) SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest) (*esv1beta1.SecretStore, error) {
 	return nil, nil
 }
 
-// RunDeleteSecretStore deletes a secret store from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) SecretStoreDelete(ctx context.Context, secretStoreID string, opts *types.SecretStoreDeleteOptions) error {
+func (v *Vendor1RepoTargetSecretStore) SecretStoreDelete(ctx context.Context, id string) error {
 	return nil
 }
 
-// GetSecretStoreFromRepo gets a secret store from the vendor1 GitOps repository structure
-func (v *Vendor1RepoTarget) SecretStoreGet(ctx context.Context, opts *types.SecretStoreGetOptions) (*esv1beta1.SecretStore, error) {
+func (v *Vendor1RepoTargetSecretStore) SecretStoreGet(ctx context.Context, id string) (*esv1beta1.SecretStore, error) {
 	return nil, nil
+}
+
+func (v *Vendor1RepoTargetSecretStore) SecretStoreList(ctx context.Context) ([]esv1beta1.SecretStore, error) {
+	return nil, nil
+}
+
+type Vendor1RepoTargetProject struct {
+}
+
+func (v *Vendor1RepoTargetProject) RunProjectCreate(ctx context.Context, opts *types.ProjectCreateOptions) error {
+	return nil
+}
+
+func (v *Vendor1RepoTargetProject) RunProjectGet(ctx context.Context, projectName string) (*types.TenantDetailInfo, error) {
+	return nil, nil
+}
+
+func (v *Vendor1RepoTargetProject) RunProjectList(ctx context.Context) ([]types.TenantInfo, error) {
+	return nil, nil
+}
+
+func (v *Vendor1RepoTargetProject) RunProjectDelete(ctx context.Context, name string) error {
+	return nil
 }

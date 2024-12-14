@@ -2,13 +2,13 @@
 GET http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2
 
 ### create app with simple kustomize ref
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2
 
 {
     "application_source": {
@@ -18,8 +18,8 @@ Authorization: Bearer username@tenant1
         "submodules": true
     },
     "application_instantiation": {
-        "application_name": "kustomize-guestbook1",
-        "tenant_name": "tenant1",
+        "application_name": "kustomize-guestbook4",
+        "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description"
     },

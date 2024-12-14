@@ -7,7 +7,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/squidflow/service/pkg/application"
-	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 )
 
@@ -123,13 +122,10 @@ type (
 
 	// AppCreateOptions represents options for creating an application
 	AppCreateOptions struct {
-		CloneOpts       *git.CloneOptions
-		AppsCloneOpts   *git.CloneOptions
 		ProjectName     string
 		KubeContextName string
 		AppOpts         *application.CreateOptions
 		KubeFactory     kube.Factory
-		Timeout         time.Duration
 		Labels          map[string]string
 		Annotations     map[string]string
 		Include         string
@@ -265,7 +261,6 @@ type ValidationResponse struct {
 // Delete
 type (
 	AppDeleteOptions struct {
-		CloneOpts   *git.CloneOptions
 		ProjectName string
 		AppName     string
 		Global      bool
@@ -275,7 +270,6 @@ type (
 // list
 type (
 	AppListOptions struct {
-		CloneOpts    *git.CloneOptions
 		ProjectName  string
 		KubeClient   kubernetes.Interface
 		ArgoCDClient *argocdv1alpha1client.ArgoprojV1alpha1Client
@@ -285,7 +279,6 @@ type (
 // update
 type (
 	UpdateOptions struct {
-		CloneOpts   *git.CloneOptions
 		ProjectName string
 		AppName     string
 		Username    string
@@ -298,7 +291,6 @@ type (
 // get
 type (
 	AppGetOptions struct {
-		CloneOpts   *git.CloneOptions
 		ProjectName string
 		AppName     string
 	}

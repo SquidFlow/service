@@ -251,7 +251,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 		}
 
 		// For write operations, validate permissions
-		if o.CloneForWrite {
+		if o.CloneForWrite && viper.GetString("gitops.mode") != "pull_request" {
 			if err := validateRepoWritePermission(ctx, wrappedRepo); err != nil {
 				return nil, nil, fmt.Errorf("failed to validate write permission: %w", err)
 			}
@@ -260,7 +260,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 		return wrappedRepo, filesystem, nil
 	}
 
-	log.G().WithField("url", o.url).Debug("Cache miss")
+	log.G().WithField("url", o.url).Debug("cache miss")
 
 	// Cache miss, perform clone
 	newRepo, err := clone(ctx, o)
@@ -271,7 +271,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 				return nil, nil, err
 			}
 
-			log.G().Infof("repository '%s' was not found, trying to create it...", o.Repo)
+			log.G().WithField("repo", o.Repo).Debug("repository was not found, trying to create it")
 			defaultBranch, err := createRepo(ctx, o)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to create repository: %w", err)
@@ -283,7 +283,6 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 			}
 
 		case transport.ErrEmptyRemoteRepository:
-			log.G().Info("empty repository, initializing a new one with specified remote")
 			newRepo, err = initRepo(ctx, o, "")
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to initialize repository: %w", err)

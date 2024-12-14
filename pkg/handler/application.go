@@ -58,20 +58,7 @@ func ApplicationCreate(c *gin.Context) {
 	}
 
 	// Normal application creation flow
-	var gitOpsFs = memfs.New()
 	var opt = types.AppCreateOptions{
-		CloneOpts: &git.CloneOptions{
-			Repo:     viper.GetString("application_repo.remote_url"),
-			FS:       fs.Create(gitOpsFs),
-			Provider: "github",
-			Auth: git.Auth{
-				Password: viper.GetString("application_repo.access_token"),
-			},
-			CloneForWrite: false,
-		},
-		AppsCloneOpts: &git.CloneOptions{
-			CloneForWrite: false,
-		},
 		AppOpts: &application.CreateOptions{
 			AppName: createReq.ApplicationInstantiation.ApplicationName,
 			AppType: application.AppTypeKustomize,
@@ -92,8 +79,6 @@ func ApplicationCreate(c *gin.Context) {
 		ProjectName: createReq.ApplicationInstantiation.TenantName,
 		KubeFactory: kube.NewFactory(),
 	}
-	opt.CloneOpts.Parse()
-	opt.AppsCloneOpts.Parse()
 
 	// TODO: support multiple clusters
 	// for _, cluster := range createReq.DestinationClusters.Clusters {
@@ -105,8 +90,8 @@ func ApplicationCreate(c *gin.Context) {
 	// 	}
 	// }
 
-	if err := repowriter.Repo().RunAppCreate(context.Background(), &opt); err != nil {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
+	if err := repowriter.TenantRepo(tenant).RunAppCreate(context.Background(), &opt); err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
 		return
 	}
 
@@ -263,8 +248,7 @@ func ApplicationDelete(c *gin.Context) {
 	}
 	cloneOpts.Parse()
 
-	if err := repowriter.Repo().RunAppDelete(context.Background(), &types.AppDeleteOptions{
-		CloneOpts:   cloneOpts,
+	if err := repowriter.TenantRepo(tenant).RunAppDelete(context.Background(), &types.AppDeleteOptions{
 		ProjectName: tenant,
 		AppName:     appName,
 		Global:      false,
@@ -300,8 +284,7 @@ func ApplicationGet(c *gin.Context) {
 		return
 	}
 
-	app, err := repowriter.Repo().RunAppGet(context.Background(), &types.AppListOptions{
-		CloneOpts:    cloneOpts,
+	app, err := repowriter.TenantRepo(tenant).RunAppGet(context.Background(), &types.AppListOptions{
 		ProjectName:  tenant,
 		ArgoCDClient: argoClient,
 	}, appName)
@@ -368,8 +351,7 @@ func ApplicationsList(c *gin.Context) {
 		return
 	}
 
-	apps, err := repowriter.Repo().RunAppList(context.Background(), &types.AppListOptions{
-		CloneOpts:    cloneOpts,
+	apps, err := repowriter.TenantRepo(tenant).RunAppList(context.Background(), &types.AppListOptions{
 		ProjectName:  project,
 		ArgoCDClient: argoClient,
 	})
@@ -524,7 +506,6 @@ func ApplicationUpdate(c *gin.Context) {
 	annotations[argocd.AnnotationKeyLastModifiedAt] = time.Now().Format(time.RFC3339)
 
 	updateOpts := &types.UpdateOptions{
-		CloneOpts:   cloneOpts,
 		ProjectName: tenant,
 		AppName:     appName,
 		Username:    username,
@@ -533,7 +514,7 @@ func ApplicationUpdate(c *gin.Context) {
 		Annotations: annotations,
 	}
 
-	if err := repowriter.Repo().RunAppUpdate(context.Background(), updateOpts); err != nil {
+	if err := repowriter.TenantRepo(tenant).RunAppUpdate(context.Background(), updateOpts); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to update application: %v", err)})
 		return
 	}
@@ -544,8 +525,7 @@ func ApplicationUpdate(c *gin.Context) {
 		return
 	}
 
-	app, err := repowriter.Repo().RunAppGet(context.Background(), &types.AppListOptions{
-		CloneOpts:    cloneOpts,
+	app, err := repowriter.TenantRepo(tenant).RunAppGet(context.Background(), &types.AppListOptions{
 		ProjectName:  tenant,
 		ArgoCDClient: argoClient,
 	}, appName)
