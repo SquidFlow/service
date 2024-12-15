@@ -14,7 +14,7 @@ type AppCodeResponse struct {
 
 // AppCodeList handles the request to list app codes
 func AppCodeList(c *gin.Context) {
-	appCodes := []string{"esfs", "esfs-dev", "esfs-test"}
+	appCodes := []string{"0001", "0002", "0003"}
 	c.JSON(http.StatusOK, AppCodeResponse{
 		Success:  true,
 		Message:  "App codes listed successfully",
