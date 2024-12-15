@@ -240,7 +240,6 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 	// Try to get from cache first
 	cachedRepo, filesystem, exists := getRepositoryCache().get(o.url, needSync)
 	if exists {
-		log.G().WithField("url", o.url).Debug("Cache hit")
 		// Create a new repo instance with the cached repository
 		wrappedRepo := &repo{
 			Repository:   cachedRepo,
@@ -263,6 +262,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 	log.G().WithField("url", o.url).Debug("cache miss")
 
 	// Cache miss, perform clone
+	log.G().Infof("cloning git repository: %s", o.url)
 	newRepo, err := clone(ctx, o)
 	if err != nil {
 		switch err {

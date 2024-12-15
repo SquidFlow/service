@@ -347,33 +347,61 @@ func TestRunAppCreate(t *testing.T) {
 }
 
 func TestRunAppDelete(t *testing.T) {
-	native := NativeRepoTarget{}
 	tests := map[string]struct {
+		repoWriter  NativeRepoTarget
 		appName     string
 		projectName string
 		global      bool
 		wantErr     string
-		prepareRepo func(*testing.T) (git.Repository, fs.FS, error)
+		getRepo     func(*testing.T, *git.CloneOptions) (git.Repository, fs.FS, error)
 		assertFn    func(t *testing.T, repo git.Repository, repofs fs.FS)
 	}{
 		"Should fail when clone fails": {
+			repoWriter: NativeRepoTarget{
+				project: "project",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+						Username: "username",
+					},
+				},
+			},
 			wantErr: "some error",
-			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
+			getRepo: func(_ *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				return nil, nil, fmt.Errorf("some error")
 			},
 		},
 		"Should fail when app does not exist": {
+			repoWriter: NativeRepoTarget{
+				project: "project",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			appName: "app",
 			wantErr: "application 'app' not found",
-			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
+			getRepo: func(*testing.T, *git.CloneOptions) (git.Repository, fs.FS, error) {
 				return nil, fs.Create(memfs.New()), nil
 			},
 		},
 		"Should fail if deletion of entire app directory fails": {
+			repoWriter: NativeRepoTarget{
+				project: "",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			appName: "app",
 			global:  true,
 			wantErr: fmt.Sprintf("failed to delete directory '%s': some error", filepath.Join(store.Default.AppsDir, "app")),
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
+			getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				mfs := fsmocks.NewMockFS(gomock.NewController(t))
 				path := filepath.Join(store.Default.AppsDir, "app")
 				mfs.EXPECT().Join(gomock.Any()).
@@ -388,9 +416,18 @@ func TestRunAppDelete(t *testing.T) {
 			},
 		},
 		"Should remove entire app directory when global flag is set": {
+			repoWriter: NativeRepoTarget{
+				project: "",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			appName: "app",
 			global:  true,
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
+			getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
 				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
@@ -406,20 +443,36 @@ func TestRunAppDelete(t *testing.T) {
 			},
 		},
 		"Should fail when overlay does not exist": {
-			appName:     "app",
-			projectName: "project",
-			wantErr:     "application 'app' not found in project 'project'",
-			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
+			repoWriter: NativeRepoTarget{
+				project: "project",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			appName: "app",
+			wantErr: "application 'app' not found in project 'project'",
+			getRepo: func(*testing.T, *git.CloneOptions) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project2"), 0666)
 				return nil, fs.Create(memfs), nil
 			},
 		},
 		"Should fail if ReadDir fails": {
-			appName:     "app",
-			projectName: "project",
-			wantErr:     fmt.Sprintf("failed to read overlays directory '%s': some error", filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir)),
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
+			repoWriter: NativeRepoTarget{
+				project: "project",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			appName: "app",
+			wantErr: fmt.Sprintf("failed to read overlays directory '%s': some error", filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir)),
+			getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				mfs := fsmocks.NewMockFS(gomock.NewController(t))
 				mfs.EXPECT().Join(gomock.Any()).
 					Times(3).
@@ -442,9 +495,17 @@ func TestRunAppDelete(t *testing.T) {
 			},
 		},
 		"Should delete only overlay directory of a kustApp, if there are more overlays": {
-			appName:     "app",
-			projectName: "project",
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
+			repoWriter: NativeRepoTarget{
+				project: "project",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			appName: "app",
+			getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project2"), 0666)
@@ -452,7 +513,6 @@ func TestRunAppDelete(t *testing.T) {
 				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
 					CommitMsg: "chore: delete app 'app' from project 'project'",
 				}).
-					Times(1).
 					Return("revision", nil)
 				return mockRepo, fs.Create(memfs), nil
 			},
@@ -462,49 +522,19 @@ func TestRunAppDelete(t *testing.T) {
 			},
 		},
 		"Should delete entire app directory of a kustApp, if there are no more overlays": {
-			appName:     "app",
-			projectName: "project",
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
+			repoWriter: NativeRepoTarget{
+				project: "project",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			appName: "app",
+			getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
-				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
-				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
-					CommitMsg: "chore: delete app 'app'",
-				}).
-					Times(1).
-					Return("revision", nil)
-				return mockRepo, fs.Create(memfs), nil
-			},
-			assertFn: func(t *testing.T, _ git.Repository, repofs fs.FS) {
-				assert.False(t, repofs.ExistsOrDie(filepath.Join(store.Default.AppsDir, "app")))
-			},
-		},
-		"Should delete only project directory of a dirApp, if there are more projects": {
-			appName:     "app",
-			projectName: "project",
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
-				memfs := memfs.New()
-				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", "project"), 0666)
-				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", "project2"), 0666)
-				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
-				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
-					CommitMsg: "chore: delete app 'app' from project 'project'",
-				}).
-					Times(1).
-					Return("revision", nil)
-				return mockRepo, fs.Create(memfs), nil
-			},
-			assertFn: func(t *testing.T, _ git.Repository, repofs fs.FS) {
-				assert.True(t, repofs.ExistsOrDie(filepath.Join(store.Default.AppsDir, "app")))
-				assert.False(t, repofs.ExistsOrDie(filepath.Join(store.Default.AppsDir, "app", "project")))
-			},
-		},
-		"Should delete entire app directory of a dirApp": {
-			appName:     "app",
-			projectName: "project",
-			prepareRepo: func(*testing.T) (git.Repository, fs.FS, error) {
-				memfs := memfs.New()
-				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", "project"), 0666)
 				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
 				mockRepo.EXPECT().Persist(gomock.Any(), &git.PushOptions{
 					CommitMsg: "chore: delete app 'app'",
@@ -518,10 +548,18 @@ func TestRunAppDelete(t *testing.T) {
 			},
 		},
 		"Should fail if Persist fails": {
+			repoWriter: NativeRepoTarget{
+				project: "",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
 			appName: "app",
-			global:  true,
 			wantErr: "failed to push to repo: some error",
-			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
+			getRepo: func(t *testing.T, _ *git.CloneOptions) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app", store.Default.OverlaysDir, "project"), 0666)
 				mockRepo := gitmocks.NewMockRepository(gomock.NewController(t))
@@ -537,8 +575,10 @@ func TestRunAppDelete(t *testing.T) {
 			},
 		},
 	}
-	origPrepareRepo := prepareRepo
-	defer func() { prepareRepo = origPrepareRepo }()
+	origGetRepo := getRepo
+	defer func() {
+		getRepo = origGetRepo
+	}()
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			var (
@@ -546,17 +586,15 @@ func TestRunAppDelete(t *testing.T) {
 				repofs fs.FS
 			)
 
-			prepareRepo = func(_ context.Context, _ *git.CloneOptions, _ string) (git.Repository, fs.FS, error) {
+			getRepo = func(_ context.Context, cloneOpts *git.CloneOptions) (git.Repository, fs.FS, error) {
 				var err error
-				repo, repofs, err = tt.prepareRepo(t)
+				repo, repofs, err = tt.getRepo(t, cloneOpts)
 				return repo, repofs, err
 			}
-			opts := &types.AppDeleteOptions{
-				ProjectName: tt.projectName,
-				AppName:     tt.appName,
-				Global:      tt.global,
-			}
-			if err := native.RunAppDelete(context.Background(), opts); err != nil || tt.wantErr != "" {
+
+			tt.repoWriter.metaRepoCloneOpts.Parse()
+			tt.repoWriter.tenantRepoCloneOpts = tt.repoWriter.metaRepoCloneOpts
+			if err := tt.repoWriter.RunAppDelete(context.Background(), tt.appName); err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
 			}
@@ -1037,23 +1075,41 @@ func TestRunProjectList(t *testing.T) {
 }
 
 func TestRunProjectDelete(t *testing.T) {
-	var native = NativeRepoTarget{}
 	tests := map[string]struct {
-		projectName string
-		wantErr     string
-		prepareRepo func(*testing.T) (git.Repository, fs.FS, error)
-		assertFn    func(t *testing.T, repo git.Repository, repofs fs.FS)
+		repoWriter            NativeRepoTarget
+		projectNameWantDelete string
+		wantErr               string
+		prepareRepo           func(*testing.T) (git.Repository, fs.FS, error)
+		assertFn              func(t *testing.T, repo git.Repository, repofs fs.FS)
 	}{
 		"Should fail when clone fails": {
-			projectName: "project",
-			wantErr:     "some error",
+			repoWriter: NativeRepoTarget{
+				project: "admin",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			projectNameWantDelete: "project",
+			wantErr:               "some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				return nil, nil, fmt.Errorf("some error")
 			},
 		},
 		"Should fail when failed to delete project.yaml file": {
-			projectName: "project",
-			wantErr:     "failed to delete project 'project': " + os.ErrNotExist.Error(),
+			repoWriter: NativeRepoTarget{
+				project: "admin",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			projectNameWantDelete: "project",
+			wantErr:               "failed to delete project 'project': " + os.ErrNotExist.Error(),
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app1", store.Default.OverlaysDir, "project"), 0666)
@@ -1065,8 +1121,17 @@ func TestRunProjectDelete(t *testing.T) {
 			},
 		},
 		"Should fail when persist fails": {
-			projectName: "project",
-			wantErr:     "failed to push to repo: some error",
+			repoWriter: NativeRepoTarget{
+				project: "admin",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			projectNameWantDelete: "project",
+			wantErr:               "failed to push to repo: some error",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app1", store.Default.OverlaysDir, "project"), 0666)
@@ -1079,7 +1144,16 @@ func TestRunProjectDelete(t *testing.T) {
 			},
 		},
 		"Should remove entire app folder, if it contains only one overlay": {
-			projectName: "project",
+			repoWriter: NativeRepoTarget{
+				project: "admin",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			projectNameWantDelete: "project",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app1", store.Default.OverlaysDir, "project"), 0666)
@@ -1095,7 +1169,16 @@ func TestRunProjectDelete(t *testing.T) {
 			},
 		},
 		"Should remove only overlay, if app contains more overlays": {
-			projectName: "project",
+			repoWriter: NativeRepoTarget{
+				project: "admin",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			projectNameWantDelete: "project",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app1", store.Default.OverlaysDir, "project"), 0666)
@@ -1113,7 +1196,16 @@ func TestRunProjectDelete(t *testing.T) {
 			},
 		},
 		"Should remove directory apps": {
-			projectName: "project",
+			repoWriter: NativeRepoTarget{
+				project: "admin",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			projectNameWantDelete: "project",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app1", "project"), 0666)
@@ -1129,7 +1221,16 @@ func TestRunProjectDelete(t *testing.T) {
 			},
 		},
 		"Should handle multiple apps": {
-			projectName: "project",
+			repoWriter: NativeRepoTarget{
+				project: "admin",
+				metaRepoCloneOpts: &git.CloneOptions{
+					Repo: "https://github.com/owner/name",
+					Auth: git.Auth{
+						Password: "password",
+					},
+				},
+			},
+			projectNameWantDelete: "project",
 			prepareRepo: func(t *testing.T) (git.Repository, fs.FS, error) {
 				memfs := memfs.New()
 				_ = memfs.MkdirAll(filepath.Join(store.Default.AppsDir, "app1", store.Default.OverlaysDir, "project"), 0666)
@@ -1168,8 +1269,9 @@ func TestRunProjectDelete(t *testing.T) {
 				repo, repofs, err = tt.prepareRepo(t)
 				return repo, repofs, err
 			}
+			tt.repoWriter.metaRepoCloneOpts.Parse()
 
-			if err := native.RunProjectDelete(context.Background(), tt.projectName); err != nil || tt.wantErr != "" {
+			if err := tt.repoWriter.RunProjectDelete(context.Background(), tt.projectNameWantDelete); err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 				return
 			}

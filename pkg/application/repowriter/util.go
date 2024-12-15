@@ -36,7 +36,6 @@ var (
 			"repo-path":     cloneOpts.Path(),
 		}).Debugf("starting with options:")
 
-		log.G().Infof("cloning git repository: %s", cloneOpts.URL())
 		r, repofs, err := getRepo(ctx, cloneOpts)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed cloning the repository: %w", err)

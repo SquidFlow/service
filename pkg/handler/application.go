@@ -224,37 +224,40 @@ func ApplicationDelete(c *gin.Context) {
 		"appName":  appName,
 	}).Debug("delete argo application")
 
-	argoClient, err := kube.NewArgoCdClient()
-	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
-		return
-	}
-
-	applicationName := fmt.Sprintf("%s-%s", tenant, appName)
-	_, err = argoClient.Applications(store.Default.ArgoCDNamespace).Get(context.Background(), applicationName, metav1.GetOptions{})
-	if err != nil {
-		c.JSON(404, gin.H{"error": fmt.Sprintf("Application not found: %v", err)})
-		return
-	}
-
-	cloneOpts := &git.CloneOptions{
-		Repo:     viper.GetString("application_repo.remote_url"),
-		FS:       fs.Create(memfs.New()),
-		Provider: "github",
-		Auth: git.Auth{
-			Password: viper.GetString("application_repo.access_token"),
-		},
-		CloneForWrite: true,
-	}
-	cloneOpts.Parse()
-
-	if err := repowriter.TenantRepo(tenant).RunAppDelete(context.Background(), &types.AppDeleteOptions{
-		ProjectName: tenant,
-		AppName:     appName,
-		Global:      false,
-	}); err != nil {
+	// 1. delete from gitops repo first
+	if err := repowriter.TenantRepo(tenant).RunAppDelete(context.Background(), appName); err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to delete application: %v", err)})
 		return
+	}
+
+	// 2. delete from kubernetes
+	// pull request mode, do not delete from kubernetes
+	if viper.GetString("gitops.mode") != "pull_request" {
+		go func(projectName string, appName string) {
+			argoClient, err := kube.NewArgoCdClient()
+			if err != nil {
+				log.G().WithFields(log.Fields{
+					"projectName": projectName,
+					"appName":     appName,
+				}).Warn("delete application failed to create ArgoCD client")
+				return
+			}
+			applicationName := fmt.Sprintf("%s-%s", projectName, appName)
+			err = argoClient.Applications(store.Default.ArgoCDNamespace).Delete(context.Background(), applicationName, metav1.DeleteOptions{})
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					log.G().WithFields(log.Fields{
+						"projectName": projectName,
+						"appName":     appName,
+					}).Warn("delete application handler: application not found")
+				} else {
+					log.G().WithFields(log.Fields{
+						"projectName": projectName,
+						"appName":     appName,
+					}).Warn("delete application handler: failed to delete application")
+				}
+			}
+		}(tenant, appName)
 	}
 
 	c.JSON(204, nil)
@@ -267,27 +270,13 @@ func ApplicationGet(c *gin.Context) {
 
 	log.G().Infof("tenant: %s, username: %s, appName: %s", tenant, username, appName)
 
-	cloneOpts := &git.CloneOptions{
-		Repo:     viper.GetString("application_repo.remote_url"),
-		FS:       fs.Create(memfs.New()),
-		Provider: "github",
-		Auth: git.Auth{
-			Password: viper.GetString("application_repo.access_token"),
-		},
-		CloneForWrite: false,
-	}
-	cloneOpts.Parse()
-
 	argoClient, err := kube.NewArgoCdClient()
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
 		return
 	}
 
-	app, err := repowriter.TenantRepo(tenant).RunAppGet(context.Background(), &types.AppListOptions{
-		ProjectName:  tenant,
-		ArgoCDClient: argoClient,
-	}, appName)
+	app, err := repowriter.TenantRepo(tenant).RunAppGet(context.Background(), appName)
 
 	var argocdappname = fmt.Sprintf("%s-%s", app.ApplicationInstantiation.TenantName, app.ApplicationInstantiation.ApplicationName)
 	log.G().WithFields(log.Fields{
@@ -332,18 +321,13 @@ func ApplicationsList(c *gin.Context) {
 
 	log.G().Infof("tenant: %s, username: %s", tenant, username)
 
-	var project = tenant
-
 	argoClient, err := kube.NewArgoCdClient()
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
 		return
 	}
 
-	apps, err := repowriter.TenantRepo(tenant).RunAppList(context.Background(), &types.AppListOptions{
-		ProjectName:  project,
-		ArgoCDClient: argoClient,
-	})
+	apps, err := repowriter.TenantRepo(tenant).RunAppList(context.Background())
 	if err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to list applications: %v", err)})
 		return
@@ -448,6 +432,7 @@ func ApplicationSync(c *gin.Context) {
 	c.JSON(200, response)
 }
 
+// TODO: not implemented
 func ApplicationUpdate(c *gin.Context) {
 	username := c.GetString(middleware.UserNameKey)
 	tenant := c.GetString(middleware.TenantKey)
@@ -508,16 +493,14 @@ func ApplicationUpdate(c *gin.Context) {
 		return
 	}
 
-	argoClient, err := kube.NewArgoCdClient()
-	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
-		return
-	}
+	// TODO: update application in ArgoCD
+	//argoClient, err := kube.NewArgoCdClient()
+	//if err != nil {
+	//	c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
+	//	return
+	//}
 
-	app, err := repowriter.TenantRepo(tenant).RunAppGet(context.Background(), &types.AppListOptions{
-		ProjectName:  tenant,
-		ArgoCDClient: argoClient,
-	}, appName)
+	app, err := repowriter.TenantRepo(tenant).RunAppGet(context.Background(), appName)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get updated application details: %v", err)})

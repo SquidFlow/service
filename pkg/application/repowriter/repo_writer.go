@@ -141,6 +141,7 @@ func buildTenantRepoWriter(tenant types.TenantInfo) TenantRepoWriter {
 	switch {
 	case appsExists:
 		native := &NativeRepoTarget{
+			project: tenant.Name,
 			metaRepoCloneOpts: &git.CloneOptions{
 				Repo:     viper.GetString("application_repo.remote_url"),
 				FS:       fs.Create(memfs.New()),
@@ -201,7 +202,7 @@ func BuildTenantRepo() error {
 	return nil
 }
 
-// ClearTenantRepo removes the TenantRepoWriter for the given tenant
+// TenantRepo removes the TenantRepoWriter for the given tenant
 func TenantRepo(name string) TenantRepoWriter {
 	tenantRepo, ok := tenantRepos.Load(name)
 	if !ok {
@@ -221,7 +222,7 @@ func (e *errorRepoWriter) RunAppCreate(ctx context.Context, opts *types.AppCreat
 	return e.err
 }
 
-func (e *errorRepoWriter) RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error {
+func (e *errorRepoWriter) RunAppDelete(ctx context.Context, name string) error {
 	return e.err
 }
 
@@ -229,11 +230,11 @@ func (e *errorRepoWriter) RunAppUpdate(ctx context.Context, opts *types.UpdateOp
 	return e.err
 }
 
-func (e *errorRepoWriter) RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error) {
+func (e *errorRepoWriter) RunAppGet(ctx context.Context, appName string) (*types.Application, error) {
 	return nil, e.err
 }
 
-func (e *errorRepoWriter) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
+func (e *errorRepoWriter) RunAppList(ctx context.Context) ([]types.Application, error) {
 	return nil, e.err
 }
 
@@ -272,22 +273,22 @@ type TenantRepoWriter interface {
 
 type ApplicationWriter interface {
 	RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error
-	RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error
+	RunAppGet(ctx context.Context, name string) (*types.Application, error)
+	RunAppDelete(ctx context.Context, name string) error
 	RunAppUpdate(ctx context.Context, opts *types.UpdateOptions) error
-	RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error)
-	RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error)
+	RunAppList(ctx context.Context) ([]types.Application, error)
 }
 
 // ProjectWriter defines how to interact with a GitOps repository
 type ProjectWriter interface {
 	RunProjectCreate(ctx context.Context, opts *types.ProjectCreateOptions) error
-	RunProjectGet(ctx context.Context, projectName string) (*types.TenantDetailInfo, error)
+	RunProjectGet(ctx context.Context, name string) (*types.TenantDetailInfo, error)
 	RunProjectList(ctx context.Context) ([]types.TenantInfo, error)
 	RunProjectDelete(ctx context.Context, name string) error
 }
 
 type SecretStoreWriter interface {
-	SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, force bool) error
+	SecretStoreCreate(ctx context.Context, ss *esv1beta1.SecretStore, override bool) error
 	SecretStoreUpdate(ctx context.Context, id string, req *types.SecretStoreUpdateRequest) (*esv1beta1.SecretStore, error)
 	SecretStoreDelete(ctx context.Context, id string) error
 	SecretStoreGet(ctx context.Context, id string) (*esv1beta1.SecretStore, error)

@@ -40,13 +40,13 @@ Authorization: Bearer username@tenant2
 }
 
 ### argocdapplications/abcs
-GET http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook
+GET http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook1
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2
 
 ### del app
-DELETE http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook2
+DELETE http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook1
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2

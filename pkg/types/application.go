@@ -4,7 +4,6 @@ import (
 	"time"
 
 	argocdv1alpha1client "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/kube"
@@ -271,7 +270,6 @@ type (
 type (
 	AppListOptions struct {
 		ProjectName  string
-		KubeClient   kubernetes.Interface
 		ArgoCDClient *argocdv1alpha1client.ArgoprojV1alpha1Client
 	}
 )

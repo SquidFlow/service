@@ -36,6 +36,7 @@ var _ MetaRepoWriter = &NativeRepoTarget{}
 
 // NativeRepoTarget implements the native GitOps repository structure
 type NativeRepoTarget struct {
+	project             string
 	metaRepoCloneOpts   *git.CloneOptions
 	tenantRepoCloneOpts *git.CloneOptions
 }
@@ -131,21 +132,24 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *types.AppCrea
 }
 
 // RunAppDelete deletes an application from the native GitOps repository structure
-func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error {
-	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
+func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, appName string) error {
+	r, repofs, err := getRepo(ctx, n.tenantRepoCloneOpts)
 	if err != nil {
+		log.G().Errorf("failed to prepare repo: %v", err)
 		return err
 	}
 
-	appDir := repofs.Join(store.Default.AppsDir, opts.AppName)
+	appDir := repofs.Join(store.Default.AppsDir, appName)
 	appExists := repofs.ExistsOrDie(appDir)
 	if !appExists {
-		return fmt.Errorf("application '%s' not found", opts.AppName)
+		return fmt.Errorf("application '%s' not found", appName)
 	}
 
 	var dirToRemove string
-	commitMsg := fmt.Sprintf("chore: delete app '%s'", opts.AppName)
-	if opts.Global {
+	commitMsg := fmt.Sprintf("chore: delete app '%s'", appName)
+
+	if n.project == "" {
+		log.G().Debug("deleting all application from all of the project")
 		dirToRemove = appDir
 	} else {
 		appOverlaysDir := repofs.Join(appDir, store.Default.OverlaysDir)
@@ -154,10 +158,10 @@ func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDele
 			appOverlaysDir = appDir
 		}
 
-		appProjectDir := repofs.Join(appOverlaysDir, opts.ProjectName)
+		appProjectDir := repofs.Join(appOverlaysDir, n.project)
 		overlayExists := repofs.ExistsOrDie(appProjectDir)
 		if !overlayExists {
-			return fmt.Errorf("application '%s' not found in project '%s'", opts.AppName, opts.ProjectName)
+			return fmt.Errorf("application '%s' not found in project '%s'", appName, n.project)
 		}
 
 		allOverlays, err := repofs.ReadDir(appOverlaysDir)
@@ -168,7 +172,7 @@ func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDele
 		if len(allOverlays) == 1 {
 			dirToRemove = appDir
 		} else {
-			commitMsg += fmt.Sprintf(" from project '%s'", opts.ProjectName)
+			commitMsg += fmt.Sprintf(" from project '%s'", n.project)
 			dirToRemove = appProjectDir
 		}
 	}
@@ -187,7 +191,7 @@ func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDele
 }
 
 // RunAppList lists all applications in the native GitOps repository structure
-func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
+func (n *NativeRepoTarget) RunAppList(ctx context.Context) ([]types.Application, error) {
 	// Note: if with pull request mode tenantRepoCloneOpts === metaRepoCloneOpts
 	// use tenantRepoCloneOpts still correct
 	_, repofs, err := getRepo(ctx, n.tenantRepoCloneOpts)
@@ -197,9 +201,9 @@ func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOp
 
 	// if tenant's application save with meta repo path, use `apps/{appname}/overlay/{tenant}` repo path
 	// else use `apps/{appname}/{tenant}` repo path
-	var path = repofs.Join(store.Default.AppsDir, "*", store.Default.OverlaysDir, opts.ProjectName)
+	var path = repofs.Join(store.Default.AppsDir, "*", store.Default.OverlaysDir, n.project)
 	if n.tenantRepoCloneOpts.Repo != n.metaRepoCloneOpts.Repo {
-		path = repofs.Join(store.Default.AppsDir, "*", opts.ProjectName)
+		path = repofs.Join(store.Default.AppsDir, "*", n.project)
 	}
 
 	log.G().WithFields(log.Fields{
@@ -209,7 +213,7 @@ func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOp
 
 	matches, err := billyUtils.Glob(repofs, path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run glob on %s: %w", opts.ProjectName, err)
+		return nil, fmt.Errorf("failed to run glob on %s: %w", n.project, err)
 	}
 
 	applications := make([]types.Application, 0, len(matches))
@@ -228,7 +232,7 @@ func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOp
 			},
 			ApplicationInstantiation: types.ApplicationInstantiation{
 				ApplicationName: conf.UserGivenName,
-				TenantName:      opts.ProjectName,
+				TenantName:      n.project,
 				AppCode:         conf.Annotations["squidflow.github.io/appcode"],
 				Description:     conf.Annotations["squidflow.github.io/description"],
 			},
@@ -263,16 +267,16 @@ func (n *NativeRepoTarget) RunAppUpdate(ctx context.Context, opts *types.UpdateO
 }
 
 // RunAppGet gets an application from the native GitOps repository structure
-func (n *NativeRepoTarget) RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error) {
-	// reference to RunAppList
-	_, repofs, err := prepareRepo(ctx, n.tenantRepoCloneOpts, opts.ProjectName)
+func (n *NativeRepoTarget) RunAppGet(ctx context.Context, appName string) (*types.Application, error) {
+	_, repofs, err := getRepo(ctx, n.tenantRepoCloneOpts)
 	if err != nil {
+		log.G().Errorf("failed to prepare repo: %v", err)
 		return nil, err
 	}
 
-	appPath := repofs.Join(store.Default.AppsDir, appName, store.Default.OverlaysDir, opts.ProjectName)
+	appPath := repofs.Join(store.Default.AppsDir, appName, store.Default.OverlaysDir, n.project)
 	if n.tenantRepoCloneOpts.Repo != n.metaRepoCloneOpts.Repo {
-		appPath = repofs.Join(store.Default.AppsDir, appName, opts.ProjectName)
+		appPath = repofs.Join(store.Default.AppsDir, appName, n.project)
 	}
 
 	log.G().WithFields(log.Fields{
@@ -294,7 +298,7 @@ func (n *NativeRepoTarget) RunAppGet(ctx context.Context, opts *types.AppListOpt
 		},
 		ApplicationInstantiation: types.ApplicationInstantiation{
 			ApplicationName: conf.UserGivenName,
-			TenantName:      opts.ProjectName,
+			TenantName:      n.project,
 			AppCode:         conf.Annotations["squidflow.github.io/appcode"],
 			Description:     conf.Annotations["squidflow.github.io/description"],
 		},
@@ -629,8 +633,8 @@ func createAppSet(o *createAppSetOptions) ([]byte, error) {
 }
 
 // Note: all the project delete logic is based on meta repo
-func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, name string) error {
-	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, name)
+func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, projectName string) error {
+	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, projectName)
 	if err != nil {
 		return err
 	}
@@ -641,19 +645,19 @@ func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, name string) er
 	}
 
 	for _, app := range allApps {
-		err = application.DeleteFromProject(repofs, app.Name(), name)
+		err = application.DeleteFromProject(repofs, app.Name(), projectName)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = repofs.Remove(repofs.Join(store.Default.ProjectsDir, name+".yaml"))
+	err = repofs.Remove(repofs.Join(store.Default.ProjectsDir, projectName+".yaml"))
 	if err != nil {
-		return fmt.Errorf("failed to delete project '%s': %w", name, err)
+		return fmt.Errorf("failed to delete project '%s': %w", projectName, err)
 	}
 
-	log.G().WithFields(log.Fields{"project": name}).Info("deleting project")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", name)}); err != nil {
+	log.G().WithFields(log.Fields{"project": projectName}).Info("deleting project")
+	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", projectName)}); err != nil {
 		return fmt.Errorf("failed to push to repo: %w", err)
 	}
 

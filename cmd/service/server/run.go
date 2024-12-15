@@ -272,7 +272,7 @@ func buildRepoWriter() error {
 		log.G().Fatalf("failed to build repo writer: %v", err)
 	}
 
-	// 2. build tenats repo writer
+	// 2. build tenant repo writer
 	err = repowriter.BuildTenantRepo()
 	if err != nil {
 		log.G().Fatal("failed to build tenant repo writer: %v", err)

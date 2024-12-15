@@ -36,11 +36,11 @@ type Vendor1RepoTarget struct {
 type Vendor1RepoTargetApp struct {
 }
 
-func (v *Vendor1RepoTargetApp) RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error) {
+func (v *Vendor1RepoTargetApp) RunAppGet(ctx context.Context, appName string) (*types.Application, error) {
 	return nil, nil
 }
 
-func (v *Vendor1RepoTargetApp) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
+func (v *Vendor1RepoTargetApp) RunAppList(ctx context.Context) ([]types.Application, error) {
 	return nil, nil
 }
 
@@ -48,7 +48,7 @@ func (v *Vendor1RepoTargetApp) RunAppCreate(ctx context.Context, opts *types.App
 	return nil
 }
 
-func (v *Vendor1RepoTargetApp) RunAppDelete(ctx context.Context, opts *types.AppDeleteOptions) error {
+func (v *Vendor1RepoTargetApp) RunAppDelete(ctx context.Context, name string) error {
 	return nil
 }
 
