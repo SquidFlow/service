@@ -1,8 +1,15 @@
-### get app with project
+### list app with specific project (indicating tenant)
 GET http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
 Authorization: Bearer username@tenant2
+
+
+### get app with project with not exist tennat, return error
+GET http://{{host}}:{{port}}/api/v1/deploy/applications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant9999
 
 ### create app with simple kustomize ref
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
@@ -18,7 +25,7 @@ Authorization: Bearer username@tenant2
         "submodules": true
     },
     "application_instantiation": {
-        "application_name": "kustomize-guestbook4",
+        "application_name": "kustomize-guestbook1",
         "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description"

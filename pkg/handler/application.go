@@ -334,17 +334,6 @@ func ApplicationsList(c *gin.Context) {
 
 	var project = tenant
 
-	cloneOpts := &git.CloneOptions{
-		Repo:     viper.GetString("application_repo.remote_url"),
-		FS:       fs.Create(memfs.New()),
-		Provider: "github",
-		Auth: git.Auth{
-			Password: viper.GetString("application_repo.access_token"),
-		},
-		CloneForWrite: false,
-	}
-	cloneOpts.Parse()
-
 	argoClient, err := kube.NewArgoCdClient()
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create ArgoCD client: %v", err)})
@@ -356,7 +345,7 @@ func ApplicationsList(c *gin.Context) {
 		ArgoCDClient: argoClient,
 	})
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list applications: %v", err)})
+		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to list applications: %v", err)})
 		return
 	}
 

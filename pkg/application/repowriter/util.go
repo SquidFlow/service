@@ -42,8 +42,6 @@ var (
 			return nil, nil, fmt.Errorf("failed cloning the repository: %w", err)
 		}
 
-		root := repofs.Root()
-		log.G().Infof("using revision: \"%s\", installation path: \"%s\"", cloneOpts.Revision(), root)
 		if !repofs.ExistsOrDie(store.Default.BootsrtrapDir) {
 			return nil, nil, fmt.Errorf("bootstrap directory not found, please execute `repo bootstrap` command")
 		}

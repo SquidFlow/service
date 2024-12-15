@@ -188,17 +188,23 @@ func (n *NativeRepoTarget) RunAppDelete(ctx context.Context, opts *types.AppDele
 
 // RunAppList lists all applications in the native GitOps repository structure
 func (n *NativeRepoTarget) RunAppList(ctx context.Context, opts *types.AppListOptions) ([]types.Application, error) {
-	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
+	// Note: if with pull request mode tenantRepoCloneOpts === metaRepoCloneOpts
+	// use tenantRepoCloneOpts still correct
+	_, repofs, err := getRepo(ctx, n.tenantRepoCloneOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	path := repofs.Join(store.Default.AppsDir, "*", store.Default.OverlaysDir, opts.ProjectName)
+	// if tenant's application save with meta repo path, use `apps/{appname}/overlay/{tenant}` repo path
+	// else use `apps/{appname}/{tenant}` repo path
+	var path = repofs.Join(store.Default.AppsDir, "*", store.Default.OverlaysDir, opts.ProjectName)
+	if n.tenantRepoCloneOpts.Repo != n.metaRepoCloneOpts.Repo {
+		path = repofs.Join(store.Default.AppsDir, "*", opts.ProjectName)
+	}
+
 	log.G().WithFields(log.Fields{
-		"AppsDir":     store.Default.AppsDir,
-		"OverlaysDir": store.Default.OverlaysDir,
-		"project":     opts.ProjectName,
-		"path":        path,
+		"repo": n.tenantRepoCloneOpts.Repo,
+		"path": path,
 	}).Debug("listing applications")
 
 	matches, err := billyUtils.Glob(repofs, path)
@@ -258,18 +264,20 @@ func (n *NativeRepoTarget) RunAppUpdate(ctx context.Context, opts *types.UpdateO
 
 // RunAppGet gets an application from the native GitOps repository structure
 func (n *NativeRepoTarget) RunAppGet(ctx context.Context, opts *types.AppListOptions, appName string) (*types.Application, error) {
-	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
+	// reference to RunAppList
+	_, repofs, err := prepareRepo(ctx, n.tenantRepoCloneOpts, opts.ProjectName)
 	if err != nil {
 		return nil, err
 	}
 
 	appPath := repofs.Join(store.Default.AppsDir, appName, store.Default.OverlaysDir, opts.ProjectName)
+	if n.tenantRepoCloneOpts.Repo != n.metaRepoCloneOpts.Repo {
+		appPath = repofs.Join(store.Default.AppsDir, appName, opts.ProjectName)
+	}
+
 	log.G().WithFields(log.Fields{
-		"AppsDir":     store.Default.AppsDir,
-		"OverlaysDir": store.Default.OverlaysDir,
-		"project":     opts.ProjectName,
-		"appName":     appName,
-		"path":        appPath,
+		"repo": n.tenantRepoCloneOpts.Repo,
+		"path": appPath,
 	}).Debug("getting application detail")
 
 	conf, err := getConfigFileFromPath(repofs, appPath)
@@ -620,6 +628,7 @@ func createAppSet(o *createAppSetOptions) ([]byte, error) {
 	return yaml.Marshal(appSet)
 }
 
+// Note: all the project delete logic is based on meta repo
 func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, name string) error {
 	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, name)
 	if err != nil {

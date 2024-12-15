@@ -36,6 +36,7 @@ type Store struct {
 	Version                         Version
 	InstallationManifestsURL        string
 	InstallationManifestsThirdParty string
+	tenants                         map[string]bool
 }
 
 var Default = struct {
