@@ -26,7 +26,7 @@ import (
 //go:generate mockgen -destination=./mocks/application.go -package=mocks -source=./application.go Application
 
 const (
-	InstallationModeFlat   = "flat"
+	InstallationModeFlat   = "flatten"
 	InstallationModeNormal = "normal"
 
 	AppTypeKsonnet   = "ksonnet"
@@ -256,7 +256,7 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 			return nil, err
 		}
 
-		app.base.Resources[0] = "install.yaml"
+		app.base.Resources[0] = "manifest.yaml"
 	}
 
 	app.overlay = &kusttypes.Kustomization{
@@ -283,6 +283,7 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 		"srcTargetRevision": targetRevision,
 		"labels":            o.Labels,
 		"annotations":       o.Annotations,
+		"installationMode":  o.InstallationMode,
 	}).Debug("creating app config")
 
 	app.config = &Config{
@@ -348,7 +349,7 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 
 	// create manifests - only used in flat installation mode
 	if app.manifests != nil {
-		manifestsPath := appsfs.Join(basePath, "install.yaml")
+		manifestsPath := appsfs.Join(basePath, "manifest.yaml")
 		if _, err = writeFile(appsfs, manifestsPath, "manifests", app.manifests); err != nil {
 			return err
 		}

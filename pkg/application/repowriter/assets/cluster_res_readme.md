@@ -1,3 +1,3 @@
-# Apps
+# Cluster Resources
 
-Need to update yet.
+just place the cluster resources in this folder.

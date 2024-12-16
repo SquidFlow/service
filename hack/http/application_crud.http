@@ -39,6 +39,36 @@ Authorization: Bearer username@tenant2
     "is_dryrun": false
 }
 
+### create app with flatten mode
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant2
+
+{
+    "application_source": {
+        "repo":"https://github.com/argoproj/argocd-example-apps.git",
+        "target_revision": "master",
+        "path":"kustomize-guestbook",
+        "submodules": true
+    },
+    "application_instantiation": {
+        "application_name": "kustomize-guestbook2",
+        "tenant_name": "tenant2",
+        "appcode": "edsf",
+        "description": "this application description",
+        "installation_mode": "flatten"
+    },
+   "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ],
+    "is_dryrun": false
+}
+
+
 ### argocdapplications/abcs
 GET http://{{host}}:{{port}}/api/v1/deploy/applications/kustomize-guestbook1
 Accept: application/json

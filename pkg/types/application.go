@@ -29,6 +29,11 @@ var (
 
 // validate application source request
 type (
+	// ApplicationSourceRequest represents the request body for creating an application
+	// Repo: the repo url
+	// TargetRevision: the target revision of the repo (tag, branch, commit id), default is master
+	// Path: the path to the application, default is '/'
+	// Submodules: if true, the application will be clone with submodules
 	ApplicationSourceRequest struct {
 		Repo                 string                `json:"repo" binding:"required"`
 		TargetRevision       string                `json:"target_revision,omitempty"`
@@ -77,13 +82,17 @@ type (
 	}
 
 	// ApplicationInstantiation represents the instantiation details of an application
+	// InstallationMode: if true, the application will be installed with the flattened manifest
+	// if false, the application will be installed with the reference manifest
+	// default is normal
 	ApplicationInstantiation struct {
-		ApplicationName string          `json:"application_name" binding:"required"`
-		TenantName      string          `json:"tenant_name" binding:"required"`
-		AppCode         string          `json:"appcode" binding:"required"`
-		Description     string          `json:"description,omitempty"`
-		Ingress         []IngressConfig `json:"ingress,omitempty"`
-		Security        SecurityConfig  `json:"security,omitempty"`
+		ApplicationName  string          `json:"application_name" binding:"required"`
+		TenantName       string          `json:"tenant_name" binding:"required"`
+		AppCode          string          `json:"appcode" binding:"required"`
+		Description      string          `json:"description,omitempty"`
+		Ingress          []IngressConfig `json:"ingress,omitempty"`
+		Security         SecurityConfig  `json:"security,omitempty"`
+		InstallationMode string          `json:"installation_mode,omitempty" binding:"omitempty,oneof=flatten normal" default:"normal"`
 	}
 
 	// ApplicationTarget represents the target information of an application

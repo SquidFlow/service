@@ -106,7 +106,7 @@ func Test_newKustApp(t *testing.T) {
 			srcTargetRevision: "branch",
 			projectName:       "project",
 			assertFn: func(t *testing.T, a *kustApp) {
-				assert.Equal(t, "install.yaml", a.base.Resources[0])
+				assert.Equal(t, "manifest.yaml", a.base.Resources[0])
 				assert.Equal(t, []byte("foo"), a.manifests)
 				assert.Equal(t, 1, len(a.overlay.Resources))
 				assert.Equal(t, "../../base", a.overlay.Resources[0])
@@ -364,7 +364,7 @@ func Test_kustCreateFiles(t *testing.T) {
 			},
 			assertFn: func(t *testing.T, repofs fs.FS, _ fs.FS, err error) {
 				assert.NoError(t, err)
-				installFile := repofs.Join(store.Default.AppsDir, "app", store.Default.BaseDir, "install.yaml")
+				installFile := repofs.Join(store.Default.AppsDir, "app", store.Default.BaseDir, "manifest.yaml")
 				assert.True(t, repofs.ExistsOrDie(installFile), "install file should exist")
 				data, _ := repofs.ReadFile(installFile)
 				assert.Equal(t, "some manifests", string(data))

@@ -67,7 +67,7 @@ func ApplicationCreate(c *gin.Context) {
 				Path:           createReq.ApplicationSource.Path,
 				TargetRevision: createReq.ApplicationSource.TargetRevision,
 			}),
-			InstallationMode: application.InstallationModeNormal,
+			InstallationMode: createReq.ApplicationInstantiation.InstallationMode,
 			DestServer:       "https://kubernetes.default.svc",
 			Annotations: map[string]string{
 				argocd.AnnotationKeyEnvironment: username,
