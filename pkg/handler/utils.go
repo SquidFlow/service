@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 
-	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/log"
+	repowriter "github.com/squidflow/service/pkg/repo/writer"
 	"github.com/squidflow/service/pkg/types"
 )
 

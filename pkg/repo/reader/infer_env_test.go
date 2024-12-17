@@ -1,4 +1,4 @@
-package reporeader
+package reader
 
 import (
 	"testing"

@@ -5,7 +5,6 @@ import (
 
 	argocdv1alpha1client "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
 
-	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/kube"
 )
 
@@ -126,18 +125,6 @@ type (
 	// SecretStoreRefConfig represents secret store reference configuration
 	SecretStoreRefConfig struct {
 		ID string `json:"id"`
-	}
-
-	// AppCreateOptions represents options for creating an application
-	AppCreateOptions struct {
-		ProjectName     string
-		KubeContextName string
-		AppOpts         *application.CreateOptions
-		KubeFactory     kube.Factory
-		Labels          map[string]string
-		Annotations     map[string]string
-		Include         string
-		Exclude         string
 	}
 
 	// ApplicationCreateResponse represents the response body for creating an application

@@ -18,7 +18,6 @@ import (
 	"github.com/spf13/viper"
 	"k8s.io/client-go/discovery"
 
-	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/argocd"
 	"github.com/squidflow/service/pkg/config"
 	"github.com/squidflow/service/pkg/fs"
@@ -27,6 +26,7 @@ import (
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/middleware"
+	repowriter "github.com/squidflow/service/pkg/repo/writer"
 	"github.com/squidflow/service/pkg/store"
 )
 

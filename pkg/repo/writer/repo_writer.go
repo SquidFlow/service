@@ -1,4 +1,4 @@
-package repowriter
+package writer
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
+	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
@@ -22,6 +23,7 @@ var (
 	initErr     error
 )
 
+// BuildMetaRepoWriter
 // this is native repo layout
 // tree -L 1
 // .
@@ -36,6 +38,7 @@ var (
 // └── manifest
 // InitMetaRepoWriter initializes the RepoWriter based on the repository layout
 // This should be called once during application startup
+
 func BuildMetaRepoWriter(repofs fs.FS) error {
 	once.Do(func() {
 		// Check native layout paths
@@ -218,7 +221,7 @@ type errorRepoWriter struct {
 	err error
 }
 
-func (e *errorRepoWriter) RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error {
+func (e *errorRepoWriter) RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) error {
 	return e.err
 }
 
@@ -272,7 +275,7 @@ type TenantRepoWriter interface {
 }
 
 type ApplicationWriter interface {
-	RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error
+	RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) error
 	RunAppGet(ctx context.Context, name string) (*types.Application, error)
 	RunAppDelete(ctx context.Context, name string) error
 	RunAppUpdate(ctx context.Context, opts *types.UpdateOptions) error

@@ -8,11 +8,11 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
 
-	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/middleware"
+	repowriter "github.com/squidflow/service/pkg/repo/writer"
 	"github.com/squidflow/service/pkg/types"
 )
 

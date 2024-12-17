@@ -1,4 +1,4 @@
-package repowriter
+package writer
 
 import (
 	"context"
@@ -42,7 +42,7 @@ type NativeRepoTarget struct {
 }
 
 // RunAppCreate creates an application in the native GitOps repository structure
-func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error {
+func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) error {
 	var (
 		appsRepo git.Repository
 		appsfs   fs.FS
@@ -632,129 +632,6 @@ func createAppSet(o *createAppSetOptions) ([]byte, error) {
 	return yaml.Marshal(appSet)
 }
 
-// Note: all the project delete logic is based on meta repo
-func (n *NativeRepoTarget) RunProjectDelete(ctx context.Context, projectName string) error {
-	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, projectName)
-	if err != nil {
-		return err
-	}
-
-	allApps, err := repofs.ReadDir(store.Default.AppsDir)
-	if err != nil {
-		return fmt.Errorf("failed to list all applications")
-	}
-
-	for _, app := range allApps {
-		err = application.DeleteFromProject(repofs, app.Name(), projectName)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = repofs.Remove(repofs.Join(store.Default.ProjectsDir, projectName+".yaml"))
-	if err != nil {
-		return fmt.Errorf("failed to delete project '%s': %w", projectName, err)
-	}
-
-	log.G().WithFields(log.Fields{"project": projectName}).Info("deleting project")
-	if _, err = r.Persist(ctx, &git.PushOptions{CommitMsg: fmt.Sprintf("chore: deleted project '%s'", projectName)}); err != nil {
-		return fmt.Errorf("failed to push to repo: %w", err)
-	}
-
-	return nil
-}
-
-func (n *NativeRepoTarget) RunProjectList(ctx context.Context) ([]types.TenantInfo, error) {
-	n.metaRepoCloneOpts.Parse()
-
-	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
-	if err != nil {
-		return nil, err
-	}
-
-	matches, err := billyUtils.Glob(repofs, repofs.Join(store.Default.ProjectsDir, "*.yaml"))
-	if err != nil {
-		return nil, err
-	}
-
-	var tenants []types.TenantInfo
-	for _, name := range matches {
-		proj, appset, err := getProjectInfoFromFile(repofs, name)
-		if err != nil {
-			return nil, err
-		}
-
-		tenantInfo := types.TenantInfo{
-			Name:           proj.Name,
-			Namespace:      proj.Namespace,
-			DefaultCluster: proj.Annotations[store.Default.DestServerAnnotation],
-			GitOpsRepo:     appset.Spec.Generators[0].Git.RepoURL,
-		}
-		tenants = append(tenants, tenantInfo)
-	}
-
-	return tenants, nil
-}
-
-func (n *NativeRepoTarget) RunProjectGet(ctx context.Context, projectName string) (*types.TenantDetailInfo, error) {
-	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, projectName)
-	if err != nil {
-		return nil, err
-	}
-
-	projectFile := repofs.Join(store.Default.ProjectsDir, projectName+".yaml")
-	if !repofs.ExistsOrDie(projectFile) {
-		return nil, fmt.Errorf("project %s not found", projectName)
-	}
-
-	proj, appset, err := getProjectInfoFromFile(repofs, projectFile)
-	if err != nil {
-		return nil, err
-	}
-
-	detail := &types.TenantDetailInfo{
-		Name:           proj.Name,
-		Namespace:      proj.Namespace,
-		Description:    proj.Annotations["description"],
-		DefaultCluster: proj.Annotations[store.Default.DestServerAnnotation],
-		CreatedBy:      proj.Annotations["created-by"],
-		CreatedAt:      proj.CreationTimestamp.String(),
-		GitOpsRepo:     appset.Spec.Generators[0].Git.RepoURL,
-	}
-
-	if len(proj.Spec.SourceRepos) > 0 {
-		detail.SourceRepos = proj.Spec.SourceRepos
-	}
-
-	if len(proj.Spec.Destinations) > 0 {
-		for _, dest := range proj.Spec.Destinations {
-			detail.Destinations = append(detail.Destinations, types.ProjectDest{
-				Server:    dest.Server,
-				Namespace: dest.Namespace,
-			})
-		}
-	}
-
-	if len(proj.Spec.ClusterResourceWhitelist) > 0 {
-		for _, res := range proj.Spec.ClusterResourceWhitelist {
-			detail.ClusterResourceWhitelist = append(detail.ClusterResourceWhitelist, types.ProjectResource{
-				Group: res.Group,
-				Kind:  res.Kind,
-			})
-		}
-	}
-
-	if len(proj.Spec.NamespaceResourceWhitelist) > 0 {
-		for _, res := range proj.Spec.NamespaceResourceWhitelist {
-			detail.NamespaceResourceWhitelist = append(detail.NamespaceResourceWhitelist, types.ProjectResource{
-				Group: res.Group,
-				Kind:  res.Kind,
-			})
-		}
-	}
-
-	return detail, nil
-}
 func (n *NativeRepoTarget) SecretStoreList(ctx context.Context) ([]esv1beta1.SecretStore, error) {
 	_, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, "")
 	if err != nil {

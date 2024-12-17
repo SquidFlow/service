@@ -22,6 +22,7 @@ import (
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
+	repowriter "github.com/squidflow/service/pkg/repo/writer"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/util"
 )
@@ -489,7 +490,7 @@ func RunProjectDelete(ctx context.Context, opts *ProjectDeleteOptions) error {
 	}
 
 	for _, app := range allApps {
-		err = application.DeleteFromProject(repofs, app.Name(), opts.ProjectName)
+		err = repowriter.DeleteFromProject(repofs, app.Name(), opts.ProjectName)
 		if err != nil {
 			return err
 		}

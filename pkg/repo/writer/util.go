@@ -1,4 +1,4 @@
-package repowriter
+package writer
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
+	"github.com/squidflow/service/pkg/repo/reader"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/types"
 	"github.com/squidflow/service/pkg/util"
@@ -57,7 +58,7 @@ var (
 		return r, repofs, nil
 	}
 
-	setAppOptsDefaults = func(ctx context.Context, repofs fs.FS, opts *types.AppCreateOptions) error {
+	setAppOptsDefaults = func(ctx context.Context, repofs fs.FS, opts *application.AppCreateOptions) error {
 		var err error
 
 		if opts.AppOpts.DestServer == store.Default.DestServer || opts.AppOpts.DestServer == "" {
@@ -102,7 +103,7 @@ var (
 			}
 		}
 
-		opts.AppOpts.AppType = application.InferAppType(fsys)
+		opts.AppOpts.AppType = reader.InferAppType(fsys)
 		log.G().Infof("inferred application type: %s", opts.AppOpts.AppType)
 
 		return nil

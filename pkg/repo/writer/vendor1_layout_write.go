@@ -16,13 +16,14 @@
 //	writer := &Vendor1RepoTarget{}
 //	err := writer.RunAppCreate(ctx, opts)
 
-package repowriter
+package writer
 
 import (
 	"context"
 
 	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 
+	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/types"
 )
 
@@ -44,7 +45,7 @@ func (v *Vendor1RepoTargetApp) RunAppList(ctx context.Context) ([]types.Applicat
 	return nil, nil
 }
 
-func (v *Vendor1RepoTargetApp) RunAppCreate(ctx context.Context, opts *types.AppCreateOptions) error {
+func (v *Vendor1RepoTargetApp) RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) error {
 	return nil
 }
 

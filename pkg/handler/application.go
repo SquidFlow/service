@@ -15,14 +15,14 @@ import (
 
 	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/application/dryrun"
-	"github.com/squidflow/service/pkg/application/reporeader"
-	"github.com/squidflow/service/pkg/application/repowriter"
 	"github.com/squidflow/service/pkg/argocd"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/middleware"
+	reporeader "github.com/squidflow/service/pkg/repo/reader"
+	repowriter "github.com/squidflow/service/pkg/repo/writer"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/types"
 )
@@ -58,10 +58,10 @@ func ApplicationCreate(c *gin.Context) {
 	}
 
 	// Normal application creation flow
-	var opt = types.AppCreateOptions{
+	var opt = application.AppCreateOptions{
 		AppOpts: &application.CreateOptions{
 			AppName: createReq.ApplicationInstantiation.ApplicationName,
-			AppType: application.AppTypeKustomize,
+			AppType: reporeader.AppTypeKustomize,
 			AppSpecifier: application.BuildKustomizeResourceRef(application.ApplicationSourceOption{
 				Repo:           createReq.ApplicationSource.Repo,
 				Path:           createReq.ApplicationSource.Path,
@@ -128,7 +128,7 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := reporeader.ValidateApplicationStructure(repofs, req.ApplicationSource)
+	appType, environments, err := reporeader.InferApplicationSource(repofs, req.ApplicationSource)
 	if err != nil {
 		log.G().WithError(err).Error("failed to validate application structure")
 		return nil, err
@@ -166,7 +166,7 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 
 		var manifests []byte
 		switch appType {
-		case reporeader.SourceHelm, reporeader.SourceHelmMultiEnv:
+		case reporeader.AppTypeHelm, reporeader.AppTypeHelmMultiEnv:
 			log.G().Debug("generating helm manifest")
 			manifests, err = dryrun.GenerateHelmManifest(
 				repofs,
@@ -175,7 +175,7 @@ func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*t
 				req.ApplicationInstantiation.ApplicationName,
 				req.ApplicationTarget[0].Namespace,
 			)
-		case reporeader.SourceKustomize, reporeader.SourceKustomizeMultiEnv:
+		case reporeader.AppTypeKustomize, reporeader.AppTypeKustomizeMultiEnv:
 			log.G().Debug("generating kustomize manifest")
 			manifests, err = dryrun.GenerateKustomizeManifest(
 				repofs,
@@ -561,7 +561,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 	}
 
 	// Detect application type and validate structure
-	appType, environments, err := reporeader.ValidateApplicationStructure(repofs, req)
+	appType, environments, err := reporeader.InferApplicationSource(repofs, req)
 	if err != nil {
 		log.G().WithError(err).Error("failed to validate application structure")
 		c.JSON(400, gin.H{
@@ -598,7 +598,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 		// generate manifest
 		var manifests []byte
 		switch appType {
-		case reporeader.SourceHelm, reporeader.SourceHelmMultiEnv:
+		case reporeader.AppTypeHelm, reporeader.AppTypeHelmMultiEnv:
 			manifests, err = dryrun.GenerateHelmManifest(repofs, req, env, "application1", "default")
 			if err != nil {
 				log.G().WithError(err).Error("failed to generate helm manifest")
@@ -606,7 +606,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 				envResult.Error = err.Error()
 			}
 
-		case reporeader.SourceKustomize, reporeader.SourceKustomizeMultiEnv:
+		case reporeader.AppTypeKustomize, reporeader.AppTypeKustomizeMultiEnv:
 			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req, env, "application1", "default")
 			if err != nil {
 				log.G().WithError(err).Error("failed to generate kustomize manifest")

@@ -1,4 +1,4 @@
-package reporeader
+package reader
 
 import (
 	"fmt"
@@ -13,11 +13,11 @@ type EnvironmentDetector interface {
 }
 
 // NewEnvironmentDetector creates a new environment detector based on the application source type
-func NewEnvironmentDetector(appSourceType AppSourceType, repofs fs.FS, path string) EnvironmentDetector {
+func NewEnvironmentDetector(appSourceType string, repofs fs.FS, path string) EnvironmentDetector {
 	switch appSourceType {
-	case SourceHelmMultiEnv:
+	case AppTypeHelmMultiEnv:
 		return &HelmMultiEnvDetector{repofs: repofs, path: path}
-	case SourceKustomizeMultiEnv:
+	case AppTypeKustomizeMultiEnv:
 		return &KustomizeMultiEnvDetector{repofs: repofs, path: path}
 	default:
 		return nil

@@ -1,4 +1,4 @@
-package repowriter
+package writer
 
 import (
 	"context"
@@ -21,6 +21,7 @@ import (
 	"github.com/squidflow/service/pkg/application"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
+	reporeader "github.com/squidflow/service/pkg/repo/reader"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/types"
 	"github.com/squidflow/service/pkg/util"
@@ -308,7 +309,7 @@ func TestRunAppCreate(t *testing.T) {
 				appsRepo, repofs, err = tt.getRepo(t, cloneOpts)
 				return appsRepo, repofs, err
 			}
-			setAppOptsDefaults = func(_ context.Context, _ fs.FS, _ *types.AppCreateOptions) error {
+			setAppOptsDefaults = func(_ context.Context, _ fs.FS, _ *application.AppCreateOptions) error {
 				return tt.setAppOptsDefaultsErr
 			}
 			parseApp = func(_ *application.CreateOptions, _, _, _, _ string) (application.Application, error) {
@@ -321,11 +322,11 @@ func TestRunAppCreate(t *testing.T) {
 				app.EXPECT().CreateFiles(gomock.Any(), gomock.Any(), "project").Return(tt.createFilesErr).AnyTimes()
 				return app, nil
 			}
-			opts := &types.AppCreateOptions{
+			opts := &application.AppCreateOptions{
 				ProjectName: "project",
 				AppOpts: &application.CreateOptions{
 					AppName:      "app",
-					AppType:      application.AppTypeDirectory,
+					AppType:      reporeader.AppTypeDirectory,
 					AppSpecifier: "https://github.com/owner/name/manifests",
 				},
 				KubeFactory: f,
