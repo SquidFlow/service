@@ -71,19 +71,6 @@ func GenerateKustomizeManifest(repofs fs.FS, req types.ApplicationSourceRequest,
 		buildPath = repofs.Join("/overlays", env)
 	}
 
-	// List files for debugging
-	entries, err := memFS.ReadDir(buildPath)
-	if err == nil {
-		fileNames := make([]string, 0)
-		for _, entry := range entries {
-			fileNames = append(fileNames, entry)
-		}
-		log.G().WithFields(log.Fields{
-			"path":  buildPath,
-			"files": fileNames,
-		}).Debug("files in memory filesystem")
-	}
-
 	// Create kustomize build options
 	opts := krusty.MakeDefaultOptions()
 	k := krusty.MakeKustomizer(opts)
