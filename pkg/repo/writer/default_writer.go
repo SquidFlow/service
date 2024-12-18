@@ -113,7 +113,9 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.A
 		if errors.Is(err, application.ErrAppAlreadyInstalledOnProject) {
 			return nil, fmt.Errorf("application '%s' already exists in project '%s': %w", app.Name(), opts.ProjectName, err)
 		}
-
+		log.G().WithFields(log.Fields{
+			"error": err,
+		}).Error("failed to create application files")
 		return nil, err
 	}
 
@@ -134,7 +136,20 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.A
 		if _, err = tenantRepo.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg}); err != nil {
 			return nil, fmt.Errorf("failed to push to apps repo: %w", err)
 		}
-		return nil, nil
+		return &types.ApplicationCreatedResp{
+			Success: true,
+			Message: "application created",
+			Total:   1,
+			Environments: []types.ApplicationDryRunEnv{
+				{
+					Environment: "default",
+					IsValid:     true,
+					Manifest:    "",
+					ArgocdFile:  "",
+					Error:       "",
+				},
+			},
+		}, nil
 	}
 
 	commitMsg := genCommitMsg("chore: "+
@@ -158,6 +173,15 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.A
 		Success: true,
 		Message: "application created",
 		Total:   1,
+		Environments: []types.ApplicationDryRunEnv{
+			{
+				Environment: "default",
+				IsValid:     true,
+				Manifest:    "",
+				ArgocdFile:  "",
+				Error:       "",
+			},
+		},
 	}, nil
 }
 

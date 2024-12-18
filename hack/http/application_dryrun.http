@@ -63,7 +63,7 @@ Authorization: Bearer username@tenant2
 {
     "is_dryrun": true,
     "application_source": {
-        "repo":"git@github.com:apache/apisix-helm-chart.git",
+        "repo": "git@github.com:apache/apisix-helm-chart.git",
         "target_revision": "master",
         "path":"charts/apisix",
         "submodules": false

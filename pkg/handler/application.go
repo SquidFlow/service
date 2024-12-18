@@ -113,13 +113,13 @@ func ApplicationCreate(c *gin.Context) {
 	}).Debug("create application options: ")
 
 	// TODO: support multiple clusters
-	dryrunOutput, err := repowriter.TenantRepo(tenant).RunAppCreate(context.Background(), &opt)
+	createResp, err := repowriter.TenantRepo(tenant).RunAppCreate(context.Background(), &opt)
 	if err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
 		return
 	}
 
-	c.JSON(201, dryrunOutput)
+	c.JSON(201, createResp)
 }
 
 func ApplicationDelete(c *gin.Context) {

@@ -5,7 +5,7 @@ Content-Type: application/json
 Authorization: Bearer username@tenant2
 
 
-### get app with project with not exist tennat, return error
+### get app with project with not exist tennat, (should fail)
 GET http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
@@ -25,7 +25,7 @@ Authorization: Bearer username@tenant2
         "submodules": true
     },
     "application_instantiation": {
-        "application_name": "kustomize-guestbook1",
+        "application_name": "kustomize-guestbook3",
         "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description"
@@ -39,7 +39,7 @@ Authorization: Bearer username@tenant2
     "is_dryrun": false
 }
 
-### create app with flatten mode
+### create app with simple kustomize ref with flatten mode
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
@@ -58,6 +58,34 @@ Authorization: Bearer username@tenant2
         "appcode": "edsf",
         "description": "this application description",
         "installation_mode": "flatten"
+    },
+   "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ],
+    "is_dryrun": false
+}
+
+### create app with simple helm
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant2
+
+{
+    "application_source": {
+        "repo": "git@github.com:apache/apisix-helm-chart.git",
+        "target_revision": "master",
+        "path":"charts/apisix",
+        "submodules": false
+    },
+    "application_instantiation": {
+        "application_name": "apisix",
+        "tenant_name": "tenant2",
+        "appcode": "edsf",
+        "description": "this application description"
     },
    "application_target": [
         {
