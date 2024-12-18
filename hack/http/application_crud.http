@@ -82,7 +82,7 @@ Authorization: Bearer username@tenant2
         "submodules": false
     },
     "application_instantiation": {
-        "application_name": "apisix",
+        "application_name": "apisix2",
         "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description"

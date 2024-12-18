@@ -35,12 +35,16 @@ func ApplicationCreate(c *gin.Context) {
 
 	var createReq types.ApplicationCreateRequest
 	if err := c.BindJSON(&createReq); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request body: " + err.Error()})
+		c.JSON(400, gin.H{
+			"error": "Invalid request body: " + err.Error(),
+		})
 		return
 	}
 
 	if tenant != createReq.ApplicationInstantiation.TenantName {
-		c.JSON(400, gin.H{"error": "ApplicationInstantiation field tenant in request body does not match tenant in authorization header"})
+		c.JSON(400, gin.H{
+			"error": "ApplicationInstantiation field tenant in request body does not match tenant in authorization header",
+		})
 		return
 	}
 
@@ -62,23 +66,22 @@ func ApplicationCreate(c *gin.Context) {
 		return
 	}
 
-	appType, environments, err := source.InferApplicationSource(appfs, createReq.ApplicationSource)
+	appSource, err := source.NewAppSource(
+		appfs,
+		createReq.ApplicationSource.Path,
+		createReq.ApplicationSource.ApplicationSpecifier.HelmManifestPath,
+	)
 	if err != nil {
-		log.G().WithError(err).Error("failed to validate application structure")
-		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to validate application structure: %v", err)})
+		log.G().WithError(err).Error("failed to create app source")
+		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to create app source: %v", err)})
 		return
 	}
-
-	log.G().WithFields(log.Fields{
-		"appType":      appType,
-		"environments": environments,
-	}).Debug("detected application structure")
 
 	// Normal application creation flow
 	var opt = application.AppCreateOptions{
 		AppOpts: &application.CreateOptions{
 			AppName: createReq.ApplicationInstantiation.ApplicationName,
-			AppType: appType,
+			AppType: appSource.GetType(),
 			AppSpecifier: application.BuildKustomizeResourceRef(application.ApplicationSourceOption{
 				Repo:           createReq.ApplicationSource.Repo,
 				Path:           createReq.ApplicationSource.Path,
@@ -92,18 +95,11 @@ func ApplicationCreate(c *gin.Context) {
 				argocd.AnnotationKeyDescription: createReq.ApplicationInstantiation.Description,
 				argocd.AnnotationKeyAppCode:     createReq.ApplicationInstantiation.AppCode,
 			},
-			Environments: environments,
+			AppSource: appSource,
 		},
 		ProjectName: createReq.ApplicationInstantiation.TenantName,
 		KubeFactory: kube.NewFactory(),
 		DryRun:      createReq.IsDryRun,
-	}
-
-	if createReq.ApplicationSource.ApplicationSpecifier.HelmManifestPath != "" {
-		opt.AppOpts.HelmManifestPath = createReq.ApplicationSource.ApplicationSpecifier.HelmManifestPath
-		log.G().WithFields(log.Fields{
-			"helmManifestPath": createReq.ApplicationSource.ApplicationSpecifier.HelmManifestPath,
-		}).Debug("using helm manifest path")
 	}
 
 	log.G().WithFields(log.Fields{
@@ -478,22 +474,11 @@ func ApplicationSourceValidate(c *gin.Context) {
 		return
 	}
 
-	// Detect environments
-	envs, err := appSource.DetectEnvironments(repofs, req.Path)
-	if err != nil {
-		log.G().WithError(err).Error("failed to detect environments")
-		c.JSON(400, gin.H{
-			"success": false,
-			"message": fmt.Sprintf("failed to detect environments: %v", err),
-		})
-		return
-	}
-
 	// Validate each environment and generate manifests
 	suiteableEnv := []types.AppSourceWithEnvironment{}
 	allValid := true
 
-	for _, env := range envs {
+	for _, env := range appSource.DetectEnvironments() {
 		envResult := types.AppSourceWithEnvironment{
 			Environments: env,
 			Valid:        true,

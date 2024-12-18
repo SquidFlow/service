@@ -76,23 +76,14 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.A
 	}
 
 	if opts.DryRun {
-		opts.AppOpts.InstallationMode = application.InstallModeFlatten
-	}
-
-	app, err := parseApp(opts.AppOpts, opts.ProjectName, n.tenantRepoCloneOpts.URL(), n.tenantRepoCloneOpts.Revision(), n.tenantRepoCloneOpts.Path())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse application from flags: %w", err)
-	}
-
-	if opts.DryRun {
-		manifests := app.Manifests()
-		if manifests == nil {
-			return nil, fmt.Errorf("application '%s' does not support dry run", app.Name())
-		}
-
-		envs := []types.ApplicationDryRunEnv{}
-		for env, manifest := range manifests {
-			envs = append(envs, types.ApplicationDryRunEnv{
+		envs := opts.AppOpts.AppSource.DetectEnvironments()
+		manifests := []types.ApplicationDryRunEnv{}
+		for _, env := range envs {
+			manifest, err := opts.AppOpts.AppSource.Manifest(env)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get manifest for environment %s: %w", env, err)
+			}
+			manifests = append(manifests, types.ApplicationDryRunEnv{
 				Environment: env,
 				IsValid:     true,
 				Manifest:    string(manifest),
@@ -105,8 +96,13 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.A
 			Success:      true,
 			Message:      "dry run success",
 			Total:        len(envs),
-			Environments: envs,
+			Environments: manifests,
 		}, nil
+	}
+
+	app, err := parseApp(opts.AppOpts, opts.ProjectName, n.tenantRepoCloneOpts.URL(), n.tenantRepoCloneOpts.Revision(), n.tenantRepoCloneOpts.Path())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse application from flags: %w", err)
 	}
 
 	if err = app.CreateFiles(metaRepofs, appsfs, opts.ProjectName); err != nil {

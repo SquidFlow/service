@@ -24,7 +24,7 @@ type AppSource interface {
 	Manifest(env string) ([]byte, error)
 
 	// DetectEnvironments detects available environments for this application
-	DetectEnvironments(repofs fs.FS, path string) ([]string, error)
+	DetectEnvironments() []string
 }
 
 // AppSourceFactory creates appropriate AppSource based on the application type
@@ -97,8 +97,8 @@ func (h *HelmAppSource) Validate(repofs fs.FS, path string) map[string]error {
 	return results
 }
 
-func (h *HelmAppSource) DetectEnvironments(repofs fs.FS, path string) ([]string, error) {
-	return []string{"default"}, nil
+func (h *HelmAppSource) DetectEnvironments() []string {
+	return []string{"default"}
 }
 
 func (h *HelmAppSource) Manifest(env string) ([]byte, error) {
@@ -125,11 +125,7 @@ func (k *KustomizeAppSource) GetType() string {
 
 func (k *KustomizeAppSource) Validate(repofs fs.FS, path string) map[string]error {
 	results := make(map[string]error)
-	envs, err := k.DetectEnvironments(repofs, path)
-	if err != nil {
-		results["default"] = fmt.Errorf("failed to detect environments: %w", err)
-		return results
-	}
+	envs := k.DetectEnvironments()
 
 	memFS := memfs.New()
 	for _, env := range envs {
@@ -147,8 +143,8 @@ func (k *KustomizeAppSource) Validate(repofs fs.FS, path string) map[string]erro
 	return results
 }
 
-func (k *KustomizeAppSource) DetectEnvironments(repofs fs.FS, path string) ([]string, error) {
-	return []string{"default"}, nil
+func (k *KustomizeAppSource) DetectEnvironments() []string {
+	return []string{"default"}
 }
 
 func (k *KustomizeAppSource) Manifest(env string) ([]byte, error) {
@@ -177,11 +173,7 @@ func (h *HelmMultiEnvAppSource) GetType() string {
 
 func (h *HelmMultiEnvAppSource) Validate(repofs fs.FS, path string) map[string]error {
 	results := make(map[string]error)
-	envs, err := h.DetectEnvironments(repofs, path)
-	if err != nil {
-		results["default"] = fmt.Errorf("failed to detect environments: %w", err)
-		return results
-	}
+	envs := h.DetectEnvironments()
 
 	memFS := memfs.New()
 	for _, env := range envs {
@@ -199,12 +191,12 @@ func (h *HelmMultiEnvAppSource) Validate(repofs fs.FS, path string) map[string]e
 	return results
 }
 
-func (h *HelmMultiEnvAppSource) DetectEnvironments(repofs fs.FS, path string) ([]string, error) {
-	envs, err := detectHelmMultiEnv(repofs, path)
+func (h *HelmMultiEnvAppSource) DetectEnvironments() []string {
+	envs, err := detectHelmMultiEnv(h.repofs, h.path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect environments: %w", err)
+		return []string{"default"}
 	}
-	return envs, nil
+	return envs
 }
 
 func (h *HelmMultiEnvAppSource) Manifest(env string) ([]byte, error) {
@@ -231,11 +223,7 @@ func (k *KustomizeMultiEnvAppSource) GetType() string {
 
 func (k *KustomizeMultiEnvAppSource) Validate(repofs fs.FS, path string) map[string]error {
 	results := make(map[string]error)
-	envs, err := k.DetectEnvironments(repofs, path)
-	if err != nil {
-		results["default"] = fmt.Errorf("failed to detect environments: %w", err)
-		return results
-	}
+	envs := k.DetectEnvironments()
 
 	memFS := memfs.New()
 	for _, env := range envs {
@@ -253,8 +241,12 @@ func (k *KustomizeMultiEnvAppSource) Validate(repofs fs.FS, path string) map[str
 	return results
 }
 
-func (k *KustomizeMultiEnvAppSource) DetectEnvironments(repofs fs.FS, path string) ([]string, error) {
-	return detectKustomizeMultiEnv(repofs, path)
+func (k *KustomizeMultiEnvAppSource) DetectEnvironments() []string {
+	envs, err := detectKustomizeMultiEnv(k.repofs, k.path)
+	if err != nil {
+		return []string{"default"}
+	}
+	return envs
 }
 
 func (k *KustomizeMultiEnvAppSource) Manifest(env string) ([]byte, error) {

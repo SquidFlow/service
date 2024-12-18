@@ -1,17 +1,13 @@
 package application
 
 import (
-	"fmt"
 	"path"
 
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/squidflow/service/pkg/fs"
-	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
-	dryrun "github.com/squidflow/service/pkg/source"
 	"github.com/squidflow/service/pkg/store"
-	"github.com/squidflow/service/pkg/util"
 )
 
 type helmMultiEnvApp struct {
@@ -46,8 +42,12 @@ func newHelmMultiEnvApp(o *CreateOptions, projectName, repoURL, targetRevision, 
 		o.DestNamespace = "default"
 	}
 
-	if len(o.Environments) == 0 {
-		return nil, fmt.Errorf("helm-multiple-env app requires at least one environment: default")
+	if app.manifests == nil {
+		app.manifests = make(map[string][]byte)
+	}
+
+	if app.err == nil {
+		app.err = make(map[string]error)
 	}
 
 	if app.manifests == nil {
@@ -58,31 +58,8 @@ func newHelmMultiEnvApp(o *CreateOptions, projectName, repoURL, targetRevision, 
 		app.err = make(map[string]error)
 	}
 
-	// parse git url
-	_, orgRepo, appPath, _, _, _, _ := util.ParseGitUrl(o.AppSpecifier)
-	log.G().WithFields(log.Fields{
-		"orgRepo": orgRepo,
-		"path":    appPath,
-	}).Debug("parsed git url, generating helm manifests")
-
-	_, appfs, exists := git.GetRepositoryCache().Get(orgRepo, false)
-	if !exists {
-		return nil, fmt.Errorf("failed to get repository cache")
-	}
-
-	if o.InstallationMode != InstallModeFlatten {
-		return nil, fmt.Errorf("helm-multiple-env app does not support installation mode %s", o.InstallationMode)
-	}
-
-	for _, env := range o.Environments {
-		log.G().WithFields(log.Fields{
-			"path":         appPath,
-			"manifestPath": o.HelmManifestPath,
-			"env":          env,
-			"namespace":    o.DestNamespace,
-			"name":         o.AppName,
-		}).Debug("helm-multiple-env app generating manifest")
-		app.manifests[env], err = dryrun.GenerateHelmManifest(appfs, appPath, o.HelmManifestPath, env, o.DestNamespace, o.AppName)
+	for _, env := range o.AppSource.DetectEnvironments() {
+		app.manifests[env], err = o.AppSource.Manifest(env)
 		if err != nil {
 			log.G().WithFields(log.Fields{
 				"error": err,

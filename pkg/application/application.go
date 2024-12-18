@@ -62,8 +62,7 @@ type (
 		Annotations      map[string]string
 		Exclude          string
 		Include          string
-		HelmManifestPath string   // specific to helm and helm-multiple-env
-		Environments     []string // the environments to install the app on only used for helm-multiple-env and kustomize-multiple-env
+		AppSource        reporeader.AppSource
 	}
 
 	baseApp struct {
