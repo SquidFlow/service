@@ -19,7 +19,7 @@ import (
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
-	"github.com/squidflow/service/pkg/repo/reader"
+	reader "github.com/squidflow/service/pkg/source"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/types"
 	"github.com/squidflow/service/pkg/util"

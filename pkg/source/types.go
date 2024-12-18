@@ -1,4 +1,4 @@
-package reader
+package source
 
 const (
 	AppTypeHelm              string = "helm"

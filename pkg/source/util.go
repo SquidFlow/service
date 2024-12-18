@@ -1,11 +1,12 @@
-package dryrun
+package source
 
 import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/squidflow/service/pkg/fs"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
+
+	"github.com/squidflow/service/pkg/fs"
 )
 
 // Helper function to copy files from repofs to memory filesystem

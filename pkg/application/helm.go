@@ -8,10 +8,11 @@ import (
 	kusttypes "sigs.k8s.io/kustomize/api/types"
 
 	"github.com/spf13/viper"
-	"github.com/squidflow/service/pkg/application/dryrun"
+
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
+	dryrun "github.com/squidflow/service/pkg/source"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/util"
 )

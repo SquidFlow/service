@@ -9,20 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/spf13/viper"
-	"github.com/yannh/kubeconform/pkg/validator"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/squidflow/service/pkg/application"
-	"github.com/squidflow/service/pkg/application/dryrun"
 	"github.com/squidflow/service/pkg/argocd"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/middleware"
-	reporeader "github.com/squidflow/service/pkg/repo/reader"
 	repowriter "github.com/squidflow/service/pkg/repo/writer"
+	"github.com/squidflow/service/pkg/source"
 	"github.com/squidflow/service/pkg/store"
 	"github.com/squidflow/service/pkg/types"
 )
@@ -64,7 +62,7 @@ func ApplicationCreate(c *gin.Context) {
 		return
 	}
 
-	appType, environments, err := reporeader.InferApplicationSource(appfs, createReq.ApplicationSource)
+	appType, environments, err := source.InferApplicationSource(appfs, createReq.ApplicationSource)
 	if err != nil {
 		log.G().WithError(err).Error("failed to validate application structure")
 		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to validate application structure: %v", err)})
@@ -469,10 +467,10 @@ func ApplicationSourceValidate(c *gin.Context) {
 		return
 	}
 
-	// Detect application type and validate structure
-	appType, environments, err := reporeader.InferApplicationSource(repofs, req)
+	// Create appropriate AppSource based on the repository content
+	appSource, err := source.NewAppSource(repofs, req.Path, req.ApplicationSpecifier.HelmManifestPath)
 	if err != nil {
-		log.G().WithError(err).Error("failed to validate application structure")
+		log.G().WithError(err).Error("failed to create app source")
 		c.JSON(400, gin.H{
 			"success": false,
 			"message": err.Error(),
@@ -480,158 +478,68 @@ func ApplicationSourceValidate(c *gin.Context) {
 		return
 	}
 
-	log.G().WithFields(log.Fields{
-		"repo":         req.Repo,
-		"path":         req.Path,
-		"revision":     req.TargetRevision,
-		"type":         appType,
-		"environments": environments,
-	}).Info("detected application structure")
+	// Detect environments
+	envs, err := appSource.DetectEnvironments(repofs, req.Path)
+	if err != nil {
+		log.G().WithError(err).Error("failed to detect environments")
+		c.JSON(400, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("failed to detect environments: %v", err),
+		})
+		return
+	}
 
-	memFS := memfs.New()
+	// Validate each environment and generate manifests
 	suiteableEnv := []types.AppSourceWithEnvironment{}
+	allValid := true
 
-	for _, env := range environments {
-		log.G().WithFields(log.Fields{
-			"type": appType,
-			"env":  env,
-		}).Debug("validating environment")
-
+	for _, env := range envs {
 		envResult := types.AppSourceWithEnvironment{
 			Environments: env,
-			Manifest:     "",
 			Valid:        true,
-			Error:        "",
 		}
 
-		// generate manifest
-		var manifests []byte
-		switch appType {
-		case reporeader.AppTypeHelm, reporeader.AppTypeHelmMultiEnv:
-			manifests, err = dryrun.GenerateHelmManifest(repofs,
-				req.Path,
-				req.ApplicationSpecifier.HelmManifestPath,
-				env,
-				"application1",
-				"default")
-			if err != nil {
-				log.G().WithError(err).Error("failed to generate helm manifest")
-				envResult.Valid = false
-				envResult.Error = err.Error()
-			}
-
-		case reporeader.AppTypeKustomize, reporeader.AppTypeKustomizeMultiEnv:
-			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req.Path, env)
-			if err != nil {
-				log.G().WithError(err).Error("failed to generate kustomize manifest")
-				envResult.Valid = false
-				envResult.Error = err.Error()
-			}
-		}
-
+		// Generate manifest
+		manifest, err := appSource.Manifest(env)
 		if err != nil {
-			log.G().WithError(err).WithField("env", env).Error("failed to generate manifest")
+			log.G().WithError(err).WithFields(log.Fields{
+				"env": env,
+			}).Error("failed to generate manifest")
 			envResult.Valid = false
 			envResult.Error = err.Error()
+			allValid = false
 		} else {
-			envResult.Manifest = string(manifests)
-
-			log.G().WithFields(log.Fields{
-				"env": env,
-			}).Debug("writing manifest to memory file system")
-
-			// write manifest to memory file system
-			manifestPath := fmt.Sprintf("/manifests/%s.yaml", env)
-			if err := memFS.MkdirAll("/manifests", 0755); err != nil {
-				log.G().WithError(err).Error("failed to create manifests directory")
-				envResult.Valid = false
-				envResult.Error = err.Error()
-				continue
-			}
-
-			f, err := memFS.Create(manifestPath)
-			if err != nil {
-				log.G().WithError(err).Error("failed to create manifest file")
-				envResult.Valid = false
-				envResult.Error = err.Error()
-				continue
-			}
-
-			if _, err := f.Write(manifests); err != nil {
-				f.Close()
-				log.G().WithError(err).Error("failed to write manifest")
-				envResult.Valid = false
-				envResult.Error = err.Error()
-				continue
-			}
-			f.Close()
-
-			// validate manifest with kubeconform
-			// TODO: make this offline
-			v, err := validator.New([]string{
-				"default",
-				"https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json",
-			}, validator.Opts{
-				Strict:  true,
-				Cache:   "/tmp/kubeconform-cache",
-				SkipTLS: false,
-				Debug:   false,
-			})
-
-			if err != nil {
-				log.G().WithError(err).Error("failed to create validator")
-				envResult.Valid = false
-				envResult.Error = err.Error()
-				continue
-			}
-
-			f, err = memFS.Open(manifestPath)
-			if err != nil {
-				log.G().WithError(err).Error("failed to open manifest for validation")
-				envResult.Valid = false
-				envResult.Error = err.Error()
-				continue
-			}
-
-			results := v.Validate(manifestPath, f)
-			f.Close()
-
-			for _, res := range results {
-				if res.Status == validator.Invalid || res.Status == validator.Error {
-					envResult.Valid = false
-					envResult.Error = res.Err.Error()
-					log.G().WithFields(log.Fields{
-						"env":   env,
-						"error": res.Err.Error(),
-					}).Error("manifest validation failed")
-					break
-				}
-			}
+			envResult.Manifest = string(manifest)
 		}
 
 		suiteableEnv = append(suiteableEnv, envResult)
 	}
 
-	var allValid = true
-	for _, env := range suiteableEnv {
-		if !env.Valid {
-			allValid = false
-			break
+	// Validate all environments
+	validationResults := appSource.Validate(repofs, req.Path)
+	for env, err := range validationResults {
+		for i, result := range suiteableEnv {
+			if result.Environments == env && err != nil {
+				suiteableEnv[i].Valid = false
+				suiteableEnv[i].Error = err.Error()
+				allValid = false
+				break
+			}
 		}
 	}
 
 	if allValid {
 		c.JSON(200, types.ValidateAppSourceResponse{
 			Success:      true,
-			Message:      fmt.Sprintf("valid %s application source", appType),
-			Type:         string(appType),
+			Message:      fmt.Sprintf("valid %s application source", appSource.GetType()),
+			Type:         appSource.GetType(),
 			SuiteableEnv: suiteableEnv,
 		})
 	} else {
 		c.JSON(400, types.ValidateAppSourceResponse{
 			Success:      false,
-			Message:      fmt.Sprintf("valid %s application source", appType),
-			Type:         string(appType),
+			Message:      fmt.Sprintf("invalid %s application source", appSource.GetType()),
+			Type:         appSource.GetType(),
 			SuiteableEnv: suiteableEnv,
 		})
 	}

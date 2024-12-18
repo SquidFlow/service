@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/squidflow/service/pkg/application/dryrun"
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/log"
+	dryrun "github.com/squidflow/service/pkg/source"
 	"github.com/squidflow/service/pkg/util"
 )
 

@@ -8,7 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/squidflow/service/pkg/fs"
-	reporeader "github.com/squidflow/service/pkg/repo/reader"
+	reporeader "github.com/squidflow/service/pkg/source"
 	"github.com/squidflow/service/pkg/store"
 )
 

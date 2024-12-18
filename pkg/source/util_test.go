@@ -1,4 +1,4 @@
-package dryrun
+package source
 
 import (
 	"testing"
@@ -13,11 +13,11 @@ import (
 
 func TestCopyToMemFS(t *testing.T) {
 	tests := map[string]struct {
-		setupFS   func() fs.FS
-		srcPath   string
-		destPath  string
-		wantErr   bool
-		validate  func(t *testing.T, memFS filesys.FileSystem)
+		setupFS  func() fs.FS
+		srcPath  string
+		destPath string
+		wantErr  bool
+		validate func(t *testing.T, memFS filesys.FileSystem)
 	}{
 		"copy single file": {
 			setupFS: func() fs.FS {
