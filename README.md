@@ -1,6 +1,10 @@
 # SquidFlow Platform
 
-SquidFlow Platform is a modern GitOps-based platform that simplifies multi-cluster Kubernetes management and application deployment. It abstracts away the complexity of Kubernetes CRDs and infrastructure configurations, allowing users to focus on their applications rather than the underlying technical details.
+SquidFlow Platform is a GitOps-based platform that simplifies multi-cluster Kubernetes management and application deployment.
+
+It abstracts away the complexity of Kubernetes CRDs and infrastructure configurations, allowing users to focus on their applications rather than the underlying technical details.
+
+> !!! This project is still under heavy development, and the API and UI are not stable yet.
 
 ## Overview
 
