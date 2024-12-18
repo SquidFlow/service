@@ -340,7 +340,7 @@ func TestRunAppCreate(t *testing.T) {
 			tt.repoWriter.tenantRepoCloneOpts.Parse()
 
 			// create app
-			if err := tt.repoWriter.RunAppCreate(context.Background(), opts); err != nil || tt.wantErr != "" {
+			if _, err := tt.repoWriter.RunAppCreate(context.Background(), opts); err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 			}
 		})

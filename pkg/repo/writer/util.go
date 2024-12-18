@@ -35,7 +35,7 @@ var (
 			"repo-url":      cloneOpts.URL(),
 			"repo-revision": cloneOpts.Revision(),
 			"repo-path":     cloneOpts.Path(),
-		}).Debugf("starting with options:")
+		}).Debugf("prepareRepo starting with options:")
 
 		r, repofs, err := getRepo(ctx, cloneOpts)
 		if err != nil {

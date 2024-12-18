@@ -45,8 +45,8 @@ func (v *Vendor1RepoTargetApp) RunAppList(ctx context.Context) ([]types.Applicat
 	return nil, nil
 }
 
-func (v *Vendor1RepoTargetApp) RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) error {
-	return nil
+func (v *Vendor1RepoTargetApp) RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) (*types.ApplicationCreatedResp, error) {
+	return nil, nil
 }
 
 func (v *Vendor1RepoTargetApp) RunAppDelete(ctx context.Context, name string) error {

@@ -1,13 +1,13 @@
 package git
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/go-git/go-billy/v5"
 	gg "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+
 	"github.com/squidflow/service/pkg/fs"
 	"github.com/squidflow/service/pkg/git/gogit"
 	"github.com/squidflow/service/pkg/log"
@@ -32,9 +32,8 @@ var (
 	repositoryCacheOnce    sync.Once
 )
 
-func getRepositoryCache() *repositoryCache {
+func GetRepositoryCache() *repositoryCache {
 	repositoryCacheOnce.Do(func() {
-		log.G().Debug("Initializing repository cache")
 		defaultRepositoryCache = &repositoryCache{
 			cache:    make(map[string]*repositoryCacheEntry),
 			maxAge:   30 * time.Minute,
@@ -45,28 +44,23 @@ func getRepositoryCache() *repositoryCache {
 	return defaultRepositoryCache
 }
 
-func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, bool) {
-	log.G().WithFields(log.Fields{
-		"url":        url,
-		"cache_size": len(c.cache),
-		"pull":       pull,
-	}).Debug("trying to get from cache")
-
+func (c *repositoryCache) Get(key string, pull bool) (gogit.Repository, fs.FS, bool) {
+	log.G().WithField("key", key).Debug("cache getting entry")
 	c.mu.RLock()
-	entry, exists := c.cache[url]
+	entry, exists := c.cache[key]
 	c.mu.RUnlock()
 
 	if !exists {
-		log.G().WithField("url", url).Debug("cache miss - entry not found")
+		log.G().WithField("key", key).Debug("cache miss - entry not found")
 		return nil, nil, false
 	}
 
 	if time.Since(entry.lastUsed) > c.maxAge {
 		c.mu.Lock()
-		delete(c.cache, url)
+		delete(c.cache, key)
 		c.mu.Unlock()
 		log.G().WithFields(log.Fields{
-			"url": url,
+			"key": key,
 			"age": time.Since(entry.lastUsed),
 		}).Debug("cache miss - entry expired")
 		return nil, nil, false
@@ -75,7 +69,7 @@ func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, b
 	needSync := pull || time.Since(entry.lastSync) > 5*time.Minute
 	if needSync {
 		log.G().WithFields(log.Fields{
-			"url":        url,
+			"key":        key,
 			"last_sync":  time.Since(entry.lastSync),
 			"force_sync": true,
 		}).Debug("syncing cached repository")
@@ -161,26 +155,21 @@ func (c *repositoryCache) get(url string, pull bool) (gogit.Repository, fs.FS, b
 	filesystem := fs.Create(entry.fs)
 
 	log.G().WithFields(log.Fields{
-		"url":       url,
+		"key":       key,
 		"cache_hit": true,
 	}).Debug("cache hit")
 
 	return entry.repo, filesystem, true
 }
 
-func (c *repositoryCache) set(url string, repo gogit.Repository, filesystem billy.Filesystem) {
-	log.G().WithFields(log.Fields{
-		"url":        url,
-		"repo_type":  fmt.Sprintf("%T", repo),
-		"cache_size": len(c.cache),
-	}).Debug("Setting cache entry")
-
+func (c *repositoryCache) Set(key string, repo gogit.Repository, filesystem billy.Filesystem) {
+	log.G().WithField("key", key).Debug("cache setting entry")
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// check if the entry already exists
-	if existing, exists := c.cache[url]; exists {
-		log.G().WithField("url", url).Debug("Updating existing cache entry")
+	if existing, exists := c.cache[key]; exists {
+		log.G().WithField("key", key).Debug("Updating existing cache entry")
 		existing.repo = repo
 		existing.fs = filesystem
 		existing.lastUsed = time.Now()
@@ -208,7 +197,7 @@ func (c *repositoryCache) set(url string, repo gogit.Repository, filesystem bill
 		delete(c.cache, oldestKey)
 	}
 
-	c.cache[url] = &repositoryCacheEntry{
+	c.cache[key] = &repositoryCacheEntry{
 		repo:     repo,
 		fs:       filesystem,
 		lastUsed: time.Now(),
@@ -216,7 +205,7 @@ func (c *repositoryCache) set(url string, repo gogit.Repository, filesystem bill
 	}
 
 	log.G().WithFields(log.Fields{
-		"url":        url,
+		"key":        key,
 		"cache_size": len(c.cache),
 	}).Debug("New cache entry set")
 }
@@ -227,13 +216,13 @@ func (c *repositoryCache) cleanup() {
 		c.mu.Lock()
 		now := time.Now()
 		beforeCount := len(c.cache)
-		for url, entry := range c.cache {
+		for key, entry := range c.cache {
 			if now.Sub(entry.lastUsed) > c.maxAge {
 				log.G().WithFields(log.Fields{
-					"url": url,
+					"key": key,
 					"age": now.Sub(entry.lastUsed),
 				}).Debug("Removing expired cache entry")
-				delete(c.cache, url)
+				delete(c.cache, key)
 			}
 		}
 		afterCount := len(c.cache)

@@ -42,52 +42,79 @@ type NativeRepoTarget struct {
 }
 
 // RunAppCreate creates an application in the native GitOps repository structure
-func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) error {
+// this function need 3 repos:
+// 1. meta repo: the project, or application (rendered)
+// 2. tenant repo: no include project, only application
+// 3. apps repo: the repo that contains the application description
+func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.AppCreateOptions) (*types.ApplicationCreatedResp, error) {
 	var (
-		appsRepo git.Repository
-		appsfs   fs.FS
+		tenantRepo git.Repository
+		appsfs     fs.FS
 	)
 	if n.tenantRepoCloneOpts == nil {
 		n.tenantRepoCloneOpts = n.metaRepoCloneOpts
 	}
 
-	log.G().WithFields(log.Fields{
-		"app-url":      n.tenantRepoCloneOpts.URL(),
-		"app-revision": n.tenantRepoCloneOpts.Revision(),
-		"app-path":     n.tenantRepoCloneOpts.Path(),
-	}).Debug("starting with options: ")
-
-	r, repofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
+	metaRepo, metaRepofs, err := prepareRepo(ctx, n.metaRepoCloneOpts, opts.ProjectName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if n.metaRepoCloneOpts.Repo != n.tenantRepoCloneOpts.Repo {
-		appsRepo, appsfs, err = getRepo(ctx, n.tenantRepoCloneOpts)
+		tenantRepo, appsfs, err = getRepo(ctx, n.tenantRepoCloneOpts)
 		if err != nil {
 			log.G().Errorf("failed to prepare tenant repo: %v", err)
-			return err
+			return nil, err
 		}
 	} else {
-		appsRepo, appsfs = r, repofs
+		tenantRepo, appsfs = metaRepo, metaRepofs
 	}
 
-	if err = setAppOptsDefaults(ctx, repofs, opts); err != nil {
+	if err = setAppOptsDefaults(ctx, metaRepofs, opts); err != nil {
 		log.G().Errorf("failed to set app opts defaults: %v", err)
-		return err
+		return nil, err
+	}
+
+	if opts.DryRun {
+		opts.AppOpts.InstallationMode = application.InstallModeFlatten
 	}
 
 	app, err := parseApp(opts.AppOpts, opts.ProjectName, n.tenantRepoCloneOpts.URL(), n.tenantRepoCloneOpts.Revision(), n.tenantRepoCloneOpts.Path())
 	if err != nil {
-		return fmt.Errorf("failed to parse application from flags: %w", err)
+		return nil, fmt.Errorf("failed to parse application from flags: %w", err)
 	}
 
-	if err = app.CreateFiles(repofs, appsfs, opts.ProjectName); err != nil {
-		if errors.Is(err, application.ErrAppAlreadyInstalledOnProject) {
-			return fmt.Errorf("application '%s' already exists in project '%s': %w", app.Name(), opts.ProjectName, err)
+	if opts.DryRun {
+		manifests := app.Manifests()
+		if manifests == nil {
+			return nil, fmt.Errorf("application '%s' does not support dry run", app.Name())
 		}
 
-		return err
+		envs := []types.ApplicationDryRunEnv{}
+		for env, manifest := range manifests {
+			envs = append(envs, types.ApplicationDryRunEnv{
+				Environment: env,
+				IsValid:     true,
+				Manifest:    string(manifest),
+				ArgocdFile:  "",
+				Error:       "",
+			})
+		}
+
+		return &types.ApplicationCreatedResp{
+			Success:      true,
+			Message:      "dry run success",
+			Total:        len(envs),
+			Environments: envs,
+		}, nil
+	}
+
+	if err = app.CreateFiles(metaRepofs, appsfs, opts.ProjectName); err != nil {
+		if errors.Is(err, application.ErrAppAlreadyInstalledOnProject) {
+			return nil, fmt.Errorf("application '%s' already exists in project '%s': %w", app.Name(), opts.ProjectName, err)
+		}
+
+		return nil, err
 	}
 
 	if n.metaRepoCloneOpts.Repo != n.tenantRepoCloneOpts.Repo {
@@ -104,10 +131,10 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.A
 				"repo":       n.tenantRepoCloneOpts.Repo,
 				"path":       n.tenantRepoCloneOpts.Path(),
 			}).Debug("push to tenant repo with commit msg")
-		if _, err = appsRepo.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg}); err != nil {
-			return fmt.Errorf("failed to push to apps repo: %w", err)
+		if _, err = tenantRepo.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg}); err != nil {
+			return nil, fmt.Errorf("failed to push to apps repo: %w", err)
 		}
-		return nil
+		return nil, nil
 	}
 
 	commitMsg := genCommitMsg("chore: "+
@@ -115,20 +142,23 @@ func (n *NativeRepoTarget) RunAppCreate(ctx context.Context, opts *application.A
 		types.ResourceNameApp,
 		opts.AppOpts.AppName,
 		opts.ProjectName,
-		repofs,
+		metaRepofs,
 	)
 	log.G().WithFields(log.Fields{
 		"commit msg": commitMsg,
 		"repo":       n.metaRepoCloneOpts.Repo,
 		"path":       n.metaRepoCloneOpts.Path(),
 	}).Debug("push to gitops repo with commit msg")
-	_, err = r.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg})
+	_, err = metaRepo.Persist(ctx, &git.PushOptions{CommitMsg: commitMsg})
 	if err != nil {
-		return fmt.Errorf("failed to push to gitops repo: %w", err)
+		return nil, fmt.Errorf("failed to push to gitops repo: %w", err)
 	}
 
-	log.G().Infof("installed application: %s", opts.AppOpts.AppName)
-	return nil
+	return &types.ApplicationCreatedResp{
+		Success: true,
+		Message: "application created",
+		Total:   1,
+	}, nil
 }
 
 // RunAppDelete deletes an application from the native GitOps repository structure

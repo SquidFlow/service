@@ -34,11 +34,11 @@ type (
 	// Path: the path to the application, default is '/'
 	// Submodules: if true, the application will be clone with submodules
 	ApplicationSourceRequest struct {
-		Repo                 string                `json:"repo" binding:"required"`
-		TargetRevision       string                `json:"target_revision,omitempty"`
-		Path                 string                `json:"path,omitempty"`
-		Submodules           bool                  `json:"submodules,omitempty"`
-		ApplicationSpecifier *ApplicationSpecifier `json:"application_specifier,omitempty"`
+		Repo                 string               `json:"repo" binding:"required"`
+		TargetRevision       string               `json:"target_revision,omitempty"`
+		Path                 string               `json:"path,omitempty"`
+		Submodules           bool                 `json:"submodules,omitempty"`
+		ApplicationSpecifier ApplicationSpecifier `json:"application_specifier,omitempty"`
 	}
 
 	// ApplicationSpecifier contains application-specific configuration
@@ -145,9 +145,9 @@ type (
 		ApplicationRuntime       ApplicationRuntime       `json:"application_runtime,omitempty"`
 	}
 
-	// ApplicationDryRunResult represents the dry run result of an application
+	// ApplicationCreatedResp represents the dry run result of an application
 	// manifest and argocd file
-	ApplicationDryRunResult struct {
+	ApplicationCreatedResp struct {
 		Success      bool                   `json:"success"`
 		Message      string                 `json:"message"`
 		Total        int                    `json:"total"`

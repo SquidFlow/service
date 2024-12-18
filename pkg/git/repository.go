@@ -223,13 +223,15 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 		return nil, nil, ErrNoParse
 	}
 
-	// Add debug logging to check cache key
+	// add debug logging to check cache key
 	needSync := false
 	if viper.GetString("gitops.mode") == "pull_request" {
 		needSync = true
 	}
 
+	_, orgRepo, _, _, _, _, _ := util.ParseGitUrl(o.Repo)
 	log.G().WithFields(log.Fields{
+		"key":        orgRepo,
 		"url":        o.url,
 		"repo":       o.Repo,
 		"path":       o.path,
@@ -238,7 +240,7 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 	}).Debug("trying to get repo from cache")
 
 	// Try to get from cache first
-	cachedRepo, filesystem, exists := getRepositoryCache().get(o.url, needSync)
+	cachedRepo, filesystem, exists := GetRepositoryCache().Get(orgRepo, needSync)
 	if exists {
 		// Create a new repo instance with the cached repository
 		wrappedRepo := &repo{
@@ -258,8 +260,6 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 
 		return wrappedRepo, filesystem, nil
 	}
-
-	log.G().WithField("url", o.url).Debug("cache miss")
 
 	// Cache miss, perform clone
 	log.G().Infof("cloning git repository: %s", o.url)
@@ -301,13 +301,13 @@ func (o *CloneOptions) GetRepo(ctx context.Context) (Repository, fs.FS, error) {
 	}
 
 	// Create filesystem
-	bootstrapFS, err := o.FS.Chroot(o.path)
+	bootstrapFS, err := o.FS.Chroot("/")
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Store in cache with original filesystem
-	getRepositoryCache().set(o.url, newRepo, bootstrapFS)
+	GetRepositoryCache().Set(orgRepo, newRepo, bootstrapFS)
 
 	// Create fs.FS wrapper for return
 	filesystem = fs.Create(bootstrapFS)

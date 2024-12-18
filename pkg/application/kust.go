@@ -2,32 +2,28 @@ package application
 
 import (
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 
-	"github.com/ghodss/yaml"
 	"github.com/spf13/viper"
-	"sigs.k8s.io/kustomize/api/krusty"
+	v1 "k8s.io/api/core/v1"
 	kusttypes "sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/filesys"
 
+	"github.com/squidflow/service/pkg/application/dryrun"
 	"github.com/squidflow/service/pkg/fs"
+	"github.com/squidflow/service/pkg/git"
 	"github.com/squidflow/service/pkg/kube"
 	"github.com/squidflow/service/pkg/log"
 	"github.com/squidflow/service/pkg/store"
+	"github.com/squidflow/service/pkg/util"
 )
 
-// GenerateManifests writes the in-memory kustomization to disk, fixes relative resources and
-// runs kustomize build, then returns the generated manifests.
-//
-// If there is a namespace on 'k' a namespace.yaml file with the namespace object will be
-// written next to the persisted kustomization.yaml.
-//
-// To include the namespace in the generated
-// manifests just add 'namespace.yaml' to the resources of the kustomization
-func GenerateManifests(k *kusttypes.Kustomization) ([]byte, error) {
-	return generateManifests(k)
+type kustApp struct {
+	baseApp
+	base      *kusttypes.Kustomization
+	overlay   *kusttypes.Kustomization
+	manifests []byte
+	namespace *v1.Namespace
+	config    *Config
 }
 
 /* kustApp Application impl */
@@ -49,14 +45,6 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 		return nil, ErrEmptyProjectName
 	}
 
-	switch o.InstallationMode {
-	case InstallationModeFlat, InstallationModeNormal:
-	case "":
-		o.InstallationMode = InstallationModeNormal
-	default:
-		return nil, fmt.Errorf("unknown installation mode: %s", o.InstallationMode)
-	}
-
 	app.base = &kusttypes.Kustomization{
 		TypeMeta: kusttypes.TypeMeta{
 			APIVersion: kusttypes.KustomizationVersion,
@@ -65,9 +53,25 @@ func newKustApp(o *CreateOptions, projectName, repoURL, targetRevision, repoRoot
 		Resources: []string{o.AppSpecifier},
 	}
 
-	if o.InstallationMode == InstallationModeFlat {
-		log.G().Info("building manifests...")
-		app.manifests, err = generateManifests(app.base)
+	if o.InstallationMode != "" && !o.InstallationMode.isValid() {
+		return nil, fmt.Errorf("unknown installation mode: %s", o.InstallationMode)
+	}
+
+	if o.InstallationMode == InstallModeFlatten {
+		host, orgRepo, path, gitRef, _, _, _ := util.ParseGitUrl(o.AppSpecifier)
+		log.G().WithFields(log.Fields{
+			"host":    host,
+			"orgRepo": orgRepo,
+			"path":    path,
+			"gitRef":  gitRef,
+		}).Debug("parsed git url, kustomizing manifests")
+
+		_, appfs, exists := git.GetRepositoryCache().Get(orgRepo, false)
+		if !exists {
+			return nil, fmt.Errorf("repo not found in cache")
+		}
+
+		app.manifests, err = dryrun.GenerateKustomizeManifest(appfs, path, "default")
 		if err != nil {
 			return nil, err
 		}
@@ -121,31 +125,10 @@ func (app *kustApp) CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) 
 	return kustCreateFiles(app, repofs, appsfs, projectName)
 }
 
-// fixResourcesPaths adjusts all relative paths in the kustomization file to the specified
-// newKustDir.
-func fixResourcesPaths(k *kusttypes.Kustomization, newKustDir string) error {
-	for i, path := range k.Resources {
-		// if path is a remote resource ignore it
-		if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
-			continue
-		}
-
-		absRes, err := filepath.Abs(path)
-		if err != nil {
-			return err
-		}
-
-		k.Resources[i], err = filepath.Rel(newKustDir, absRes)
-		log.G().WithFields(log.Fields{
-			"from": absRes,
-			"to":   k.Resources[i],
-		}).Debug("adjusting kustomization paths to local filesystem")
-		if err != nil {
-			return err
-		}
+func (app *kustApp) Manifests() map[string][]byte {
+	return map[string][]byte{
+		"default": app.manifests,
 	}
-
-	return nil
 }
 
 func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName string) error {
@@ -226,46 +209,4 @@ func kustCreateFiles(app *kustApp, repofs fs.FS, appsfs fs.FS, projectName strin
 	}
 
 	return nil
-}
-
-var generateManifests = func(k *kusttypes.Kustomization) ([]byte, error) {
-	td, err := os.MkdirTemp(".", "supervisor-tmp")
-	if err != nil {
-		return nil, fmt.Errorf("failed creating temp dir: %w", err)
-	}
-	defer os.RemoveAll(td)
-
-	absTd, err := filepath.Abs(td)
-	if err != nil {
-		return nil, fmt.Errorf("failed getting abs path for \"%s\": %w", td, err)
-	}
-
-	if err = fixResourcesPaths(k, absTd); err != nil {
-		return nil, fmt.Errorf("failed fixing resources paths: %w", err)
-	}
-
-	kyaml, err := yaml.Marshal(k)
-	if err != nil {
-		return nil, fmt.Errorf("failed marshaling yaml: %w", err)
-	}
-
-	kustomizationPath := filepath.Join(td, "kustomization.yaml")
-	if err = os.WriteFile(kustomizationPath, kyaml, 0400); err != nil {
-		return nil, fmt.Errorf("failed writing file to \"%s\": %w", kustomizationPath, err)
-	}
-
-	log.G().WithFields(log.Fields{
-		"bootstrapKustPath": kustomizationPath,
-		"resourcePath":      k.Resources[0],
-	}).Debugf("running bootstrap kustomization: %s\n", string(kyaml))
-
-	opts := krusty.MakeDefaultOptions()
-	kust := krusty.MakeKustomizer(opts)
-	fs := filesys.MakeFsOnDisk()
-	res, err := kust.Run(fs, td)
-	if err != nil {
-		return nil, fmt.Errorf("failed running kustomization: %w", err)
-	}
-
-	return res.AsYaml()
 }

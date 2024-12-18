@@ -42,32 +42,51 @@ func ApplicationCreate(c *gin.Context) {
 	}
 
 	if tenant != createReq.ApplicationInstantiation.TenantName {
-		c.JSON(400, gin.H{"error": "tenant in request body does not match tenant in authorization header"})
+		c.JSON(400, gin.H{"error": "ApplicationInstantiation field tenant in request body does not match tenant in authorization header"})
 		return
 	}
 
-	// Handle dry run
-	if createReq.IsDryRun {
-		result, err := performDryRun(c.Request.Context(), &createReq)
-		if err != nil {
-			c.JSON(400, gin.H{"error": fmt.Sprintf("dry run failed: %v", err)})
-			return
-		}
-		c.JSON(200, result)
+	// check the application source is valid add it to cache
+	appCloneOpts := &git.CloneOptions{
+		Repo: application.BuildKustomizeResourceRef(application.ApplicationSourceOption{
+			Repo:           createReq.ApplicationSource.Repo,
+			Path:           createReq.ApplicationSource.Path,
+			TargetRevision: createReq.ApplicationSource.TargetRevision,
+		}),
+		FS:            fs.Create(memfs.New()),
+		CloneForWrite: false,
+		Submodules:    true,
+	}
+	appCloneOpts.Parse()
+	_, appfs, err := appCloneOpts.GetRepo(context.Background())
+	if err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to clone application source repository: %v", err)})
 		return
 	}
+
+	appType, environments, err := reporeader.InferApplicationSource(appfs, createReq.ApplicationSource)
+	if err != nil {
+		log.G().WithError(err).Error("failed to validate application structure")
+		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to validate application structure: %v", err)})
+		return
+	}
+
+	log.G().WithFields(log.Fields{
+		"appType":      appType,
+		"environments": environments,
+	}).Debug("detected application structure")
 
 	// Normal application creation flow
 	var opt = application.AppCreateOptions{
 		AppOpts: &application.CreateOptions{
 			AppName: createReq.ApplicationInstantiation.ApplicationName,
-			AppType: reporeader.AppTypeKustomize,
+			AppType: appType,
 			AppSpecifier: application.BuildKustomizeResourceRef(application.ApplicationSourceOption{
 				Repo:           createReq.ApplicationSource.Repo,
 				Path:           createReq.ApplicationSource.Path,
 				TargetRevision: createReq.ApplicationSource.TargetRevision,
 			}),
-			InstallationMode: createReq.ApplicationInstantiation.InstallationMode,
+			InstallationMode: application.InstallModeType(createReq.ApplicationInstantiation.InstallationMode),
 			DestServer:       "https://kubernetes.default.svc",
 			Annotations: map[string]string{
 				argocd.AnnotationKeyEnvironment: username,
@@ -75,142 +94,32 @@ func ApplicationCreate(c *gin.Context) {
 				argocd.AnnotationKeyDescription: createReq.ApplicationInstantiation.Description,
 				argocd.AnnotationKeyAppCode:     createReq.ApplicationInstantiation.AppCode,
 			},
+			Environments: environments,
 		},
 		ProjectName: createReq.ApplicationInstantiation.TenantName,
 		KubeFactory: kube.NewFactory(),
+		DryRun:      createReq.IsDryRun,
 	}
 
+	if createReq.ApplicationSource.ApplicationSpecifier.HelmManifestPath != "" {
+		opt.AppOpts.HelmManifestPath = createReq.ApplicationSource.ApplicationSpecifier.HelmManifestPath
+		log.G().WithFields(log.Fields{
+			"helmManifestPath": createReq.ApplicationSource.ApplicationSpecifier.HelmManifestPath,
+		}).Debug("using helm manifest path")
+	}
+
+	log.G().WithFields(log.Fields{
+		"appOpts": opt.AppOpts,
+	}).Debug("create application options: ")
+
 	// TODO: support multiple clusters
-	// for _, cluster := range createReq.DestinationClusters.Clusters {
-	// 	opt.createOpts.DestServer = cluster
-
-	// 	if err := RunAppCreate(context.Background(), &opt); err != nil {
-	// 		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to create application in cluster %s: %v", cluster, err)})
-	// 		return
-	// 	}
-	// }
-
-	if err := repowriter.TenantRepo(tenant).RunAppCreate(context.Background(), &opt); err != nil {
+	dryrunOutput, err := repowriter.TenantRepo(tenant).RunAppCreate(context.Background(), &opt)
+	if err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("failed to create application in cluster %s: %v", opt.AppOpts.DestServer, err)})
 		return
 	}
 
-	c.JSON(201, gin.H{
-		"message":     "Applications created successfully",
-		"application": createReq,
-	})
-}
-
-func performDryRun(ctx context.Context, req *types.ApplicationCreateRequest) (*types.ApplicationDryRunResult, error) {
-	log.G().WithFields(log.Fields{
-		"repo":           req.ApplicationSource.Repo,
-		"path":           req.ApplicationSource.Path,
-		"targetRevision": req.ApplicationSource.TargetRevision,
-		"submodules":     req.ApplicationSource.Submodules,
-	}).Info("Starting application dry run")
-
-	// Clone repository to get application source
-	cloneOpts := &git.CloneOptions{
-		Repo:          req.ApplicationSource.Repo,
-		FS:            fs.Create(memfs.New()),
-		CloneForWrite: false,
-		Submodules:    req.ApplicationSource.Submodules,
-	}
-	cloneOpts.Parse()
-
-	if req.ApplicationSource.TargetRevision != "" {
-		cloneOpts.SetRevision(req.ApplicationSource.TargetRevision)
-	}
-
-	_, repofs, err := cloneOpts.GetRepo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to clone repository: %w", err)
-	}
-
-	// Detect application type and validate structure
-	appType, environments, err := reporeader.InferApplicationSource(repofs, req.ApplicationSource)
-	if err != nil {
-		log.G().WithError(err).Error("failed to validate application structure")
-		return nil, err
-	}
-
-	log.G().WithFields(log.Fields{
-		"type":         appType,
-		"environments": environments,
-	}).Debug("detected application structure")
-
-	// Initialize dry run result
-	result := &types.ApplicationDryRunResult{
-		Success:      true,
-		Total:        len(environments),
-		Environments: make([]types.ApplicationDryRunEnv, 0, len(environments)),
-	}
-
-	// For each environment, render and validate the templates
-	for _, env := range environments {
-		log.G().WithFields(log.Fields{
-			"environment":      env,
-			"appliction type":  appType,
-			"source repo":      req.ApplicationSource.Repo,
-			"source path":      req.ApplicationSource.Path,
-			"target namespace": req.ApplicationTarget[0].Namespace,
-			"target app name":  req.ApplicationInstantiation.ApplicationName,
-		}).Debug("processing dry run parameters")
-
-		envResult := types.ApplicationDryRunEnv{
-			Environment: env,
-			IsValid:     true,
-			Manifest:    ``,
-			Error:       "",
-		}
-
-		var manifests []byte
-		switch appType {
-		case reporeader.AppTypeHelm, reporeader.AppTypeHelmMultiEnv:
-			log.G().Debug("generating helm manifest")
-			manifests, err = dryrun.GenerateHelmManifest(
-				repofs,
-				req.ApplicationSource,
-				env,
-				req.ApplicationInstantiation.ApplicationName,
-				req.ApplicationTarget[0].Namespace,
-			)
-		case reporeader.AppTypeKustomize, reporeader.AppTypeKustomizeMultiEnv:
-			log.G().Debug("generating kustomize manifest")
-			manifests, err = dryrun.GenerateKustomizeManifest(
-				repofs,
-				req.ApplicationSource,
-				env,
-				req.ApplicationInstantiation.ApplicationName,
-				req.ApplicationTarget[0].Namespace,
-			)
-		default:
-			err = fmt.Errorf("unsupported application type: %s", appType)
-		}
-
-		if err != nil {
-			result.Success = false
-			envResult.IsValid = false
-			envResult.Error = err.Error()
-			log.G().WithError(err).Error("failed to generate manifest")
-		} else {
-			envResult.IsValid = true
-			envResult.Manifest = string(manifests)
-			envResult.Error = ""
-			log.G().Debug("successfully generated manifest")
-		}
-
-		result.Environments = append(result.Environments, envResult)
-	}
-
-	if result.Success {
-		result.Message = "successfully generated manifests for all environments"
-	} else {
-		result.Message = "failed to generate manifests for some environments"
-	}
-
-	log.G().WithField("success", result.Success).Info("completed application dry run")
-	return result, nil
+	c.JSON(201, dryrunOutput)
 }
 
 func ApplicationDelete(c *gin.Context) {
@@ -599,7 +508,12 @@ func ApplicationSourceValidate(c *gin.Context) {
 		var manifests []byte
 		switch appType {
 		case reporeader.AppTypeHelm, reporeader.AppTypeHelmMultiEnv:
-			manifests, err = dryrun.GenerateHelmManifest(repofs, req, env, "application1", "default")
+			manifests, err = dryrun.GenerateHelmManifest(repofs,
+				req.Path,
+				req.ApplicationSpecifier.HelmManifestPath,
+				env,
+				"application1",
+				"default")
 			if err != nil {
 				log.G().WithError(err).Error("failed to generate helm manifest")
 				envResult.Valid = false
@@ -607,7 +521,7 @@ func ApplicationSourceValidate(c *gin.Context) {
 			}
 
 		case reporeader.AppTypeKustomize, reporeader.AppTypeKustomizeMultiEnv:
-			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req, env, "application1", "default")
+			manifests, err = dryrun.GenerateKustomizeManifest(repofs, req.Path, env)
 			if err != nil {
 				log.G().WithError(err).Error("failed to generate kustomize manifest")
 				envResult.Valid = false

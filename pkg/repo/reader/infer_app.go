@@ -23,7 +23,7 @@ func detectApplicationType(repofs fs.FS, req types.ApplicationSourceRequest) (st
 	// indicates that the user has specified the helm manifest path
 	// this is convention for helm applications with multiple environments
 	// user tells us which helm manifest path to use
-	if req.ApplicationSpecifier != nil && req.ApplicationSpecifier.HelmManifestPath != "" {
+	if req.ApplicationSpecifier.HelmManifestPath != "" {
 		log.G().Debug("detected helm application from application specifier")
 		return AppTypeHelmMultiEnv, nil
 	}

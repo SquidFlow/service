@@ -13,6 +13,19 @@ import (
 	"github.com/squidflow/service/pkg/util"
 )
 
+type (
+	dirApp struct {
+		baseApp
+		dirConfig *dirConfig
+	}
+
+	dirConfig struct {
+		Config
+		Exclude string `json:"exclude"`
+		Include string `json:"include"`
+	}
+)
+
 /* dirApp Application impl */
 func newDirApp(opts *CreateOptions) *dirApp {
 	app := &dirApp{
@@ -66,6 +79,10 @@ func (app *dirApp) CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) e
 		}
 	}
 
+	return nil
+}
+
+func (app *dirApp) Manifests() map[string][]byte {
 	return nil
 }
 

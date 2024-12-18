@@ -16,12 +16,8 @@ type AppCreateOptions struct {
 	Annotations     map[string]string
 	Include         string
 	Exclude         string
+	DryRun          bool
 }
-
-const (
-	InstallationModeFlat   = "flatten"
-	InstallationModeNormal = "normal"
-)
 
 // Errors
 var (

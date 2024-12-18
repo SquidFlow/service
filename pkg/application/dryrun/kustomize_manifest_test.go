@@ -228,7 +228,7 @@ bases:
 		t.Run(name, func(t *testing.T) {
 			repofs := tt.setupFS()
 
-			result, err := GenerateKustomizeManifest(repofs, tt.req, tt.env, "test-app", "default")
+			result, err := GenerateKustomizeManifest(repofs, tt.req.Path, tt.env)
 
 			if tt.wantErr {
 				assert.Error(t, err)

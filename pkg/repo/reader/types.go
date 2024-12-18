@@ -17,6 +17,7 @@ type (
 		Submodules           bool
 		ApplicationSpecifier *AppSourceSpecifier
 	}
+
 	// AppSourceSpecifier contains application-specific configuration
 	AppSourceSpecifier struct {
 		HelmManifestPath string

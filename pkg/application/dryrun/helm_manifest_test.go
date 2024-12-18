@@ -170,7 +170,7 @@ spec:
 			},
 			req: types.ApplicationSourceRequest{
 				Path: "/",
-				ApplicationSpecifier: &types.ApplicationSpecifier{
+				ApplicationSpecifier: types.ApplicationSpecifier{
 					HelmManifestPath: "custom/path",
 				},
 			},
@@ -349,7 +349,7 @@ spec:
 			},
 			req: types.ApplicationSourceRequest{
 				Path: "/",
-				ApplicationSpecifier: &types.ApplicationSpecifier{
+				ApplicationSpecifier: types.ApplicationSpecifier{
 					HelmManifestPath: "charts/main",
 				},
 			},
@@ -361,8 +361,16 @@ spec:
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			repofs := tt.setupFS()
+			var path, manifestPath string
+			if tt.req.ApplicationSpecifier.HelmManifestPath != "" {
+				path = tt.req.Path
+				manifestPath = tt.req.ApplicationSpecifier.HelmManifestPath
+			} else {
+				path = tt.req.Path
+				manifestPath = ""
+			}
 
-			result, err := GenerateHelmManifest(repofs, tt.req, tt.env, "test-app", "default")
+			result, err := GenerateHelmManifest(repofs, path, manifestPath, tt.env, "test-app", "default")
 
 			if tt.wantErr {
 				assert.Error(t, err)

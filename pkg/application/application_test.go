@@ -30,12 +30,6 @@ func bootstrapMockFS() fs.FS {
 }
 
 func Test_newKustApp(t *testing.T) {
-	orgGenerateManifests := generateManifests
-	defer func() { generateManifests = orgGenerateManifests }()
-	generateManifests = func(k *kusttypes.Kustomization) ([]byte, error) {
-		return []byte("foo"), nil
-	}
-
 	tests := map[string]struct {
 		opts              *CreateOptions
 		srcRepoURL        string
@@ -89,32 +83,6 @@ func Test_newKustApp(t *testing.T) {
 				assert.True(t, reflect.DeepEqual(&Config{
 					AppName:           "name",
 					UserGivenName:     "name",
-					SrcPath:           filepath.Join(store.Default.AppsDir, "name", store.Default.OverlaysDir, "project"),
-					SrcRepoURL:        "github.com/owner/repo",
-					SrcTargetRevision: "branch",
-				}, a.config))
-			},
-		},
-		"Should create a flat install.yaml when InstallationModeFlat is set": {
-			opts: &CreateOptions{
-				AppSpecifier:     "app",
-				AppName:          "name",
-				InstallationMode: InstallationModeFlat,
-				DestNamespace:    "namespace",
-			},
-			srcRepoURL:        "github.com/owner/repo",
-			srcTargetRevision: "branch",
-			projectName:       "project",
-			assertFn: func(t *testing.T, a *kustApp) {
-				assert.Equal(t, "manifest.yaml", a.base.Resources[0])
-				assert.Equal(t, []byte("foo"), a.manifests)
-				assert.Equal(t, 1, len(a.overlay.Resources))
-				assert.Equal(t, "../../base", a.overlay.Resources[0])
-				assert.Equal(t, "namespace", a.namespace.ObjectMeta.Name)
-				assert.True(t, reflect.DeepEqual(&Config{
-					AppName:           "name",
-					UserGivenName:     "name",
-					DestNamespace:     "namespace",
 					SrcPath:           filepath.Join(store.Default.AppsDir, "name", store.Default.OverlaysDir, "project"),
 					SrcRepoURL:        "github.com/owner/repo",
 					SrcTargetRevision: "branch",

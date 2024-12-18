@@ -45,10 +45,10 @@ func TestRepositoryCache_Interface(t *testing.T) {
 		// test set
 		fs := memfs.New()
 		testURL := "https://github.com/test/repo.git"
-		cache.set(testURL, gitRepo, fs)
+		cache.Set(testURL, gitRepo, fs)
 
 		// test get
-		repo, filesystem, exists := cache.get(testURL, false)
+		repo, filesystem, exists := cache.Get(testURL, false)
 		assert.True(t, exists)
 		assert.NotNil(t, repo)
 		assert.NotNil(t, filesystem)
@@ -76,20 +76,20 @@ func TestRepositoryCache_Interface(t *testing.T) {
 
 		// Add first repo
 		url1 := "https://github.com/test/repo1.git"
-		cache.set(url1, gitRepo, fs)
+		cache.Set(url1, gitRepo, fs)
 		assert.Equal(t, 1, len(cache.cache))
 
 		// Add second repo, should evict first one due to capacity limit
 		url2 := "https://github.com/test/repo2.git"
-		cache.set(url2, gitRepo, fs)
+		cache.Set(url2, gitRepo, fs)
 		assert.Equal(t, 1, len(cache.cache))
 
 		// Verify first repo was evicted
-		_, _, exists := cache.get(url1, false)
+		_, _, exists := cache.Get(url1, false)
 		assert.False(t, exists, "First repo should have been evicted")
 
 		// Verify second repo exists
-		repo, filesystem, exists := cache.get(url2, false)
+		repo, filesystem, exists := cache.Get(url2, false)
 		assert.True(t, exists, "Second repo should exist")
 		assert.NotNil(t, repo)
 		assert.NotNil(t, filesystem)
@@ -97,7 +97,7 @@ func TestRepositoryCache_Interface(t *testing.T) {
 		// Test cache entry expiration
 		time.Sleep(time.Millisecond * 100)
 		cache.maxAge = time.Millisecond * 50
-		_, _, exists = cache.get(url2, false)
+		_, _, exists = cache.Get(url2, false)
 		assert.False(t, exists, "Entry should have expired")
 	})
 }

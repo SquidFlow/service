@@ -148,7 +148,7 @@ version: 0.1.0
 			},
 			req: types.ApplicationSourceRequest{
 				Path: "/",
-				ApplicationSpecifier: &types.ApplicationSpecifier{
+				ApplicationSpecifier: types.ApplicationSpecifier{
 					HelmManifestPath: "custom/path",
 				},
 			},

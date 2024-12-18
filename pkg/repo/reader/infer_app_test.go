@@ -24,7 +24,7 @@ func TestDetectApplicationType(t *testing.T) {
 			},
 			req: types.ApplicationSourceRequest{
 				Path: "/",
-				ApplicationSpecifier: &types.ApplicationSpecifier{
+				ApplicationSpecifier: types.ApplicationSpecifier{
 					HelmManifestPath: "manifests/helm",
 				},
 			},

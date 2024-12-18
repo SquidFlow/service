@@ -48,6 +48,20 @@ func (mr *MockApplicationMockRecorder) CreateFiles(repofs, appsfs, projectName i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFiles", reflect.TypeOf((*MockApplication)(nil).CreateFiles), repofs, appsfs, projectName)
 }
 
+// Manifests mocks base method.
+func (m *MockApplication) Manifests() map[string][]byte {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Manifests")
+	ret0, _ := ret[0].(map[string][]byte)
+	return ret0
+}
+
+// Manifests indicates an expected call of Manifests.
+func (mr *MockApplicationMockRecorder) Manifests() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Manifests", reflect.TypeOf((*MockApplication)(nil).Manifests))
+}
+
 // Name mocks base method.
 func (m *MockApplication) Name() string {
 	m.ctrl.T.Helper()

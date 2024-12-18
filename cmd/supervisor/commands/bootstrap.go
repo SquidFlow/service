@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"sigs.k8s.io/kustomize/api/krusty"
 	"strings"
 	"time"
 
@@ -125,7 +127,7 @@ var (
 
 	exit                                         = os.Exit
 	currentKubeContext                           = kube.CurrentContext
-	runKustomizeBuild                            = application.GenerateManifests
+	runKustomizeBuild                            = GenerateManifests
 	DefaultApplicationSetGeneratorInterval int64 = 20
 
 	getRepo = func(ctx context.Context, cloneOpts *git.CloneOptions) (git.Repository, fs.FS, error) {
@@ -629,4 +631,77 @@ func createCreds(repoUrl string) ([]byte, error) {
 	}
 
 	return yaml.Marshal(creds)
+}
+
+func GenerateManifests(k *kusttypes.Kustomization) ([]byte, error) {
+	return generateManifests(k)
+}
+
+var generateManifests = func(k *kusttypes.Kustomization) ([]byte, error) {
+	td, err := os.MkdirTemp(".", "supervisor-tmp")
+	if err != nil {
+		return nil, fmt.Errorf("failed creating temp dir: %w", err)
+	}
+	defer os.RemoveAll(td)
+
+	absTd, err := filepath.Abs(td)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting abs path for \"%s\": %w", td, err)
+	}
+
+	if err = fixResourcesPaths(k, absTd); err != nil {
+		return nil, fmt.Errorf("failed fixing resources paths: %w", err)
+	}
+
+	kyaml, err := yaml.Marshal(k)
+	if err != nil {
+		return nil, fmt.Errorf("failed marshaling yaml: %w", err)
+	}
+
+	kustomizationPath := filepath.Join(td, "kustomization.yaml")
+	if err = os.WriteFile(kustomizationPath, kyaml, 0400); err != nil {
+		return nil, fmt.Errorf("failed writing file to \"%s\": %w", kustomizationPath, err)
+	}
+
+	log.G().WithFields(log.Fields{
+		"bootstrapKustPath": kustomizationPath,
+		"resourcePath":      k.Resources[0],
+	}).Debugf("running bootstrap kustomization: %s\n", string(kyaml))
+
+	opts := krusty.MakeDefaultOptions()
+	kust := krusty.MakeKustomizer(opts)
+	fs := filesys.MakeFsOnDisk()
+	res, err := kust.Run(fs, td)
+	if err != nil {
+		return nil, fmt.Errorf("failed running kustomization: %w", err)
+	}
+
+	return res.AsYaml()
+}
+
+// fixResourcesPaths adjusts all relative paths in the kustomization file to the specified
+// newKustDir.
+func fixResourcesPaths(k *kusttypes.Kustomization, newKustDir string) error {
+	for i, path := range k.Resources {
+		// if path is a remote resource ignore it
+		if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+			continue
+		}
+
+		absRes, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+
+		k.Resources[i], err = filepath.Rel(newKustDir, absRes)
+		log.G().WithFields(log.Fields{
+			"from": absRes,
+			"to":   k.Resources[i],
+		}).Debug("adjusting kustomization paths to local filesystem")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

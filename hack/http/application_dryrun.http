@@ -1,8 +1,8 @@
-### create app for dryrun for kustomize
+### dryrun a kustomize app (should fail)
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2
 
 {
     "is_dryrun": true,
@@ -14,7 +14,7 @@ Authorization: Bearer username@tenant1
     },
     "application_instantiation": {
         "application_name": "operator-fluent-operator1",
-        "tenant_name": "tenant1",
+        "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description"
     },
@@ -26,11 +26,11 @@ Authorization: Bearer username@tenant1
     ]
 }
 
-### create app for dryrun for kustomize
+### dryrun a simple kustomize app (should succeed)
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2
 
 {
     "is_dryrun": true,
@@ -42,7 +42,7 @@ Authorization: Bearer username@tenant1
     },
     "application_instantiation": {
         "application_name": "kustomize-guestbook2",
-        "tenant_name": "tenant1",
+        "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description"
     },
@@ -54,25 +54,23 @@ Authorization: Bearer username@tenant1
     ]
 }
 
-### create app for dryrun for helm
+### dryrun a simple helm app (should succeed)
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2
 
 {
     "is_dryrun": true,
     "application_source": {
-        "repo":"git@github.com:SquidFlow/helm-example-app.git",
-        "target_revision": "main",
-        "path":"/",
-        "application_specifier": {
-            "helm_manifest_path": "manifests/4.0.0"
-        }
+        "repo":"git@github.com:apache/apisix-helm-chart.git",
+        "target_revision": "master",
+        "path":"charts/apisix",
+        "submodules": false
     },
     "application_instantiation": {
         "application_name": "abc",
-        "tenant_name": "tenant1",
+        "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description",
         "ingress": [
@@ -100,11 +98,57 @@ Authorization: Bearer username@tenant1
     ]
 }
 
-### create app for dryrun for kustomize
+### create app for dryrun for helm with multiple environments (should succeed))
 POST http://{{host}}:{{port}}/api/v1/deploy/applications
 Accept: application/json
 Content-Type: application/json
-Authorization: Bearer username@tenant1
+Authorization: Bearer username@tenant2
+
+{
+    "is_dryrun": true,
+    "application_source": {
+        "repo":"git@github.com:SquidFlow/helm-example-app.git",
+        "target_revision": "main",
+        "path":"/",
+        "application_specifier": {
+            "helm_manifest_path": "manifests/4.0.0"
+        }
+    },
+    "application_instantiation": {
+        "application_name": "abc",
+        "tenant_name": "tenant2",
+        "appcode": "edsf",
+        "description": "this application description",
+        "ingress": [
+            {
+                "host": "demo1.h4.com",
+                "tls": {
+                "enabled": true,
+                    "secretName": "demo1-tls"
+                }
+            }
+        ],
+        "security": {
+            "external_secret": {
+                "secret_store_ref": {
+                    "id": "secret-store"
+                }
+            }
+        }
+    },
+    "application_target": [
+        {
+            "cluster": "in-cluster",
+            "namespace": "default"
+        }
+    ]
+}
+
+### create app for dryrun for kustomize (should succeed)
+POST http://{{host}}:{{port}}/api/v1/deploy/applications
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer username@tenant2
 
 {
     "is_dryrun": true,
@@ -115,7 +159,7 @@ Authorization: Bearer username@tenant1
     },
     "application_instantiation": {
         "application_name": "abc",
-        "tenant_name": "tenant1",
+        "tenant_name": "tenant2",
         "appcode": "edsf",
         "description": "this application description",
         "ingress": [

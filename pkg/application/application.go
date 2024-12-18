@@ -2,10 +2,10 @@ package application
 
 import (
 	"fmt"
+
 	"github.com/ghodss/yaml"
 	billyUtils "github.com/go-git/go-billy/v5/util"
 	v1 "k8s.io/api/core/v1"
-	kusttypes "sigs.k8s.io/kustomize/api/types"
 
 	"github.com/squidflow/service/pkg/fs"
 	reporeader "github.com/squidflow/service/pkg/repo/reader"
@@ -17,6 +17,18 @@ import (
 type Application interface {
 	Name() string
 	CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) error
+	Manifests() map[string][]byte
+}
+
+type InstallModeType string
+
+const (
+	InstallModeFlatten InstallModeType = "flatten"
+	InstallModeNormal  InstallModeType = "normal"
+)
+
+func (i InstallModeType) isValid() bool {
+	return i == InstallModeFlatten || i == InstallModeNormal
 }
 
 type (
@@ -37,41 +49,25 @@ type (
 		Server string `json:"server"`
 	}
 
+	// CreateOptions is the options for creating an application
+	// it's a superset of all the options for all the application types
 	CreateOptions struct {
 		AppName          string
 		AppType          string
 		AppSpecifier     string
 		DestNamespace    string
 		DestServer       string
-		InstallationMode string
+		InstallationMode InstallModeType
 		Labels           map[string]string
 		Annotations      map[string]string
 		Exclude          string
 		Include          string
+		HelmManifestPath string   // specific to helm and helm-multiple-env
+		Environments     []string // the environments to install the app on only used for helm-multiple-env and kustomize-multiple-env
 	}
 
 	baseApp struct {
 		opts *CreateOptions
-	}
-
-	dirApp struct {
-		baseApp
-		dirConfig *dirConfig
-	}
-
-	dirConfig struct {
-		Config
-		Exclude string `json:"exclude"`
-		Include string `json:"include"`
-	}
-
-	kustApp struct {
-		baseApp
-		base      *kusttypes.Kustomization
-		overlay   *kusttypes.Kustomization
-		manifests []byte
-		namespace *v1.Namespace
-		config    *Config
 	}
 )
 
@@ -81,6 +77,12 @@ func (o *CreateOptions) Parse(projectName, repoURL, targetRevision, repoRoot str
 	switch o.AppType {
 	case reporeader.AppTypeKustomize:
 		return newKustApp(o, projectName, repoURL, targetRevision, repoRoot)
+	case reporeader.AppTypeHelm:
+		return newHelmApp(o, projectName, repoURL, targetRevision, repoRoot)
+	case reporeader.AppTypeHelmMultiEnv:
+		return newHelmMultiEnvApp(o, projectName, repoURL, targetRevision, repoRoot)
+	case reporeader.AppTypeKustomizeMultiEnv:
+		return newKustWithMultiEnvApp(o, projectName, repoURL, targetRevision, repoRoot)
 	case reporeader.AppTypeDirectory:
 		return newDirApp(o), nil
 	default:
