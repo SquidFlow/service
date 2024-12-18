@@ -189,9 +189,3 @@ func CreateHelmApp(app *helmApp, repofs fs.FS, appsfs fs.FS, projectName string)
 func (h *helmApp) CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) error {
 	return CreateHelmApp(h, repofs, appsfs, projectName)
 }
-
-func (h *helmApp) Manifests() map[string][]byte {
-	return map[string][]byte{
-		"default": h.manifests,
-	}
-}

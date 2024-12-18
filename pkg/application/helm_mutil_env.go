@@ -87,7 +87,3 @@ func newHelmMultiEnvApp(o *CreateOptions, projectName, repoURL, targetRevision, 
 func (h *helmMultiEnvApp) CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) error {
 	return nil
 }
-
-func (h *helmMultiEnvApp) Manifests() map[string][]byte {
-	return h.manifests
-}

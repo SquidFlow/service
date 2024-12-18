@@ -82,10 +82,6 @@ func (app *dirApp) CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) e
 	return nil
 }
 
-func (app *dirApp) Manifests() map[string][]byte {
-	return nil
-}
-
 func writeFile(repofs fs.FS, path, name string, data []byte) (bool, error) {
 	absPath := repofs.Join(repofs.Root(), path)
 	exists, err := repofs.CheckExistsOrWrite(path, data)

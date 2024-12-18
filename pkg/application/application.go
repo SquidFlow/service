@@ -17,7 +17,6 @@ import (
 type Application interface {
 	Name() string
 	CreateFiles(repofs fs.FS, appsfs fs.FS, projectName string) error
-	Manifests() map[string][]byte
 }
 
 type InstallModeType string
